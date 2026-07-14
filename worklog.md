@@ -209,3 +209,25 @@ Unresolved issues / next steps:
 - El módulo de autoevaluación podría enlazarse más con el panel de metacognición del docente.
 - Se podría agregar un mini-service WebSocket para notificaciones de racha/logros en tiempo real.
 - Generar imágenes reales para las unidades (actualmente usan iconos lucide).
+
+---
+Task ID: tabs-refactor
+Agent: Z.ai Code (orchestrator)
+Task: Refactorizar navegación a sistema de pestañas tipo navegador
+
+Work Log:
+- El usuario pidió cambiar de vista única a un sistema de pestañas de direcciones (tipo navegador).
+- Refactoricé el store Zustand (app-store.ts): añadí modelo de Tab (id determinístico, kind singleton/unit/lesson/activity, title, icon, context unitId/lessonId/activityId). Acciones: openTab (dedup por id, activa), closeTab, closeOtherTabs, closeAllClosable, setActiveTab, updateTab. Los campos derivados view/currentUnitId/currentLessonId/currentActivityId se sincronizan desde el tab activo. navigate/openUnit/openLesson/openActivity ahora rutan vía openTab. Persistencia de tabs + activeTabId en localStorage.
+- Creé TabBar (tab-bar.tsx): barra de pestañas sticky bajo el header, scroll horizontal, cada tab con icono + título truncado + botón cerrar (hover), acento superior gradient en tab activo, menú contextual (clic derecho) con Cerrar/Cerrar demás/Cerrar todas, botones rápidos (+Unidades/+Tutor/+Progreso/+Logros) y botón "cerrar todas".
+- Integré TabBar en AppShell.
+- Actualicé unit-detail-view, lesson-view, activity-view para que al cargar datos llamen updateTab(activeTabId, {title, icon}) y el tab muestre el título real del contenido.
+- Fix: el tab de actividad no retenía lessonId (necesario para cargar la actividad). Añadí retención de lessonId del tab activo al abrir actividad, y propagación en openTab al reactivar.
+- Fix: al cambiar de rol (docente↔estudiante), reseteo tabs al home para evitar tabs de vistas no permitidas.
+- Verificación con agent-browser: abrí 6 tabs simultáneos (Inicio, Unidades, Logros, ECG, Lección Einthoven, Actividad Verificación) cada uno con título real; alterné entre tabs cargando contenido correcto; cerré tabs correctamente; responsive móvil con scroll horizontal; sin errores runtime ni de consola; lint limpio.
+
+Stage Summary:
+- Sistema de pestañas tipo navegador funcional: múltiples destinos abiertos simultáneamente, alternar con un clic, cerrar individual o masivamente, menú contextual.
+- Cada tab muestra su título e icono reales (cargados dinámicamente).
+- Persistencia de tabs entre recargas.
+- Compatible con responsive móvil (scroll horizontal de la barra).
+- Lint 0 errores, compilación sin errores, verificación agent-browser exitosa.

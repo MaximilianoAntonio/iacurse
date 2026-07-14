@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
@@ -65,12 +66,21 @@ export function UnitDetailView() {
   const openLesson = useAppStore((s) => s.openLesson);
   const openActivity = useAppStore((s) => s.openActivity);
   const setTutorContext = useAppStore((s) => s.setTutorContext);
+  const activeTabId = useAppStore((s) => s.activeTabId);
+  const updateTab = useAppStore((s) => s.updateTab);
   const userId = currentUser?.id ?? "";
 
   const { data, loading } = useFetch<UnitDetailResponse>(
     `/api/units/${currentUnitId}?userId=${userId}`,
     [currentUnitId, userId]
   );
+
+  // Actualizar título de la pestaña al cargar la unidad
+  React.useEffect(() => {
+    if (data?.unit) {
+      updateTab(activeTabId, { title: data.unit.title, icon: data.unit.icon });
+    }
+  }, [data?.unit?.id, activeTabId, updateTab]);
 
   if (!currentUnitId) {
     return (

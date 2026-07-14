@@ -146,6 +146,8 @@ export function ActivityView() {
   const openActivity = useAppStore((s) => s.openActivity);
   const currentLessonId = useAppStore((s) => s.currentLessonId);
   const currentActivityId = useAppStore((s) => s.currentActivityId);
+  const activeTabId = useAppStore((s) => s.activeTabId);
+  const updateTab = useAppStore((s) => s.updateTab);
 
   const userId = currentUser?.id ?? "";
 
@@ -158,6 +160,16 @@ export function ActivityView() {
     currentLessonId,
     userId,
   ]);
+
+  // Actualizar título de la pestaña al cargar la actividad
+  useEffect(() => {
+    if (data?.lesson && currentActivityId) {
+      const act = data.lesson.activities.find((a) => a.id === currentActivityId);
+      if (act) {
+        updateTab(activeTabId, { title: act.title });
+      }
+    }
+  }, [data?.lesson?.id, currentActivityId, activeTabId, updateTab]);
 
   // ----- fallback / loading states -----
 

@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
@@ -58,12 +59,21 @@ export function LessonView() {
   const openUnit = useAppStore((s) => s.openUnit);
   const openActivity = useAppStore((s) => s.openActivity);
   const setTutorContext = useAppStore((s) => s.setTutorContext);
+  const activeTabId = useAppStore((s) => s.activeTabId);
+  const updateTab = useAppStore((s) => s.updateTab);
   const userId = currentUser?.id ?? "";
 
   const { data, loading } = useFetch<LessonResponse>(
     currentLessonId ? `/api/lessons/${currentLessonId}?userId=${userId}` : null,
     [currentLessonId, userId]
   );
+
+  // Actualizar título de la pestaña al cargar la lección
+  React.useEffect(() => {
+    if (data?.lesson) {
+      updateTab(activeTabId, { title: data.lesson.title, icon: data.lesson.unit.icon });
+    }
+  }, [data?.lesson?.id, activeTabId, updateTab]);
 
   if (!currentLessonId) {
     return (
