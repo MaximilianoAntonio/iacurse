@@ -28,6 +28,7 @@ model User {
   studySessions StudySession[]
   userBadges    UserBadge[]
   selfAssess    SelfAssessment[]
+  errorReports  ErrorReport[]
 }
 
 model Unit {
@@ -148,4 +149,16 @@ model SelfAssessment {
   confidence Int      // 1-5 student self-reported confidence
   reflection String?
   createdAt  DateTime @default(now())
+}
+
+model ErrorReport {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source      String   // "chat" | "activity" | "content"
+  sourceId    String?  // chatMessageId or activityId
+  reason      String   // "incorrect" | "biased" | "offtopic" | "other"
+  comment     String?
+  status      String   @default("open") // "open" | "reviewed" | "resolved"
+  createdAt   DateTime @default(now())
 }

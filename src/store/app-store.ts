@@ -38,6 +38,14 @@ interface AppState {
   resetNav: () => void;
 }
 
+// Vistas permitidas por rol
+const STUDENT_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "progress", "achievements", "about"];
+const TEACHER_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "teacher", "about"];
+
+function isViewAllowed(view: ViewKey, role: Role): boolean {
+  return role === "teacher" ? TEACHER_VIEWS.includes(view) : STUDENT_VIEWS.includes(view);
+}
+
 // Construye la URL a partir del estado de navegación
 function buildUrl(view: ViewKey, unitId?: string | null, lessonId?: string | null, activityId?: string | null): string {
   const params = new URLSearchParams();
@@ -81,15 +89,30 @@ export const useAppStore = create<AppState>()(
         const newRole = (user?.role as Role) ?? "student";
         set((state) => {
           if (state.role !== newRole) {
-            // Al cambiar de rol, volver al dashboard y limpiar contexto
+            // Al cambiar de rol, determinar la vista destino:
+            // - Si la URL tiene una vista válida para el nuevo rol, usarla.
+            // - Si no, ir al dashboard.
+            let targetView: ViewKey = "dashboard";
+            let targetUnitId: string | null = null;
+            let targetLessonId: string | null = null;
+            let targetActivityId: string | null = null;
+            if (typeof window !== "undefined") {
+              const parsed = parseUrl();
+              if (parsed.view && isViewAllowed(parsed.view, newRole)) {
+                targetView = parsed.view;
+                targetUnitId = parsed.unitId;
+                targetLessonId = parsed.lessonId;
+                targetActivityId = parsed.activityId;
+              }
+            }
             return {
               currentUser: user,
               currentUserId: user?.id ?? null,
               role: newRole,
-              view: "dashboard",
-              currentUnitId: null,
-              currentLessonId: null,
-              currentActivityId: null,
+              view: targetView,
+              currentUnitId: targetUnitId,
+              currentLessonId: targetLessonId,
+              currentActivityId: targetActivityId,
               tutorContextUnit: null,
             };
           }
@@ -146,11 +169,14 @@ export const useAppStore = create<AppState>()(
 
       hydrateFromUrl: () => {
         const parsed = parseUrl();
+        const currentRole = get().role;
+        // Validar que la vista de la URL esté permitida para el rol actual
+        const view = parsed.view && isViewAllowed(parsed.view, currentRole) ? parsed.view : "dashboard";
         set({
-          view: parsed.view,
-          currentUnitId: parsed.unitId,
-          currentLessonId: parsed.lessonId,
-          currentActivityId: parsed.activityId,
+          view,
+          currentUnitId: view === "dashboard" ? null : parsed.unitId,
+          currentLessonId: view === "dashboard" ? null : parsed.lessonId,
+          currentActivityId: view === "dashboard" ? null : parsed.activityId,
         });
       },
       setNavFromUrl: (nav) => set(nav),

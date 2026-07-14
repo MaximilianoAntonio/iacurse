@@ -23,6 +23,10 @@ export default function Home() {
   useEffect(() => {
     if (meData?.user) {
       setUser(meData.user);
+      // Re-aplicar la vista desde la URL después de cargar el usuario,
+      // ya que setUser puede haber cambiado el rol y validado la vista.
+      // Esto asegura que ?view=teacher respete al recargar la página.
+      useAppStore.getState().hydrateFromUrl();
     }
   }, [meData, setUser]);
 

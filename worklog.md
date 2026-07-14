@@ -254,3 +254,70 @@ Stage Summary:
 - Layout de tres columnas en desktop: sidebar nav (izq, 288px) + contenido principal (centro) + chat tutor (der, 380px, colapsable).
 - Persistencia del estado de apertura del chat entre recargas.
 - Lint 0 errores, compilación sin errores, verificación agent-browser exitosa.
+
+---
+Task ID: cron-review-1
+Agent: Z.ai Code (web dev review)
+Task: QA testing, bug fixes, and new features (Reportar error, units search, teacher reports panel)
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is functional with URL-based navigation, a right-side chat sidebar, 5 course units, 32 activities with AI feedback, gamification, analytics, and a teacher panel. Lint is clean. The previous round implemented URL routing + chat sidebar. This round focused on QA, fixing a navigation bug, and adding missing features referenced in the project proposal.
+
+## Current goals/completed modifications/verification results
+
+### QA performed (agent-browser + VLM)
+- Tested all views: dashboard, units, unit-detail, lesson, activity (with AI feedback submission), chat sidebar, progress (3 charts), teacher panel, about, achievements.
+- VLM visual assessment of dashboard and chat sidebar.
+- Found bug: teacher view (`?view=teacher`) showed dashboard content after role switch (setUser reset view to dashboard, overriding URL).
+
+### Bug fixed: Role-aware URL hydration
+- **Problem**: `setUser()` reset `view` to "dashboard" on role change, overriding URL-derived view (e.g. `?view=teacher` was lost after /api/me returned).
+- **Fix**: 
+  - Added `STUDENT_VIEWS` / `TEACHER_VIEWS` allowlists + `isViewAllowed()` helper in app-store.
+  - `setUser()` now checks the URL when role changes: if the URL view is valid for the new role, it's preserved; otherwise falls back to dashboard.
+  - `hydrateFromUrl()` now validates the URL view against the current role.
+  - `page.tsx` calls `hydrateFromUrl()` after `setUser()` to ensure URL view wins on page load.
+- **Verified**: `?view=teacher` now correctly loads the teacher panel after role switch (2 charts render).
+
+### New feature: "Reportar error" on AI chat responses (project requirement)
+- The original project proposal (ANEXO N°1) explicitly requires: "Añadir un botón visible de 'Reportar error' para revisión manual inmediata." This was missing.
+- **Backend**: 
+  - Added `ErrorReport` Prisma model (userId, source, sourceId, reason, comment, status).
+  - Created `/api/report` API route: POST (create report), GET (list with status filter), PATCH (update status).
+  - Pushed schema with `prisma db push --force-reset` + re-seeded.
+- **Frontend (ChatSidebar)**:
+  - Added "Reportar" button (Flag icon) next to star ratings on AI messages.
+  - Report dialog with 5 reason options (incorrect/biased/offtopic/harmful/other) + optional comment textarea.
+  - "Reportado" confirmation state with CheckCircle2 icon after submission.
+  - Toast feedback on success/error.
+- **Verified**: Submitted a report via UI → confirmed saved in DB via API → appears in teacher panel.
+
+### New feature: Teacher error reports panel
+- Added "Section 5: Reportes de errores de IA" to teacher-view.tsx.
+- Shows pending reports with student avatar, name, timestamp, reason badge, status badge, and comment.
+- Teachers can "Marcar revisado" or "Resolver" (PATCH /api/report).
+- Empty state with Inbox icon when no reports.
+- Scrollable list (max-h-96) for many reports.
+- **Verified**: Report submitted by student appears in teacher panel with "1 pendiente" badge.
+
+### New feature: Units search & filter
+- Added search bar (Input with Search icon) to units-view — filters by title/summary/description.
+- Added filter chips: Todas / En progreso / Completadas / Sin empezar (with live counts).
+- Empty state with "Limpiar filtros" button when no results.
+- **Verified**: Searching "ECG" correctly filters to 2 matching units.
+
+### Styling improvement: Dashboard shows all 5 units
+- Changed `units.slice(0, 4)` to `units.map(...)` and grid from `sm:grid-cols-2` to `sm:grid-cols-2 lg:grid-cols-3`.
+- **Verified**: All 5 units now visible on dashboard (confirmed via VLM).
+
+### Infrastructure note
+- Had to restart dev server after Prisma schema change (globalThis cached old PrismaClient without ErrorReport model). Used `setsid -f` to start a persistent server process.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Dev server persistence**: The `setsid -f` approach works but is fragile. If the server dies again, use `setsid -f bash -c 'cd /home/z/my-project && exec bun run dev > dev.log 2>&1'` to restart.
+- **Activity feedback report**: Currently only chat messages can be reported. Could extend "Reportar error" to activity AI feedback as well (the `source` field in ErrorReport already supports "activity").
+- **Real-time updates**: Teacher panel reports don't auto-refresh; could add polling or WebSocket for real-time notifications.
+- **Bookmark/favorite lessons**: Mentioned as potential feature; not yet implemented.
+- **Confetti/celebration on unit completion**: Could add for gamification polish.
+- **Dark mode visual audit**: Should do a VLM check of dark mode to ensure contrast/polish.
+- **Performance**: Progress view fetches many attempts; could add pagination for large datasets.

@@ -52,7 +52,11 @@ import {
   BarChart3,
   Filter,
   Activity,
+  Flag,
+  Inbox,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { patchJSON } from "@/hooks/use-fetch";
 
 // ---------- Types ----------
 
@@ -453,7 +457,152 @@ function TeacherDashboard({
           </CardContent>
         </Card>
       )}
+
+      {/* Section 5: Reportes de errores de IA */}
+      <ErrorReportsSection />
     </div>
+  );
+}
+
+// ---------- Error Reports Section ----------
+
+interface ErrorReportItem {
+  id: string;
+  source: string;
+  sourceId: string | null;
+  reason: string;
+  comment: string | null;
+  status: string;
+  createdAt: string;
+  user: { id: string; name: string; email: string; avatar: string | null };
+}
+
+const reasonLabels: Record<string, { label: string; color: string }> = {
+  incorrect: { label: "Respuesta incorrecta", color: "text-rose-600 bg-rose-50 dark:bg-rose-950/40" },
+  biased: { label: "Contenido sesgado", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40" },
+  offtopic: { label: "Fuera de tema", color: "text-sky-600 bg-sky-50 dark:bg-sky-950/40" },
+  harmful: { label: "Contenido inapropiado", color: "text-red-700 bg-red-50 dark:bg-red-950/40" },
+  other: { label: "Otro", color: "text-slate-600 bg-slate-50 dark:bg-slate-950/40" },
+};
+
+const statusLabels: Record<string, { label: string; color: string }> = {
+  open: { label: "Pendiente", color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
+  reviewed: { label: "Revisado", color: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300" },
+  resolved: { label: "Resuelto", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
+};
+
+function ErrorReportsSection() {
+  const { data, loading, refetch } = useFetch<{ reports: ErrorReportItem[] }>("/api/report?status=open", []);
+
+  const handleStatus = async (reportId: string, status: string) => {
+    try {
+      await patchJSON("/api/report", { reportId, status });
+      refetch();
+    } catch {
+      // silencioso
+    }
+  };
+
+  const reports = data?.reports ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+              <Flag className="h-4 w-4" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Reportes de errores de IA</CardTitle>
+              <CardDescription>
+                Respuestas del tutor reportadas por el estudiantado para revisión docente.
+              </CardDescription>
+            </div>
+          </div>
+          {reports.length > 0 && (
+            <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+              {reports.length} pendiente{reports.length !== 1 ? "s" : ""}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        ) : reports.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+              <Inbox className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium">Sin reportes pendientes</p>
+            <p className="text-xs text-muted-foreground">No hay respuestas de IA reportadas para revisar.</p>
+          </div>
+        ) : (
+          <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
+            {reports.map((r) => {
+              const reason = reasonLabels[r.reason] ?? reasonLabels.other;
+              const status = statusLabels[r.status] ?? statusLabels.open;
+              return (
+                <div
+                  key={r.id}
+                  className="rounded-xl border border-border p-3 transition-colors hover:bg-accent/30"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7">
+                        <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-[9px] font-bold text-white">
+                          {initials(r.user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="leading-tight">
+                        <p className="text-xs font-semibold">{r.user.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{timeAgo(r.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${reason.color}`}>
+                        {reason.label}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${status.color}`}>
+                        {status.label}
+                      </span>
+                    </div>
+                  </div>
+                  {r.comment && (
+                    <p className="mt-2 rounded-lg bg-muted/50 p-2 text-xs italic text-muted-foreground">
+                      &ldquo;{r.comment}&rdquo;
+                    </p>
+                  )}
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[11px]"
+                      onClick={() => handleStatus(r.id, "reviewed")}
+                    >
+                      Marcar revisado
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[11px] text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                      onClick={() => handleStatus(r.id, "resolved")}
+                    >
+                      <CheckCircle2 className="mr-1 h-3 w-3" /> Resolver
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

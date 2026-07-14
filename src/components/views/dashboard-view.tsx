@@ -181,8 +181,8 @@ export function DashboardView() {
               Ver todas <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Button>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {units.slice(0, 4).map((u) => {
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {units.map((u) => {
               const color = getUnitColor(u.color);
               const completed = u.progress?.completed ?? 0;
               const total = u.activityCount ?? 0;

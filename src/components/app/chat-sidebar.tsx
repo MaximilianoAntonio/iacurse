@@ -13,6 +13,8 @@ import {
   Lightbulb,
   MessageSquare,
   X,
+  Flag,
+  CheckCircle2,
 } from "lucide-react";
 
 import { useAppStore } from "@/store/app-store";
@@ -21,6 +23,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { initials } from "@/lib/course-utils";
 import type { ChatMessage, User as AppUser } from "@/lib/types";
 
@@ -157,6 +167,33 @@ export function ChatSidebar() {
     [toast]
   );
 
+  const handleReport = useCallback(
+    async (messageId: string, reason: string, comment: string) => {
+      if (!userId) return;
+      try {
+        await postJSON("/api/report", {
+          userId,
+          source: "chat",
+          sourceId: messageId,
+          reason,
+          comment: comment || undefined,
+        });
+        toast({
+          title: "Reporte enviado",
+          description: "El equipo docente revisará esta respuesta. ¡Gracias!",
+        });
+      } catch (e) {
+        const err = e as Error;
+        toast({
+          title: "Error al enviar reporte",
+          description: err.message,
+          variant: "destructive",
+        });
+      }
+    },
+    [userId, toast]
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -287,6 +324,7 @@ export function ChatSidebar() {
                       message={m}
                       userName={currentUser?.name ?? "Tú"}
                       onRate={(r) => handleRate(m.id, r)}
+                      onReport={(reason, comment) => handleReport(m.id, reason, comment)}
                     />
                   ))}
                   {sending && (
@@ -346,13 +384,34 @@ function ChatBubble({
   message,
   userName,
   onRate,
+  onReport,
 }: {
   message: ChatMessage;
   userName: string;
   onRate: (rating: number) => void;
+  onReport: (reason: string, comment: string) => void;
 }) {
   const isUser = message.role === "user";
   const [hovered, setHovered] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("incorrect");
+  const [reportComment, setReportComment] = useState("");
+  const [reported, setReported] = useState(false);
+
+  const reasons = [
+    { value: "incorrect", label: "Respuesta incorrecta" },
+    { value: "biased", label: "Contenido sesgado" },
+    { value: "offtopic", label: "Fuera de tema" },
+    { value: "harmful", label: "Contenido inapropiado" },
+    { value: "other", label: "Otro" },
+  ];
+
+  const submitReport = () => {
+    onReport(reportReason, reportComment);
+    setReported(true);
+    setReportOpen(false);
+    setReportComment("");
+  };
 
   return (
     <motion.div
@@ -396,33 +455,114 @@ function ChatBubble({
         >
           <span>{new Date(message.createdAt).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}</span>
           {!isUser && (
-            <div
-              className="flex items-center"
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
-            >
-              {[1, 2, 3, 4, 5].map((n) => (
+            <>
+              <div
+                className="flex items-center"
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+              >
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => onRate(n)}
+                    className="p-0.5"
+                    title={`${n} estrellas`}
+                  >
+                    <Star
+                      className={`h-3 w-3 transition-colors ${
+                        n <= (message.rating ?? 0)
+                          ? "fill-amber-400 text-amber-400"
+                          : hovered
+                          ? "text-amber-300"
+                          : "text-muted-foreground/40"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+              {reported ? (
+                <span className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-3 w-3" /> Reportado
+                </span>
+              ) : (
                 <button
-                  key={n}
-                  onClick={() => onRate(n)}
-                  className="p-0.5"
-                  title={`${n} estrellas`}
+                  onClick={() => setReportOpen(true)}
+                  className="flex items-center gap-0.5 text-muted-foreground/60 transition-colors hover:text-rose-500"
+                  title="Reportar error en esta respuesta"
                 >
-                  <Star
-                    className={`h-3 w-3 transition-colors ${
-                      n <= (message.rating ?? 0)
-                        ? "fill-amber-400 text-amber-400"
-                        : hovered
-                        ? "text-amber-300"
-                        : "text-muted-foreground/40"
-                    }`}
-                  />
+                  <Flag className="h-3 w-3" />
+                  <span className="hidden sm:inline">Reportar</span>
                 </button>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {/* Dialog de reporte */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Flag className="h-4 w-4 text-rose-500" />
+              Reportar respuesta del tutor
+            </DialogTitle>
+            <DialogDescription>
+              Tu reporte será revisado por el equipo docente. Esto nos ayuda a mejorar la calidad de la IA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-foreground">
+                Motivo del reporte
+              </label>
+              <div className="space-y-1.5">
+                {reasons.map((r) => (
+                  <label
+                    key={r.value}
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors ${
+                      reportReason === r.value
+                        ? "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30"
+                        : "border-border hover:bg-accent"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="reason"
+                      value={r.value}
+                      checked={reportReason === r.value}
+                      onChange={(e) => setReportReason(e.target.value)}
+                      className="h-3.5 w-3.5 accent-rose-500"
+                    />
+                    {r.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-foreground">
+                Comentario (opcional)
+              </label>
+              <Textarea
+                value={reportComment}
+                onChange={(e) => setReportComment(e.target.value)}
+                placeholder="Describe el problema que encontraste..."
+                className="min-h-[70px] resize-none text-sm"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setReportOpen(false)}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={submitReport} className="bg-rose-600 hover:bg-rose-700">
+              <Flag className="mr-1 h-3.5 w-3.5" />
+              Enviar reporte
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
@@ -10,8 +11,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CheckCircle2, ArrowRight, BookMarked, Clock, ListChecks } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { BookOpen, CheckCircle2, ArrowRight, BookMarked, Clock, ListChecks, Search, Filter, X } from "lucide-react";
 import type { Unit, User } from "@/lib/types";
+
+type FilterKey = "all" | "in-progress" | "completed" | "not-started";
 
 export function UnitsView() {
   const currentUser = useAppStore((s) => s.currentUser) as User | null;
@@ -19,6 +23,9 @@ export function UnitsView() {
   const userId = currentUser?.id ?? "";
 
   const { data, loading } = useFetch<{ units: Unit[] }>(`/api/units?userId=${userId}`, [userId]);
+
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
 
   if (loading || !data) {
     return (
@@ -32,6 +39,28 @@ export function UnitsView() {
   const units = data.units;
   const totalActivities = units.reduce((a, u) => a + (u.activityCount ?? 0), 0);
   const totalCompleted = units.reduce((a, u) => a + (u.progress?.completed ?? 0), 0);
+
+  const q = search.trim().toLowerCase();
+  const filteredUnits = units.filter((u) => {
+    if (q) {
+      const hay = `${u.title} ${u.summary} ${u.description}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    const completed = u.progress?.completed ?? 0;
+    const total = u.activityCount ?? 0;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    if (filter === "completed" && pct < 100) return false;
+    if (filter === "in-progress" && (pct === 0 || pct >= 100)) return false;
+    if (filter === "not-started" && pct > 0) return false;
+    return true;
+  });
+
+  const filterOptions: { key: FilterKey; label: string; count: number }[] = [
+    { key: "all", label: "Todas", count: units.length },
+    { key: "in-progress", label: "En progreso", count: units.filter((u) => { const p = (u.progress?.completed ?? 0) / Math.max(1, u.activityCount ?? 1); return p > 0 && p < 1; }).length },
+    { key: "completed", label: "Completadas", count: units.filter((u) => (u.progress?.completed ?? 0) >= (u.activityCount ?? 1) && (u.activityCount ?? 0) > 0).length },
+    { key: "not-started", label: "Sin empezar", count: units.filter((u) => (u.progress?.completed ?? 0) === 0).length },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-4 lg:p-8">
@@ -74,9 +103,71 @@ export function UnitsView() {
         </div>
       </div>
 
+      {/* Barra de búsqueda y filtros */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar unidades, temas, conceptos..."
+            className="h-10 pl-9 pr-9"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label="Limpiar búsqueda"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <Filter className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          {filterOptions.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setFilter(opt.key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                filter === opt.key
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                  : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+              }`}
+            >
+              {opt.label}
+              <span className={`rounded-full px-1.5 text-[10px] ${filter === opt.key ? "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" : "bg-muted"}`}>
+                {opt.count}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Grid de unidades */}
+      {filteredUnits.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <Search className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h3 className="mb-1 text-sm font-semibold">No se encontraron unidades</h3>
+          <p className="mb-4 text-xs text-muted-foreground">
+            {search ? `Sin resultados para "${search}"` : "No hay unidades en este filtro"}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setFilter("all");
+            }}
+          >
+            Limpiar filtros
+          </Button>
+        </div>
+      ) : (
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {units.map((u, idx) => {
+        {filteredUnits.map((u, idx) => {
           const color = getUnitColor(u.color);
           const completed = u.progress?.completed ?? 0;
           const total = u.activityCount ?? 0;
@@ -158,6 +249,7 @@ export function UnitsView() {
           );
         })}
       </div>
+      )}
 
       {/* Tip card */}
       <Card className="border-dashed bg-muted/30">
