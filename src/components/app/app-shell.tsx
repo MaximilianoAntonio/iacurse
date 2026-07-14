@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
+import { useAppStore } from "@/store/app-store";
 import { Sidebar } from "@/components/app/sidebar";
 import { Header } from "@/components/app/header";
 import { Footer } from "@/components/app/footer";
-import { TabBar } from "@/components/app/tab-bar";
+import { ChatSidebar } from "@/components/app/chat-sidebar";
 import { ViewRouter } from "@/components/app/view-router";
-import { useAppStore } from "@/store/app-store";
 import type { User } from "@/lib/types";
 
 interface AppShellProps {
@@ -14,19 +15,44 @@ interface AppShellProps {
 }
 
 export function AppShell({ users, onSwitchUser }: AppShellProps) {
-  const tabsCount = useAppStore((s) => s.tabs.length);
+  const chatOpen = useAppStore((s) => s.chatOpen);
+  const hydrateFromUrl = useAppStore((s) => s.hydrateFromUrl);
+  const setNavFromUrl = useAppStore((s) => s.setNavFromUrl);
+
+  // Al montar: hidratar el estado de navegación desde la URL
+  useEffect(() => {
+    hydrateFromUrl();
+    // Escuchar popstate (back/forward del navegador)
+    const onPop = () => {
+      const params = new URLSearchParams(window.location.search);
+      const view = (params.get("view") as import("@/lib/types").ViewKey) || "dashboard";
+      setNavFromUrl({
+        view,
+        currentUnitId: params.get("u"),
+        currentLessonId: params.get("l"),
+        currentActivityId: params.get("a"),
+      });
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [hydrateFromUrl, setNavFromUrl]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Sidebar />
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-72">
+      {/* El main se empuja a la izquierda por el sidebar (lg:pl-72) y a la derecha cuando el chat está abierto en desktop */}
+      <div
+        className={`flex min-h-screen flex-1 flex-col transition-[padding] duration-300 lg:pl-72 ${
+          chatOpen ? "lg:pr-[380px]" : ""
+        }`}
+      >
         <Header users={users} onSwitchUser={onSwitchUser} />
-        {tabsCount > 0 && <TabBar />}
         <main className="flex-1">
           <ViewRouter />
         </main>
         <Footer />
       </div>
+      <ChatSidebar />
     </div>
   );
 }

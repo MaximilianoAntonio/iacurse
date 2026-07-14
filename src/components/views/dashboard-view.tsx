@@ -120,7 +120,7 @@ export function DashboardView() {
                 Continuar aprendiendo
               </Button>
               <Button
-                onClick={() => navigate("tutor")}
+                onClick={() => useAppStore.getState().setChatOpen(true)}
                 variant="outline"
                 size="sm"
                 className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"

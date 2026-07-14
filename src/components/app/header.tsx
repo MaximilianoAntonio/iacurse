@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Flame, Sparkles, Sun, Moon, Users, UserCog } from "lucide-react";
+import { Menu, Flame, Sparkles, Sun, Moon, Users, UserCog, MessageSquare, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { initials } from "@/lib/course-utils";
 import type { User } from "@/lib/types";
@@ -28,6 +28,8 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
   const role = useAppStore((s) => s.role);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const navigate = useAppStore((s) => s.navigate);
+  const chatOpen = useAppStore((s) => s.chatOpen);
+  const toggleChat = useAppStore((s) => s.toggleChat);
   const { theme, setTheme } = useTheme();
 
   return (
@@ -78,6 +80,20 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
           <Sun className="hidden h-4 w-4 dark:block" suppressHydrationWarning />
           <Moon className="block h-4 w-4 dark:hidden" suppressHydrationWarning />
         </Button>
+
+        {/* Toggle chat del tutor (barra lateral derecha) */}
+        {role === "student" && (
+          <Button
+            variant={chatOpen ? "default" : "ghost"}
+            size="sm"
+            className={`gap-1.5 ${chatOpen ? "bg-violet-600 text-white hover:bg-violet-700" : "text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-950"}`}
+            onClick={toggleChat}
+            aria-label="Abrir tutor IA"
+          >
+            {chatOpen ? <X className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+            <span className="hidden sm:inline">Tutor IA</span>
+          </Button>
+        )}
 
         {/* Selector de usuario (piloto) */}
         {currentUser && (

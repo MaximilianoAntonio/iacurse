@@ -146,8 +146,6 @@ export function ActivityView() {
   const openActivity = useAppStore((s) => s.openActivity);
   const currentLessonId = useAppStore((s) => s.currentLessonId);
   const currentActivityId = useAppStore((s) => s.currentActivityId);
-  const activeTabId = useAppStore((s) => s.activeTabId);
-  const updateTab = useAppStore((s) => s.updateTab);
 
   const userId = currentUser?.id ?? "";
 
@@ -161,15 +159,15 @@ export function ActivityView() {
     userId,
   ]);
 
-  // Actualizar título de la pestaña al cargar la actividad
+  // Actualizar el título del documento con el nombre de la actividad
   useEffect(() => {
     if (data?.lesson && currentActivityId) {
       const act = data.lesson.activities.find((a) => a.id === currentActivityId);
       if (act) {
-        updateTab(activeTabId, { title: act.title });
+        document.title = `${act.title} · ElectroMed IA`;
       }
     }
-  }, [data?.lesson?.id, currentActivityId, activeTabId, updateTab]);
+  }, [data?.lesson?.id, currentActivityId]);
 
   // ----- fallback / loading states -----
 

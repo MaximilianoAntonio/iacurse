@@ -175,7 +175,7 @@ export function UnitsView() {
             variant="ghost"
             size="sm"
             className="ml-auto shrink-0 text-violet-600"
-            onClick={() => useAppStore.getState().navigate("tutor")}
+            onClick={() => useAppStore.getState().setChatOpen(true)}
           >
             Abrir tutor <ArrowRight className="ml-1 h-3.5 w-3.5" />
           </Button>

@@ -66,8 +66,6 @@ export function UnitDetailView() {
   const openLesson = useAppStore((s) => s.openLesson);
   const openActivity = useAppStore((s) => s.openActivity);
   const setTutorContext = useAppStore((s) => s.setTutorContext);
-  const activeTabId = useAppStore((s) => s.activeTabId);
-  const updateTab = useAppStore((s) => s.updateTab);
   const userId = currentUser?.id ?? "";
 
   const { data, loading } = useFetch<UnitDetailResponse>(
@@ -75,12 +73,12 @@ export function UnitDetailView() {
     [currentUnitId, userId]
   );
 
-  // Actualizar título de la pestaña al cargar la unidad
+  // Actualizar el título del documento con el nombre de la unidad
   React.useEffect(() => {
     if (data?.unit) {
-      updateTab(activeTabId, { title: data.unit.title, icon: data.unit.icon });
+      document.title = `${data.unit.title} · ElectroMed IA`;
     }
-  }, [data?.unit?.id, activeTabId, updateTab]);
+  }, [data?.unit?.id]);
 
   if (!currentUnitId) {
     return (
@@ -111,7 +109,7 @@ export function UnitDetailView() {
 
   const askTutor = () => {
     setTutorContext(unit.title);
-    navigate("tutor");
+    useAppStore.getState().setChatOpen(true);
   };
 
   return (

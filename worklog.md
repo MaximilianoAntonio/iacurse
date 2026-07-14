@@ -231,3 +231,26 @@ Stage Summary:
 - Persistencia de tabs entre recargas.
 - Compatible con responsive móvil (scroll horizontal de la barra).
 - Lint 0 errores, compilación sin errores, verificación agent-browser exitosa.
+
+---
+Task ID: url-routing-chat-sidebar
+Agent: Z.ai Code (orchestrator)
+Task: Revertir sistema de tabs e implementar (1) cambio de URL al navegar y (2) chat del tutor como barra lateral derecha desplegable
+
+Work Log:
+- El usuario aclaró: quería que el VÍNCULO (URL) cambiara al navegar (enrutamiento real, no pestañas internas) y que el chat del tutor fuera una barra lateral derecha desplegable como el menú izquierdo.
+- Revertí el sistema de tabs del store: volví a navegación simple por vista (view/currentUnitId/currentLessonId/currentActivityId). Eliminé el archivo tab-bar.tsx.
+- Implementé sincronización de URL con la History API: navigate/openUnit/openLesson/openActivity hacen pushState con query params (?view=units, ?view=unit-detail&u=ID, ?view=lesson&l=ID, ?view=activity&a=ID&l=ID). AppShell hidrata el estado desde la URL al montar y escucha popstate para back/forward del navegador.
+- Actualicé unit-detail-view, lesson-view, activity-view para que al cargar actualicen document.title con el nombre real del contenido (ej. "Electrocardiografía (ECG) · ElectroMed IA").
+- Creé ChatSidebar (chat-sidebar.tsx): barra lateral derecha desplegable, colapsable, igual que el sidebar izquierdo. Panel fijo a la derecha (w-380), animación slide-in con framer-motion, cabecera con gradiente violeta, área de mensajes con scroll, input con autoresize, sugerencias en estado vacío, rating por estrellas, typing indicator, contexto actual mostrado. En desktop empuja el contenido principal (lg:pr-[380px]); en móvil es overlay con backdrop.
+- Quité "Tutor IA" del menú de navegación izquierdo (ya no es una vista). Añadí botón de toggle del chat en el header (botón "Tutor IA" violeta) y un botón de acceso rápido en el footer del sidebar izquierdo.
+- Eliminé tutor-view.tsx (ya no es una vista). El view-router redirige ?view=tutor abriendo el chat y yendo al dashboard (compatibilidad hacia atrás).
+- Actualicé dashboard, units, unit-detail, lesson para que sus botones "Preguntar al tutor / Abrir tutor" abran el panel del chat (setChatOpen(true)) en vez de navegar a una vista de tutor.
+- Verificación con agent-browser: (1) la URL cambia correctamente al navegar (?view=units → ?view=unit-detail&u=ID); (2) el botón back del navegador funciona (vuelve a ?view=units); (3) el forward funciona; (4) el document.title cambia al nombre de la unidad; (5) el chat se abre como panel lateral derecho sin cambiar la URL ni la vista actual; (6) el contexto del chat se setea al abrir desde una unidad ("Contexto: Electrocardiografía (ECG)"); (7) el tutor responde con método socrático dentro del panel; (8) en desktop el contenido principal se reduce para dejar espacio al chat; (9) en móvil el chat es overlay; (10) cerrar el chat desmonta el panel. Sin errores de consola ni runtime. Lint limpio.
+
+Stage Summary:
+- Navegación por URL funcional: el vínculo en la barra de direcciones cambia al navegar, back/forward del navegador funcionan, URLs compartibles.
+- Chat del tutor reubicado como barra lateral derecha desplegable (como el menú izquierdo), siempre accesible, colapsable, sin interrumpir la vista actual.
+- Layout de tres columnas en desktop: sidebar nav (izq, 288px) + contenido principal (centro) + chat tutor (der, 380px, colapsable).
+- Persistencia del estado de apertura del chat entre recargas.
+- Lint 0 errores, compilación sin errores, verificación agent-browser exitosa.

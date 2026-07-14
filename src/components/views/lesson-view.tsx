@@ -59,8 +59,6 @@ export function LessonView() {
   const openUnit = useAppStore((s) => s.openUnit);
   const openActivity = useAppStore((s) => s.openActivity);
   const setTutorContext = useAppStore((s) => s.setTutorContext);
-  const activeTabId = useAppStore((s) => s.activeTabId);
-  const updateTab = useAppStore((s) => s.updateTab);
   const userId = currentUser?.id ?? "";
 
   const { data, loading } = useFetch<LessonResponse>(
@@ -68,12 +66,12 @@ export function LessonView() {
     [currentLessonId, userId]
   );
 
-  // Actualizar título de la pestaña al cargar la lección
+  // Actualizar el título del documento con el nombre de la lección
   React.useEffect(() => {
     if (data?.lesson) {
-      updateTab(activeTabId, { title: data.lesson.title, icon: data.lesson.unit.icon });
+      document.title = `${data.lesson.title} · ElectroMed IA`;
     }
-  }, [data?.lesson?.id, activeTabId, updateTab]);
+  }, [data?.lesson?.id]);
 
   if (!currentLessonId) {
     return (
@@ -103,7 +101,7 @@ export function LessonView() {
 
   const askTutor = () => {
     setTutorContext(`${lesson.unit.title} · ${lesson.title}`);
-    navigate("tutor");
+    useAppStore.getState().setChatOpen(true);
   };
 
   return (

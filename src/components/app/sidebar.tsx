@@ -20,7 +20,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { key: "dashboard", label: "Inicio", icon: "LayoutDashboard", roles: ["student", "teacher"], description: "Resumen general" },
   { key: "units", label: "Unidades", icon: "BookOpen", roles: ["student", "teacher"], description: "Contenido del curso" },
-  { key: "tutor", label: "Tutor IA", icon: "MessageSquare", roles: ["student"], description: "Asistente conversacional" },
   { key: "progress", label: "Mi progreso", icon: "BarChart3", roles: ["student"], description: "Analítica de aprendizaje" },
   { key: "achievements", label: "Logros", icon: "Trophy", roles: ["student"], description: "Insignias y ranking" },
   { key: "teacher", label: "Panel docente", icon: "Users", roles: ["teacher"], description: "Seguimiento de estudiantes" },
@@ -33,6 +32,8 @@ export function Sidebar() {
   const navigate = useAppStore((s) => s.navigate);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+  const chatOpen = useAppStore((s) => s.chatOpen);
+  const toggleChat = useAppStore((s) => s.toggleChat);
 
   const items = navItems.filter((i) => i.roles.includes(role));
 
@@ -123,8 +124,32 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer del sidebar: info del piloto */}
-        <div className="border-t border-sidebar-border p-4">
+        {/* Footer del sidebar: acceso al chat + info del piloto */}
+        <div className="border-t border-sidebar-border space-y-3 p-4">
+          {role === "student" && (
+            <button
+              onClick={() => {
+                toggleChat();
+                setSidebarOpen(false);
+              }}
+              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all ${
+                chatOpen
+                  ? "border-violet-300 bg-violet-50 dark:border-violet-800 dark:bg-violet-950/40"
+                  : "border-border bg-card hover:border-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+              }`}
+            >
+              <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${chatOpen ? "bg-violet-600 text-white" : "bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-300"}`}>
+                <DynamicIcon name="MessageSquare" className="h-4 w-4" />
+              </span>
+              <span className="flex-1">
+                <span className="block text-sm font-semibold">Tutor IA</span>
+                <span className="block text-[11px] text-muted-foreground">
+                  {chatOpen ? "Cerrar panel" : "Abrir asistente"}
+                </span>
+              </span>
+              <DynamicIcon name={chatOpen ? "X" : "ChevronRight"} className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
           <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-3 dark:from-emerald-950/40 dark:to-teal-950/40">
             <div className="mb-1.5 flex items-center gap-2">
               <DynamicIcon name="GraduationCap" className="h-4 w-4 text-emerald-600" />
