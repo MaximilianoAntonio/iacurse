@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { badgeTierMeta, initials, timeAgo } from "@/lib/course-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -63,6 +64,19 @@ interface LeaderboardResponse {
   leaderboard: LeaderboardEntry[];
 }
 
+interface BadgeProgressItem {
+  badgeId: string;
+  slug: string;
+  current: number;
+  target: number;
+  pct: number;
+  unitContext: string | null;
+}
+
+interface BadgeProgressResponse {
+  badges: BadgeProgressItem[];
+}
+
 // ---------- Visual config ----------
 
 const tierGradient: Record<BadgeWithStatus["tier"], string> = {
@@ -102,12 +116,22 @@ export function AchievementsView() {
     `/api/badges?userId=${userId}`,
     [userId]
   );
+  const { data: progressData } = useFetch<BadgeProgressResponse>(
+    userId ? `/api/badge-progress?userId=${userId}` : null,
+    [userId]
+  );
   const { data: leaderboardData, loading: leaderboardLoading } =
     useFetch<LeaderboardResponse>(`/api/leaderboard`, []);
 
   const badges = badgesData?.badges ?? [];
   const earnedBadges = badges.filter((b) => b.earned);
   const leaderboard = leaderboardData?.leaderboard ?? [];
+
+  // Map badge progress by badgeId
+  const progressMap: Record<string, BadgeProgressItem> = {};
+  for (const p of progressData?.badges ?? []) {
+    progressMap[p.badgeId] = p;
+  }
 
   const points = currentUser?.points ?? 0;
   const streak = currentUser?.streak ?? 0;
@@ -179,7 +203,7 @@ export function AchievementsView() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {badges.map((badge, i) => (
-              <BadgeCard key={badge.id} badge={badge} index={i} />
+              <BadgeCard key={badge.id} badge={badge} index={i} progress={progressMap[badge.id]} />
             ))}
           </div>
         )}
@@ -291,12 +315,15 @@ function KpiCard({
 function BadgeCard({
   badge,
   index,
+  progress,
 }: {
   badge: BadgeWithStatus;
   index: number;
+  progress?: BadgeProgressItem;
 }) {
   const tier = badgeTierMeta[badge.tier] ?? badgeTierMeta.bronze;
   const gradient = tierGradient[badge.tier] ?? tierGradient.bronze;
+  const showProgress = !badge.earned && progress && progress.target > 0;
 
   return (
     <motion.div
@@ -388,6 +415,22 @@ function BadgeCard({
                   {badge.awardedAt ? timeAgo(badge.awardedAt) : "—"}
                 </span>
               </>
+            ) : showProgress ? (
+              <div className="w-full space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    <Target className="h-3 w-3" />
+                    {progress!.pct >= 100 ? "¡Listo para desbloquear!" : "En progreso"}
+                  </span>
+                  <span className="font-semibold tabular-nums text-muted-foreground">
+                    {progress!.current}/{progress!.target}
+                  </span>
+                </div>
+                <Progress
+                  value={progress!.pct}
+                  className={cn("h-1.5", tier.bg)}
+                />
+              </div>
             ) : (
               <>
                 <span className="inline-flex items-center gap-1 text-muted-foreground">

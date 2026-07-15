@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
 import { LoadingRows } from "@/components/app/loading";
@@ -493,6 +493,14 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 function ErrorReportsSection() {
   const { data, loading, refetch } = useFetch<{ reports: ErrorReportItem[] }>("/api/report?status=open", []);
+
+  // Auto-refresh cada 30 segundos para reportes nuevos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   const handleStatus = async (reportId: string, status: string) => {
     try {

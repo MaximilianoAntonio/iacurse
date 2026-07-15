@@ -216,8 +216,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // Actualizar racha diaria (si es la primera actividad del día, incrementar racha)
-  // Simplificado: si lastActive fue ayer o antes, +1 racha; si es hoy, no cambia.
+  // Actualizar racha diaria con lógica de multi-día:
+  // - Si lastActive es hoy: no cambia la racha.
+  // - Si lastActive fue ayer: +1 racha (día consecutivo).
+  // - Si lastActive fue antes de ayer o nunca: racha = 1 (nueva racha).
   const userRecord = await db.user.findUnique({ where: { id: userId }, select: { lastActive: true, streak: true } });
   let unitCompleted = false;
   let unitTitle = "";
@@ -226,15 +228,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (userRecord) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
     const lastActive = userRecord.lastActive ? new Date(userRecord.lastActive) : null;
     const lastDay = lastActive ? new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate()) : null;
-    if (!lastDay || lastDay < today) {
-      // Es un día nuevo: incrementar racha
+    if (!lastDay) {
+      // Nunca activo: iniciar racha en 1
+      await db.user.update({
+        where: { id: userId },
+        data: { streak: 1 },
+      });
+    } else if (lastDay.getTime() === yesterday.getTime()) {
+      // Activó ayer: día consecutivo, +1
       await db.user.update({
         where: { id: userId },
         data: { streak: { increment: 1 } },
       });
+    } else if (lastDay.getTime() < yesterday.getTime()) {
+      // Brecha de más de 1 día: reiniciar racha en 1
+      await db.user.update({
+        where: { id: userId },
+        data: { streak: 1 },
+      });
     }
+    // Si lastDay === today, no cambiar la racha
   }
 
   // Verificar si la unidad se completó con este intento

@@ -199,9 +199,7 @@ export function LessonView() {
 
         {/* Sidebar: TOC + actividades */}
         <div className="space-y-4">
-          <div className="hidden lg:block">
-            <LessonToc content={lesson.content} />
-          </div>
+          <LessonToc content={lesson.content} />
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">

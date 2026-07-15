@@ -1,7 +1,9 @@
 "use client";
 
+import * as React from "react";
 import { useAppStore } from "@/store/app-store";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
+import { GlobalSearch } from "@/components/app/global-search";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Flame, Sparkles, Sun, Moon, Users, UserCog, MessageSquare, X } from "lucide-react";
+import { Menu, Flame, Sparkles, Sun, Moon, Users, UserCog, MessageSquare, X, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import { initials } from "@/lib/course-utils";
 import type { User } from "@/lib/types";
@@ -26,6 +28,19 @@ interface HeaderProps {
 export function Header({ users, onSwitchUser }: HeaderProps) {
   const currentUser = useAppStore((s) => s.currentUser);
   const role = useAppStore((s) => s.role);
+  const [searchOpen, setSearchOpen] = React.useState(false);
+
+  // Keyboard shortcut: Ctrl/Cmd + K to open search
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const navigate = useAppStore((s) => s.navigate);
   const chatOpen = useAppStore((s) => s.chatOpen);
@@ -53,6 +68,17 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Búsqueda global */}
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          title="Buscar (Ctrl+K)"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="hidden md:inline">Buscar...</span>
+          <kbd className="hidden rounded bg-muted px-1 py-0.5 text-[9px] font-medium md:inline">⌘K</kbd>
+        </button>
+
         {/* Racha */}
         {role === "student" && currentUser && (
           <div className="hidden items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 sm:flex">
@@ -150,6 +176,7 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
           </DropdownMenu>
         )}
       </div>
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }

@@ -440,3 +440,61 @@ The platform "ElectroMed IA" is stable with URL navigation, chat sidebar, 5 unit
 - **Streak reset logic**: The streak increment is simplified (only checks if lastActive < today); doesn't handle multi-day gaps (should reset to 1 if gap > 1 day).
 - **Badge progress indicators**: Could show progress towards each badge (e.g., "7/10 consultas" for tutor-activo).
 - **Lesson TOC on mobile**: Currently hidden on mobile; could add a collapsible drawer version.
+
+---
+Task ID: cron-review-4
+Agent: Z.ai Code (web dev review)
+Task: Streak logic fix, badge progress indicators, global search, teacher auto-refresh, mobile TOC
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is stable with URL navigation, chat sidebar, 5 units, 32 activities, gamification (points/streak/badges with dynamic auto-award), analytics, teacher panel, error reporting, Continue card, reading progress bar, activity/badge/unit celebrations, and lesson TOC. This round focused on: (1) fixing the streak logic to handle multi-day gaps, (2) adding badge progress indicators, (3) implementing global content search, (4) adding teacher panel auto-refresh, and (5) making the lesson TOC available on mobile.
+
+## Current goals/completed modifications/verification results
+
+### Bug fixed: Streak logic for multi-day gaps
+- **Problem**: The streak increment logic only checked if `lastActive < today`, which meant any activity on a new day incremented the streak by 1 — even if there was a multi-day gap (e.g., studying Monday then Friday would still increment, treating it as consecutive).
+- **Fix**: Rewrote the streak logic in `/api/activities/[id]/attempt` to properly handle three cases:
+  1. `lastActive` is today → no change (already counted today)
+  2. `lastActive` was yesterday → `+1` (consecutive day)
+  3. `lastActive` was before yesterday or null → reset to `1` (new streak)
+- Uses date comparison (not datetime) to correctly determine day boundaries.
+
+### New feature: Badge progress indicators
+- Created `/api/badge-progress` endpoint that returns per-badge progress data (current/target/pct) for a user.
+- Updated achievements view to fetch badge progress and display progress bars on unearned badges.
+- Each unearned badge now shows: "En progreso" label, current/target count (e.g., "5/7"), and a tier-colored progress bar.
+- When progress reaches 100%, shows "¡Listo para desbloquear!" instead.
+- **Verified**: VLM confirmed "Centinela" badge shows "5/7" progress bar; earned badges show "Desbloqueada" with green check.
+
+### New feature: Global content search (Ctrl+K)
+- Created `/api/search` endpoint that searches across units (title/summary/description), lessons (title/description), and activities (title/prompt).
+- Created `GlobalSearch` component: a dialog with search input, grouped results (Unidades/Lecciones/Actividades), and click-to-navigate.
+- Results show unit color icons, lesson durations, activity type/difficulty badges, and completion status.
+- Added search button to header with "⌘K" keyboard shortcut hint.
+- Ctrl/Cmd+K opens/closes the search dialog globally.
+- **Verified**: Searching "Einthoven" returns a lesson and an activity; clicking a result navigates correctly; Ctrl+K shortcut works.
+
+### New feature: Teacher panel auto-refresh
+- Added 30-second polling to the ErrorReportsSection in the teacher panel.
+- Teachers now see new error reports without manual refresh.
+- **Verified**: Code compiles, polling interval set correctly.
+
+### Improvement: Lesson TOC on mobile
+- Removed the `hidden lg:block` wrapper around the LessonToc component — it's now visible on all screen sizes.
+- The TOC is already collapsible (click "Contenido" to expand/collapse), making it mobile-friendly.
+- **Verified**: TOC renders on both desktop and mobile.
+
+### QA performed
+- Tested dashboard, achievements (with progress bars), search dialog (Ctrl+K), lesson TOC.
+- VLM-verified badge progress indicators.
+- Lint clean (0 errors, 0 warnings). No console/runtime errors.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Search highlighting**: Could highlight matching text in search results.
+- **Search history**: Could save recent searches per user.
+- **Badge notification on dashboard**: Could show a "new badge" notification card on the dashboard.
+- **Lesson content search within markdown**: Currently searches titles/prompts; could extend to full markdown content (heavier query).
+- **Teacher search**: Could add search/filter for specific students in the teacher panel.
+- **Activity retry limit**: Could limit retries to encourage thoughtful answers.
