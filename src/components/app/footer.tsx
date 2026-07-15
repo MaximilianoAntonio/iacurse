@@ -5,12 +5,12 @@ import { ShieldCheck, HeartPulse, BookOpen } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="mt-auto border-t border-border bg-gradient-to-br from-emerald-50/50 via-background to-teal-50/50 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/20">
+    <footer className="mt-auto border-t border-border bg-gradient-to-br from-[#003366]/5 via-background to-amber-50/30 dark:from-[#003366]/10 dark:via-background dark:to-amber-950/10">
       <div className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
         <div className="grid gap-6 md:grid-cols-3">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#003366] to-[#0066AA] text-amber-400">
                 <HeartPulse className="h-4 w-4" />
               </div>
               <span className="text-sm font-bold">ElectroMed IA</span>
@@ -22,7 +22,7 @@ export function Footer() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#003366] dark:text-amber-400">
               <BookOpen className="h-3.5 w-3.5" />
               Proyecto
             </div>
@@ -34,7 +34,7 @@ export function Footer() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#003366] dark:text-amber-400">
               <ShieldCheck className="h-3.5 w-3.5" />
               Consideraciones éticas
             </div>
@@ -49,7 +49,7 @@ export function Footer() {
         <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-border pt-4 text-[11px] text-muted-foreground sm:flex-row">
           <p>© {new Date().getFullYear()} Universidad de Valparaíso · Piloto de innovación docente</p>
           <p className="flex items-center gap-1.5">
-            <DynamicIcon name="Sparkles" className="h-3 w-3 text-violet-500" />
+            <DynamicIcon name="Sparkles" className="h-3 w-3 text-amber-500" />
             IA generativa con mediación pedagógica
           </p>
         </div>

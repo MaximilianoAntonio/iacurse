@@ -55,7 +55,7 @@ export function Sidebar() {
           !navCollapsed && "lg:translate-x-0"
         )}
       >
-        {/* Logo / cabecera */}
+        {/* Logo / cabecera — Identidad UV */}
         <div className="flex h-16 items-center justify-between gap-2 border-b border-sidebar-border px-5">
           <button
             onClick={() => {
@@ -64,13 +64,13 @@ export function Sidebar() {
             }}
             className="flex items-center gap-3 text-left"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 text-white shadow-lg shadow-emerald-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-sidebar shadow-lg shadow-amber-500/20">
               <DynamicIcon name="HeartPulse" className="h-5 w-5" />
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-bold tracking-tight">ElectroMed IA</div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Aprendizaje adaptativo
+              <div className="text-sm font-bold tracking-tight text-sidebar-primary">ElectroMed IA</div>
+              <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
+                Universidad de Valparaíso
               </div>
             </div>
           </button>
@@ -122,19 +122,19 @@ export function Sidebar() {
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
                     active
-                      ? "bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow"
-                      : "bg-sidebar-accent/40 text-muted-foreground group-hover:text-foreground"
+                      ? "bg-gradient-to-br from-amber-400 to-amber-600 text-sidebar shadow"
+                      : "bg-sidebar-accent/40 text-sidebar-foreground/60 group-hover:text-sidebar-foreground"
                   )}
                 >
                   <DynamicIcon name={item.icon} className="h-4 w-4" />
                 </span>
                 <span className="flex-1">
                   <span className="block">{item.label}</span>
-                  <span className="block text-[11px] font-normal text-muted-foreground">
+                  <span className="block text-[11px] font-normal text-sidebar-foreground/50">
                     {item.description}
                   </span>
                 </span>
-                {active && <DynamicIcon name="ChevronRight" className="h-4 w-4 text-emerald-600" />}
+                {active && <DynamicIcon name="ChevronRight" className="h-4 w-4 text-amber-400" />}
               </button>
             );
           })}
@@ -150,31 +150,31 @@ export function Sidebar() {
               }}
               className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all ${
                 chatOpen
-                  ? "border-violet-300 bg-violet-50 dark:border-violet-800 dark:bg-violet-950/40"
-                  : "border-border bg-card hover:border-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                  ? "border-amber-400 bg-amber-400/10"
+                  : "border-sidebar-border bg-sidebar-accent/30 hover:border-amber-400/50 hover:bg-amber-400/5"
               }`}
             >
-              <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${chatOpen ? "bg-violet-600 text-white" : "bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-300"}`}>
+              <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${chatOpen ? "bg-amber-500 text-sidebar" : "bg-amber-400/20 text-amber-400"}`}>
                 <DynamicIcon name="MessageSquare" className="h-4 w-4" />
               </span>
               <span className="flex-1">
-                <span className="block text-sm font-semibold">Tutor IA</span>
-                <span className="block text-[11px] text-muted-foreground">
+                <span className="block text-sm font-semibold text-sidebar-foreground">Tutor IA</span>
+                <span className="block text-[11px] text-sidebar-foreground/50">
                   {chatOpen ? "Cerrar panel" : "Abrir asistente"}
                 </span>
               </span>
-              <DynamicIcon name={chatOpen ? "X" : "ChevronRight"} className="h-4 w-4 text-muted-foreground" />
+              <DynamicIcon name={chatOpen ? "X" : "ChevronRight"} className="h-4 w-4 text-sidebar-foreground/50" />
             </button>
           )}
-          <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-3 dark:from-emerald-950/40 dark:to-teal-950/40">
+          <div className="rounded-xl bg-sidebar-accent/40 p-3">
             <div className="mb-1.5 flex items-center gap-2">
-              <DynamicIcon name="GraduationCap" className="h-4 w-4 text-emerald-600" />
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              <DynamicIcon name="GraduationCap" className="h-4 w-4 text-amber-400" />
+              <span className="text-xs font-semibold text-amber-400">
                 Piloto UVA24991
               </span>
             </div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Innovación docente · Facultad de Ingeniería, Universidad de Valparaíso
+            <p className="text-[11px] leading-relaxed text-sidebar-foreground/60">
+              Facultad de Ingeniería · Universidad de Valparaíso
             </p>
           </div>
         </div>

@@ -75,12 +75,12 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
       )}
 
       <div className="hidden items-center gap-2 md:flex">
-        <Badge variant="secondary" className="gap-1.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+        <Badge variant="secondary" className="gap-1.5 bg-[#003366]/10 text-[#003366] dark:bg-[#0066AA]/20 dark:text-amber-400">
           <DynamicIcon name="BookOpen" className="h-3 w-3" />
           Electromedicina II
         </Badge>
         <span className="text-xs text-muted-foreground">·</span>
-        <span className="text-xs text-muted-foreground">Ingeniería Civil Biomédica · UV</span>
+        <span className="text-xs text-muted-foreground">Ingeniería Civil Biomédica · Universidad de Valparaíso</span>
       </div>
 
       <div className="ml-auto flex items-center gap-2">
@@ -104,7 +104,7 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
         )}
         {/* Puntos */}
         {role === "student" && currentUser && (
-          <div className="hidden items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 sm:flex">
+          <div className="hidden items-center gap-1.5 rounded-full bg-[#003366]/10 px-3 py-1.5 text-xs font-semibold text-[#003366] dark:bg-[#0066AA]/20 dark:text-amber-400 sm:flex">
             <Sparkles className="h-3.5 w-3.5" />
             {currentUser.points} pts
           </div>
@@ -131,7 +131,7 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
           <Button
             variant={chatOpen ? "default" : "ghost"}
             size="sm"
-            className={`gap-1.5 ${chatOpen ? "bg-violet-600 text-white hover:bg-violet-700" : "text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-950"}`}
+            className={`gap-1.5 ${chatOpen ? "bg-[#003366] text-amber-400 hover:bg-[#004488]" : "text-[#003366] hover:bg-[#003366]/10 dark:text-amber-400 dark:hover:bg-amber-400/10"}`}
             onClick={toggleChat}
             aria-label="Abrir tutor IA"
           >

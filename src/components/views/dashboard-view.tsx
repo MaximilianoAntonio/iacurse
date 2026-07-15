@@ -156,14 +156,14 @@ export function DashboardView() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-4 lg:p-8">
-      {/* Hero de bienvenida */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 p-6 text-white shadow-xl sm:p-8">
-        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-teal-300/20 blur-3xl" />
+      {/* Hero de bienvenida — Identidad UV */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#003366] via-[#004488] to-[#0066AA] p-6 text-white shadow-xl sm:p-8">
+        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-amber-400/10 blur-2xl" />
+        <div className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-amber-400/15 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <Badge className="border-white/20 bg-white/15 text-white backdrop-blur">
-              <Sparkles className="mr-1 h-3 w-3" /> Piloto de innovación docente
+            <Badge className="border-amber-400/30 bg-amber-400/15 text-amber-300 backdrop-blur">
+              <Sparkles className="mr-1 h-3 w-3" /> Piloto de innovación docente · UVA24991
             </Badge>
             <h1 className="text-2xl font-bold leading-tight sm:text-4xl">
               Hola, {currentUser?.name.split(" ")[0]} 👋
@@ -175,7 +175,7 @@ export function DashboardView() {
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <Button
                 onClick={() => continueUnit && navigate("units")}
-                className="bg-white text-emerald-700 hover:bg-white/90"
+                className="bg-amber-400 text-[#003366] hover:bg-amber-300"
                 size="sm"
               >
                 <BookOpen className="mr-1.5 h-4 w-4" />
@@ -185,7 +185,7 @@ export function DashboardView() {
                 onClick={() => useAppStore.getState().setChatOpen(true)}
                 variant="outline"
                 size="sm"
-                className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                className="border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 hover:text-amber-200"
               >
                 <MessageSquare className="mr-1.5 h-4 w-4" />
                 Preguntar al tutor IA

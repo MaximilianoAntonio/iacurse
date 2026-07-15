@@ -1091,3 +1091,52 @@ The platform is mature and stable. This round performed a deep engineering revie
 ## Unresolved issues or risks
 - No outstanding issues. All APIs have error handling, all features verified.
 - The `extractSnippet` null check is defensive — the `prompt` field is always present in the DB, but the check protects against future schema changes.
+
+---
+Task ID: uv-branding
+Agent: Z.ai Code (orchestrator)
+Task: Apply Universidad de Valparaíso institutional colors and professional iconography
+
+## Current project status description/assessment
+The user requested professional iconography and the institutional colors of the Universidad de Valparaíso, Chile. The UV institutional colors are **azul (#003366)** and **dorado/amarillo (#FFD700/#FBBF24)**.
+
+## Current goals/completed modifications/verification results
+
+### Institutional color scheme applied
+Updated `globals.css` with UV institutional colors:
+- **Primary/Accent**: Azul UV (#003366 oscuro, #004488 medio, #0066AA claro)
+- **Sidebar**: Azul UV oscuro (#0a2540) con texto blanco
+- **Sidebar primary/accent**: Dorado UV (#fbbf24) para elementos activos y logo
+- **Sidebar borders**: Azul UV medio (#1e3a5f)
+- **Charts**: Azul UV como chart-1, dorado UV como chart-2
+- **Dark mode**: Azul muy oscuro con dorado mantenido
+
+### Sidebar branding updated
+- Logo: gradiente dorado (amber-400 to amber-600) con icono HeartPulse
+- Texto: "ElectroMed IA" en dorado, "Universidad de Valparaíso" debajo
+- Botones de navegación activos: gradiente dorado con texto azul oscuro
+- Chevron de navegación activa: dorado
+- Botón Tutor IA: dorado con texto azul oscuro
+- Footer del sidebar: "Piloto UVA24991" en dorado, "Facultad de Ingeniería · Universidad de Valparaíso"
+
+### Dashboard hero updated
+- Gradiente de fondo: de #003366 (azul UV oscuro) via #004488 a #0066AA (azul UV claro)
+- Botón "Continuar aprendiendo": dorado (#fbbf24) con texto azul oscuro
+- Botón "Preguntar al tutor IA": borde dorado con texto dorado
+- Badge: "Piloto de innovación docente · UVA24991" con fondo dorado translúcido
+
+### Header updated
+- Badge "Electromedicina II": azul UV con texto azul
+- Texto: "Ingeniería Civil Biomédica · Universidad de Valparaíso"
+- Puntos: azul UV en lugar de violeta
+- Botón Tutor IA: azul UV con dorado cuando activo
+
+### Footer updated
+- Gradiente: azul UV sutil a dorado sutil
+- Logo: gradiente azul UV con icono dorado
+- Headers de sección: azul UV (light) / dorado (dark)
+- Sparkles icon: dorado
+
+### Verification
+- VLM confirmed: dark blue sidebar with golden logo/accents, dark blue hero banner with golden buttons, blue/gold header badges, professional cohesive design.
+- Lint: 0 errors, 0 warnings. No runtime errors.
