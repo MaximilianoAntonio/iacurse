@@ -32,6 +32,11 @@ interface AppState {
   setChatOpen: (open: boolean) => void;
   toggleChat: () => void;
 
+  // Panel de navegación (barra lateral izquierda) — colapsable en desktop
+  navCollapsed: boolean;
+  setNavCollapsed: (collapsed: boolean) => void;
+  toggleNav: () => void;
+
   // UI
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
@@ -185,6 +190,10 @@ export const useAppStore = create<AppState>()(
       setChatOpen: (open) => set({ chatOpen: open }),
       toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
 
+      navCollapsed: false,
+      setNavCollapsed: (collapsed) => set({ navCollapsed: collapsed }),
+      toggleNav: () => set((s) => ({ navCollapsed: !s.navCollapsed })),
+
       sidebarOpen: false,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       resetNav: () => {
@@ -199,6 +208,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         currentUserId: state.currentUserId,
         chatOpen: state.chatOpen,
+        navCollapsed: state.navCollapsed,
       }),
     }
   )

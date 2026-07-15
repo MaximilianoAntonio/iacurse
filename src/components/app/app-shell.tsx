@@ -16,6 +16,7 @@ interface AppShellProps {
 
 export function AppShell({ users, onSwitchUser }: AppShellProps) {
   const chatOpen = useAppStore((s) => s.chatOpen);
+  const navCollapsed = useAppStore((s) => s.navCollapsed);
   const hydrateFromUrl = useAppStore((s) => s.hydrateFromUrl);
   const setNavFromUrl = useAppStore((s) => s.setNavFromUrl);
 
@@ -40,11 +41,12 @@ export function AppShell({ users, onSwitchUser }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Sidebar />
-      {/* El main se empuja a la izquierda por el sidebar (lg:pl-72) y a la derecha cuando el chat está abierto en desktop */}
+      {/* El main se empuja a la izquierda por el sidebar (solo en desktop si no está colapsado)
+          y a la derecha cuando el chat está abierto en desktop */}
       <div
-        className={`flex min-h-screen flex-1 flex-col transition-[padding] duration-300 lg:pl-72 ${
-          chatOpen ? "lg:pr-[380px]" : ""
-        }`}
+        className={`flex min-h-screen flex-1 flex-col transition-[padding] duration-300 ${
+          navCollapsed ? "lg:pl-0" : "lg:pl-72"
+        } ${chatOpen ? "lg:pr-[380px]" : ""}`}
       >
         <Header users={users} onSwitchUser={onSwitchUser} />
         <main className="flex-1">

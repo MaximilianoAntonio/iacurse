@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Flame, Sparkles, Sun, Moon, Users, UserCog, MessageSquare, X, Search } from "lucide-react";
+import { Menu, Flame, Sparkles, Sun, Moon, Users, UserCog, MessageSquare, X, Search, PanelLeftOpen } from "lucide-react";
 import { useTheme } from "next-themes";
 import { initials } from "@/lib/course-utils";
 import type { User } from "@/lib/types";
@@ -46,10 +46,13 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
   const navigate = useAppStore((s) => s.navigate);
   const chatOpen = useAppStore((s) => s.chatOpen);
   const toggleChat = useAppStore((s) => s.toggleChat);
+  const navCollapsed = useAppStore((s) => s.navCollapsed);
+  const toggleNav = useAppStore((s) => s.toggleNav);
   const { theme, setTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md lg:px-6">
+      {/* Botón menú móvil */}
       <Button
         variant="ghost"
         size="icon"
@@ -58,6 +61,18 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
       >
         <Menu className="h-5 w-5" />
       </Button>
+      {/* Botón mostrar panel (desktop, cuando está colapsado) */}
+      {navCollapsed && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hidden h-9 w-9 lg:flex"
+          onClick={toggleNav}
+          title="Mostrar panel de navegación"
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+        </Button>
+      )}
 
       <div className="hidden items-center gap-2 md:flex">
         <Badge variant="secondary" className="gap-1.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">

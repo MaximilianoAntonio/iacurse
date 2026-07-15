@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { Role, ViewKey } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 interface NavItem {
   key: ViewKey;
@@ -34,6 +34,8 @@ export function Sidebar() {
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const chatOpen = useAppStore((s) => s.chatOpen);
   const toggleChat = useAppStore((s) => s.toggleChat);
+  const navCollapsed = useAppStore((s) => s.navCollapsed);
+  const toggleNav = useAppStore((s) => s.toggleNav);
 
   const items = navItems.filter((i) => i.roles.includes(role));
 
@@ -48,8 +50,9 @@ export function Sidebar() {
       )}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-sidebar text-sidebar-foreground transition-transform duration-300",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          !navCollapsed && "lg:translate-x-0"
         )}
       >
         {/* Logo / cabecera */}
@@ -71,14 +74,27 @@ export function Sidebar() {
               </div>
             </div>
           </button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden h-8 w-8"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {/* Botón colapsar (desktop) */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden h-8 w-8 lg:flex"
+              onClick={toggleNav}
+              title="Contraer panel"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+            {/* Botón cerrar (móvil) */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Navegación */}
