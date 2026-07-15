@@ -139,6 +139,7 @@ interface ActivityComponentProps {
   submitted: boolean;
   submitting: boolean;
   onSubmit: (answer: string) => void;
+  onHintUsed?: () => void;
 }
 
 // ---------- helpers ----------
@@ -344,6 +345,7 @@ function ActivityInner(props: ActivityInnerProps) {
   const [reportComment, setReportComment] = useState("");
   const [reported, setReported] = useState(false);
   const [sessionAttempts, setSessionAttempts] = useState(0); // attempts in this session
+  const [hintsUsed, setHintsUsed] = useState(0);
   const startTimeRef = useRef<number>(Date.now());
 
   const currentAttemptNumber = totalAttempts + sessionAttempts;
@@ -372,7 +374,7 @@ function ActivityInner(props: ActivityInnerProps) {
       try {
         const res = await postJSON<AttemptResult>(
           `/api/activities/${activity.id}/attempt`,
-          { userId, answer, timeSpent }
+          { userId, answer, timeSpent, hintsUsed }
         );
         setResult(res.attempt);
         setSubmitted(true);
@@ -429,6 +431,7 @@ function ActivityInner(props: ActivityInnerProps) {
     setReportReason("incorrect");
     setBadgeCelebration(null);
     setUnitCelebration(null);
+    setHintsUsed(0);
   }, []);
 
   const handleNext = useCallback(() => {
@@ -552,6 +555,7 @@ function ActivityInner(props: ActivityInnerProps) {
             submitted={submitted}
             submitting={submitting}
             onSubmit={handleSubmit}
+            onHintUsed={() => setHintsUsed((n) => n + 1)}
           />
         </CardContent>
       </Card>
@@ -618,6 +622,7 @@ function MultipleChoiceActivity({
   submitted,
   submitting,
   onSubmit,
+  onHintUsed,
 }: ActivityComponentProps) {
   const data = useMemo(
     () => parseActivityData<MultipleChoiceData>(activity.data),
@@ -716,7 +721,7 @@ function MultipleChoiceActivity({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setShowHint(true)}
+                onClick={() => { setShowHint(true); onHintUsed?.(); }}
                 className="text-amber-700 dark:text-amber-300"
               >
                 <Lightbulb className="mr-1.5 h-4 w-4" /> Ver pista
@@ -727,7 +732,7 @@ function MultipleChoiceActivity({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setHintIndex((i) => i + 1)}
+                  onClick={() => { setHintIndex((i) => i + 1); onHintUsed?.(); }}
                 >
                   <Lightbulb className="mr-1.5 h-4 w-4" /> Otra pista
                 </Button>
@@ -767,6 +772,7 @@ function GuidedProblemActivity({
   submitted,
   submitting,
   onSubmit,
+  onHintUsed,
 }: ActivityComponentProps) {
   const data = useMemo(
     () => parseActivityData<GuidedProblemData>(activity.data),
@@ -793,7 +799,10 @@ function GuidedProblemActivity({
     setRevealedHints((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
-      else next.add(i);
+      else {
+        next.add(i);
+        onHintUsed?.();
+      }
       return next;
     });
   };

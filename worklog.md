@@ -556,3 +556,68 @@ The platform "ElectroMed IA" is stable with URL navigation, chat sidebar, 5 unit
 - **Weekly goal customization**: Could let users set their own weekly study goal.
 - **Teacher student detail view**: Could add a student detail modal with per-activity breakdown.
 - **Content search in full markdown**: Currently searches titles/prompts only; could extend to full lesson markdown.
+
+---
+Task ID: cron-review-6
+Agent: Z.ai Code (web dev review)
+Task: Teacher student detail modal, dashboard recent badges, hint tracking, search history
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is stable with URL navigation, chat sidebar, 5 units, 32 activities, gamification (points/streak/badges with dynamic auto-award + progress indicators), analytics, teacher panel (with auto-refresh + student search), error reporting, Continue card, reading progress bar, celebrations, lesson TOC, global search (with highlighting + Ctrl+K), weekly goal ring, and activity retry limit. This round focused on: (1) adding a teacher student detail modal with per-activity breakdown, (2) dashboard "recent badge" notification cards, (3) activity hint usage tracking, and (4) search history.
+
+## Current goals/completed modifications/verification results
+
+### New feature: Teacher student detail modal
+- Created `/api/teacher/student/[id]` endpoint returning: student info, progress by unit, activity breakdown (attempts, best score, time, correctness), study sessions, chat count, self-assessments, badges, and aggregate stats.
+- Created `StudentDetailModal` component with:
+  - Header: avatar, name, email, points, streak, last active time.
+  - 6-cell stats row: activities, attempts, acierto %, time, queries, badges.
+  - 3 tabs: "Actividades" (per-activity breakdown with type icon, correctness badge, attempt count, best score, time), "Progreso por unidad" (progress bars per unit), "Insignias" (badge grid with tier theming).
+- Made student rows in the teacher table clickable (cursor pointer + hover effect).
+- **Verified**: VLM confirmed modal shows student info, stats row, and tabs with clean layout.
+
+### New feature: Dashboard "recent badge" notification cards
+- Created `/api/recent-badges` endpoint returning badges earned in the last 7 days.
+- Added notification cards to the dashboard between the weekly goal section and units grid.
+- Each card shows: tier-colored gradient icon, "¡Nuevo badge desbloqueado!" label, badge name, description, and "Ver" button (navigates to achievements).
+- Animated entrance with framer-motion (slide-in from left, staggered delay).
+- Tier-themed: bronze (amber), silver (slate), gold (yellow).
+- **Verified**: VLM confirmed two badge cards visible (Curioso + Maestro del ECG) with proper icons and colors.
+
+### New feature: Activity hint usage tracking
+- Added `hintsUsed` field to the Attempt Prisma model (Int, default 0).
+- Updated `/api/activities/[id]/attempt` to accept and store `hintsUsed`.
+- Added `hintsUsed` state and `onHintUsed` callback to ActivityInner.
+- Passed callback through ActivityRenderer to MultipleChoiceActivity (hint button) and GuidedProblemActivity (per-step hint toggle).
+- Hints counter resets on retry.
+- The `hintsUsed` count is sent with each attempt submission and stored for analytics.
+- **Verified**: Code compiles, lint clean, data persisted to DB.
+
+### New feature: Search history
+- Added `recentSearches` state to GlobalSearch component, persisted to localStorage.
+- Saves up to 5 recent searches (deduplicated, case-insensitive).
+- Shows "Búsquedas recientes" chips when the search dialog is opened with an empty query.
+- Clicking a recent search fills the input and triggers the search.
+- "Limpiar historial" button clears all history.
+- Searches are saved when the user navigates to a result (not on every keystroke).
+- **Verified**: Searched "ECG", navigated to result, reopened search → "ECG" appears as a recent search chip.
+
+### Bug fixed: cn import error in student-detail-modal
+- **Problem**: `cn` was imported from `@/lib/course-utils` but it's exported from `@/lib/utils`. This caused a 500 error on all pages.
+- **Fix**: Split the import — `cn` from `@/lib/utils`, other helpers from `@/lib/course-utils`.
+- **Verified**: Server returned 200 after fix.
+
+### QA performed
+- Tested dashboard (recent badges notification cards), teacher panel (student detail modal with tabs), search (history + highlighting).
+- VLM-verified: recent badges cards, student detail modal layout.
+- Lint clean (0 errors, 0 warnings). No console/runtime errors after cn import fix.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Weekly goal customization**: Could let users set their own weekly study goal.
+- **Content search in full markdown**: Currently searches titles/prompts only; could extend to full lesson markdown.
+- **Teacher panel export**: Could add CSV export of student data.
+- **Activity hint analytics**: The hintsUsed data is now collected but not yet displayed in the teacher panel; could show hint usage per student/activity.
+- **Notification bell**: Could add a notification bell icon in the header for badge unlocks, error report updates, etc.
+- **Student comparison view**: Could allow comparing two students side-by-side.

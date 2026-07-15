@@ -91,6 +91,34 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const openLesson = useAppStore((s) => s.openLesson);
   const openActivity = useAppStore((s) => s.openActivity);
   const [query, setQuery] = React.useState("");
+  const [recentSearches, setRecentSearches] = React.useState<string[]>([]);
+
+  // Cargar búsquedas recientes del localStorage al montar
+  React.useEffect(() => {
+    if (open) {
+      try {
+        const stored = localStorage.getItem("electromed-search-history");
+        if (stored) setRecentSearches(JSON.parse(stored));
+      } catch {
+        // ignore
+      }
+    }
+  }, [open]);
+
+  const saveSearch = (q: string) => {
+    const trimmed = q.trim();
+    if (trimmed.length < 2) return;
+    setRecentSearches((prev) => {
+      const filtered = prev.filter((s) => s.toLowerCase() !== trimmed.toLowerCase());
+      const updated = [trimmed, ...filtered].slice(0, 5);
+      try {
+        localStorage.setItem("electromed-search-history", JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  };
 
   const userId = currentUser?.id ?? "";
   const url = query.length >= 2 ? `/api/search?q=${encodeURIComponent(query)}&userId=${userId}` : null;
@@ -100,16 +128,19 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const totalResults = results.units.length + results.lessons.length + results.activities.length;
 
   const handleOpenUnit = (unitId: string) => {
+    saveSearch(query);
     openUnit(unitId);
     onOpenChange(false);
     setQuery("");
   };
   const handleOpenLesson = (lessonId: string) => {
+    saveSearch(query);
     openLesson(lessonId);
     onOpenChange(false);
     setQuery("");
   };
   const handleOpenActivity = (lessonId: string, activityId: string) => {
+    saveSearch(query);
     useAppStore.getState().openLesson(lessonId);
     setTimeout(() => openActivity(activityId), 50);
     onOpenChange(false);
@@ -143,14 +174,45 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         {/* Results */}
         <div className="max-h-[60vh] overflow-y-auto p-2">
           {query.length < 2 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                <Search className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium">Busca en todo el curso</p>
-              <p className="text-xs text-muted-foreground">
-                Escribe al menos 2 caracteres para comenzar
-              </p>
+            <div className="py-6">
+              {recentSearches.length > 0 ? (
+                <div>
+                  <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Búsquedas recientes
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 px-3 pb-2">
+                    {recentSearches.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setQuery(s)}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      >
+                        <Search className="h-3 w-3" />
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setRecentSearches([]);
+                      localStorage.removeItem("electromed-search-history");
+                    }}
+                    className="px-3 text-[11px] text-muted-foreground hover:text-foreground"
+                  >
+                    Limpiar historial
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <Search className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium">Busca en todo el curso</p>
+                  <p className="text-xs text-muted-foreground">
+                    Escribe al menos 2 caracteres para comenzar
+                  </p>
+                </div>
+              )}
             </div>
           ) : totalResults === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">

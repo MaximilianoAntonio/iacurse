@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
@@ -76,6 +77,10 @@ export function DashboardView() {
   );
   const { data: nextData } = useFetch<NextActivityResponse>(
     userId ? `/api/next-activity?userId=${userId}` : null,
+    [userId]
+  );
+  const { data: recentBadgesData } = useFetch<{ badges: { id: string; name: string; icon: string; tier: string; description: string; awardedAt: string }[] }>(
+    userId ? `/api/recent-badges?userId=${userId}` : null,
     [userId]
   );
 
@@ -252,6 +257,48 @@ export function DashboardView() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Notificación de badges recientes */}
+      {recentBadgesData?.badges && recentBadgesData.badges.length > 0 && (
+        <section className="space-y-3">
+          {recentBadgesData.badges.map((badge, i) => {
+            const tierMeta = {
+              bronze: { gradient: "from-amber-400 to-orange-500", bg: "bg-amber-50 dark:bg-amber-950/30", border: "border-amber-200 dark:border-amber-900" },
+              silver: { gradient: "from-slate-300 to-slate-500", bg: "bg-slate-50 dark:bg-slate-900/30", border: "border-slate-200 dark:border-slate-800" },
+              gold: { gradient: "from-yellow-400 to-amber-500", bg: "bg-yellow-50 dark:bg-yellow-950/30", border: "border-yellow-200 dark:border-yellow-900" },
+            }[badge.tier] ?? { gradient: "from-violet-400 to-purple-500", bg: "bg-violet-50 dark:bg-violet-950/30", border: "border-violet-200 dark:border-violet-900" };
+            return (
+              <motion.div
+                key={badge.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className={`flex items-center gap-3 rounded-2xl border ${tierMeta.border} ${tierMeta.bg} p-4`}
+              >
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${tierMeta.gradient} text-white shadow-lg`}>
+                  <DynamicIcon name={badge.icon} className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold">¡Nuevo badge desbloqueado!</span>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{badge.tier}</span>
+                  </div>
+                  <p className="text-sm font-medium">{badge.name}</p>
+                  <p className="text-xs text-muted-foreground">{badge.description}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("achievements")}
+                  className="shrink-0 text-violet-600 hover:bg-violet-100 dark:hover:bg-violet-950"
+                >
+                  Ver <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </motion.div>
+            );
+          })}
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Continuar aprendiendo */}

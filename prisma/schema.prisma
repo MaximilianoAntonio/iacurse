@@ -82,6 +82,7 @@ model Attempt {
   score      Int?
   correct    Boolean?
   timeSpent  Int?
+  hintsUsed  Int      @default(0)
   createdAt  DateTime @default(now())
 }
 

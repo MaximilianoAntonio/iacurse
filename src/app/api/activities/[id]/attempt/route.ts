@@ -15,10 +15,11 @@ import { parseActivityData } from "@/lib/course-utils";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: activityId } = await params;
   const body = await req.json();
-  const { userId, answer, timeSpent } = body as {
+  const { userId, answer, timeSpent, hintsUsed } = body as {
     userId: string;
     answer: string;
     timeSpent?: number;
+    hintsUsed?: number;
   };
 
   if (!userId || !answer) {
@@ -166,6 +167,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       score,
       correct: isCorrect,
       timeSpent: timeSpent ?? null,
+      hintsUsed: hintsUsed ?? 0,
     },
   });
 

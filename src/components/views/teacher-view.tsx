@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StudentDetailModal } from "@/components/app/student-detail-modal";
 import { patchJSON } from "@/hooks/use-fetch";
 
 // ---------- Types ----------
@@ -224,6 +225,7 @@ function TeacherDashboard({
 }) {
   const { students, units, aggregate } = data;
   const [studentSearch, setStudentSearch] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   // Filtrar estudiantes por nombre/email
   const filteredStudents = useMemo(() => {
@@ -429,6 +431,7 @@ function TeacherDashboard({
                     key={s.id}
                     student={s}
                     unitFilter={unitFilter}
+                    onSelect={() => setSelectedStudentId(s.id)}
                   />
                 ))
                 )}
@@ -503,6 +506,13 @@ function TeacherDashboard({
 
       {/* Section 5: Reportes de errores de IA */}
       <ErrorReportsSection />
+
+      {/* Modal de detalle de estudiante */}
+      <StudentDetailModal
+        studentId={selectedStudentId}
+        open={selectedStudentId !== null}
+        onOpenChange={(open) => { if (!open) setSelectedStudentId(null); }}
+      />
     </div>
   );
 }
@@ -743,9 +753,11 @@ function AggregateKpi({
 function StudentRow({
   student,
   unitFilter,
+  onSelect,
 }: {
   student: Student;
   unitFilter: string;
+  onSelect?: () => void;
 }) {
   const acierto =
     student.totalAttempts > 0
@@ -764,7 +776,10 @@ function StudentRow({
         : 0;
 
   return (
-    <TableRow>
+    <TableRow
+      onClick={onSelect}
+      className={cn("transition-colors", onSelect && "cursor-pointer hover:bg-accent/50")}
+    >
       <TableCell className="pl-4">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8 border">
