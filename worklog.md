@@ -321,3 +321,59 @@ The platform "ElectroMed IA" is functional with URL-based navigation, a right-si
 - **Confetti/celebration on unit completion**: Could add for gamification polish.
 - **Dark mode visual audit**: Should do a VLM check of dark mode to ensure contrast/polish.
 - **Performance**: Progress view fetches many attempts; could add pagination for large datasets.
+
+---
+Task ID: cron-review-2
+Agent: Z.ai Code (web dev review)
+Task: QA testing, bug fix (points awarding), and new features (Continue card, reading progress, celebration, activity reports)
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is stable with URL navigation, right-side chat sidebar, 5 units, 32 activities, gamification, analytics, teacher panel, and error reporting (added in cron-review-1). This round focused on: (1) fixing a critical bug in the points-awarding logic, (2) adding a "Continuar donde quedé" smart recommendation card, (3) adding a reading progress bar to lessons, (4) adding a celebration/confetti modal for activity completion, and (5) extending "Reportar error" to activity AI feedback.
+
+## Current goals/completed modifications/verification results
+
+### Bug fixed: Points not awarded on first correct attempt
+- **Problem**: The `/api/activities/[id]/attempt` route queried `previousBest` (correct attempts) AFTER creating the new attempt. Since the new correct attempt was already saved, the query always found it, making `pointsAwarded = 0` even on the first correct submission. This broke the celebration trigger and point accumulation.
+- **Fix**: Moved the `hadPreviousCorrect` query to BEFORE `db.attempt.create()`. Now the check correctly determines if this is the first correct attempt.
+- **Verified**: Submitted a fresh MC activity (NBG mode selection) → API returned `pointsAwarded: 10` → celebration modal appeared with "+10 puntos".
+
+### New feature: "Continuar donde quedé" smart card (dashboard)
+- Created `/api/next-activity` endpoint that finds the user's next incomplete activity (prioritizing the last-visited unit with incomplete activities, then the first unit with incomplete activities).
+- Added `ContinueCard` component to the dashboard showing: unit icon, activity title, lesson title, activity type, unit progress bar, and points. Two CTAs: "Continuar" (opens the activity) and "Ver unidad".
+- Distinguishes between "Continuar donde quedaste" (resume) and "Empezar nueva unidad" (new).
+- **Verified**: Card appears on dashboard, clicking "Continuar" navigates to the correct incomplete activity.
+
+### New feature: Reading progress bar (lesson view)
+- Created `ReadingProgress` component: a fixed 1px bar at the top that tracks scroll position within the page, colored with the unit's gradient.
+- Integrated into lesson view — updates in real-time as the student scrolls through the lesson material.
+- **Verified**: Bar shows 31% after scrolling 500px, updates smoothly on scroll/resize.
+
+### New feature: Celebration/confetti modal (activity completion)
+- Created `Celebration` component with: 40 animated confetti pieces (framer-motion, random colors/positions/rotations), a modal with gradient header, checkmark icon, title, description, points badge, and auto-close after 6 seconds.
+- Integrated into activity view — triggers when `result.correct && result.pointsAwarded > 0` (first correct submission).
+- Uses the unit's color gradient for theming.
+- **Verified**: VLM confirmed "celebration/confetti modal" with "¡Actividad completada!", "+10 puntos", and "¡Genial!" button.
+
+### New feature: "Reportar error" on activity AI feedback
+- Extended the error reporting feature to activity result panels.
+- Added "Reportar" button next to the "Retroalimentación del tutor IA" section in the ResultPanel.
+- Report dialog with 5 reason options (incorrect/biased/offtopic/harmful/other) + optional comment.
+- "Reportado" confirmation state with green checkmark.
+- Reports are saved with `source: "activity"` and appear in the teacher's error reports panel.
+- State resets on retry.
+- **Verified**: Button appears on AI feedback, dialog opens with reason options.
+
+### QA performed
+- Tested all views: dashboard (with new Continue card), units (search/filter), unit-detail, lesson (with reading progress bar), activity (with celebration + report), chat sidebar, progress (3 charts), teacher panel, achievements, about.
+- Dark mode visual audit (VLM): confirmed good contrast and readability.
+- Tested celebration: found and fixed the points-awarding bug, verified celebration appears on first correct submission.
+- Lint clean (0 errors, 0 warnings). No console/runtime errors.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Lesson table of contents**: Mentioned as a potential feature for quick navigation within long lessons; not yet implemented.
+- **Badge unlock celebration**: The celebration currently triggers on activity completion; could also trigger when a new badge is unlocked.
+- **Unit completion celebration**: Could add a special celebration when an entire unit is completed (not just individual activities).
+- **Real-time teacher notifications**: Teacher panel reports don't auto-refresh; could add polling.
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Content search across lessons**: Currently search is only on unit titles; could extend to lesson/activity content.

@@ -148,6 +148,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     context,
   });
 
+  // Consultar SI HUBO un intento correcto previo ANTES de guardar el nuevo.
+  // Esto determina si se otorgan puntos (solo la primera vez correcta).
+  const hadPreviousCorrect = await db.attempt.findFirst({
+    where: { userId, activityId, correct: true },
+    select: { id: true, score: true },
+  });
+
   // Guardar intento
   const attempt = await db.attempt.create({
     data: {
@@ -190,12 +197,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // Actualizar puntos del usuario (solo suma puntos si es mejor puntaje y no había correcto anterior)
-  const previousBest = await db.attempt.findFirst({
-    where: { userId, activityId, correct: true },
-    orderBy: { score: "desc" },
-  });
   let pointsAwarded = 0;
-  if (isCorrect && !previousBest) {
+  if (isCorrect && !hadPreviousCorrect) {
     // Primera vez correcta: otorga puntos
     pointsAwarded = score;
     await db.user.update({
@@ -203,7 +206,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data: { points: { increment: pointsAwarded }, lastActive: new Date() },
     });
   } else if (!isCorrect && score > 0) {
-    pointsAwarded = Math.max(0, score - (previousBest?.score ?? 0));
+    pointsAwarded = Math.max(0, score - (hadPreviousCorrect?.score ?? 0));
     if (pointsAwarded > 0) {
       await db.user.update({
         where: { id: userId },

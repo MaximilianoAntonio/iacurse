@@ -22,8 +22,20 @@ import {
   Target,
   BookOpen,
   CheckCircle2,
+  PlayCircle,
+  Zap,
 } from "lucide-react";
 import type { Unit, User } from "@/lib/types";
+
+interface NextActivityResponse {
+  recommendation: {
+    activity: { id: string; title: string; type: string; difficulty: string; points: number; lessonId: string };
+    lesson: { id: string; title: string };
+    unit: { id: string; title: string; color: string; icon: string; slug: string; order: number };
+    reason: string;
+    unitProgress: { completed: number; total: number; mastery: number };
+  } | null;
+}
 
 interface ProgressResponse {
   user: { id: string; name: string; points: number; streak: number };
@@ -59,6 +71,10 @@ export function DashboardView() {
   );
   const { data: progressData } = useFetch<ProgressResponse>(
     `/api/progress?userId=${userId}`,
+    [userId]
+  );
+  const { data: nextData } = useFetch<NextActivityResponse>(
+    userId ? `/api/next-activity?userId=${userId}` : null,
     [userId]
   );
 
@@ -139,6 +155,18 @@ export function DashboardView() {
           </div>
         </div>
       </section>
+
+      {/* Continuar donde quedé — tarjeta inteligente */}
+      {nextData?.recommendation && (
+        <ContinueCard
+          recommendation={nextData.recommendation}
+          onOpenActivity={(lessonId, activityId) => {
+            useAppStore.getState().openLesson(lessonId);
+            setTimeout(() => useAppStore.getState().openActivity(activityId), 50);
+          }}
+          onOpenUnit={(unitId) => openUnit(unitId)}
+        />
+      )}
 
       {/* KPIs */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -337,5 +365,106 @@ function KpiCard({
         <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>
       </CardContent>
     </Card>
+  );
+}
+
+interface ContinueCardProps {
+  recommendation: {
+    activity: { id: string; title: string; type: string; difficulty: string; points: number; lessonId: string };
+    lesson: { id: string; title: string };
+    unit: { id: string; title: string; color: string; icon: string; slug: string; order: number };
+    reason: string;
+    unitProgress: { completed: number; total: number; mastery: number };
+  };
+  onOpenActivity: (lessonId: string, activityId: string) => void;
+  onOpenUnit: (unitId: string) => void;
+}
+
+function ContinueCard({ recommendation, onOpenActivity, onOpenUnit }: ContinueCardProps) {
+  const { activity, lesson, unit, reason, unitProgress } = recommendation;
+  const color = getUnitColor(unit.color);
+  const isContinue = reason === "continue";
+  const pct = unitProgress.total > 0 ? Math.round((unitProgress.completed / unitProgress.total) * 100) : 0;
+
+  const typeLabels: Record<string, string> = {
+    multiple_choice: "Selección múltiple",
+    guided_problem: "Problema guiado",
+    case_analysis: "Análisis de caso",
+    progressive_exercise: "Ejercicio progresivo",
+    self_assessment: "Autoevaluación",
+  };
+
+  return (
+    <section
+      className={`relative overflow-hidden rounded-2xl border-2 ${color.border} ${color.bgSoft} transition-all`}
+    >
+      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${color.gradient}`} />
+      <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-4">
+          <div className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${color.gradient} text-white shadow-lg`}>
+            <DynamicIcon name={unit.icon} className="h-7 w-7" />
+            {isContinue && (
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 shadow">
+                !
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className={`gap-1 ${color.text} ${color.border}`}>
+                {isContinue ? (
+                  <>
+                    <PlayCircle className="h-3 w-3" /> Continuar donde quedaste
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-3 w-3" /> Empezar nueva unidad
+                  </>
+                )}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                Unidad {unit.order} · {unit.title}
+              </span>
+            </div>
+            <h3 className="truncate text-base font-bold leading-tight sm:text-lg">
+              {activity.title}
+            </h3>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {lesson.title} · {typeLabels[activity.type] ?? activity.type}
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Progress value={pct} className={`h-1.5 w-24 ${color.bg}`} />
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {unitProgress.completed}/{unitProgress.total} actividades
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground">·</span>
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Sparkles className="h-3 w-3" /> {activity.points} pts
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={() => onOpenUnit(unit.id)}
+          >
+            Ver unidad
+          </Button>
+          <Button
+            size="sm"
+            className={`bg-gradient-to-br ${color.gradient} text-white shadow-md hover:opacity-90`}
+            onClick={() => onOpenActivity(activity.lessonId, activity.id)}
+          >
+            <PlayCircle className="mr-1.5 h-4 w-4" />
+            {isContinue ? "Continuar" : "Comenzar"}
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }

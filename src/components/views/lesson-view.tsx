@@ -6,6 +6,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
 import { LoadingRows } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
+import { ReadingProgress } from "@/components/app/reading-progress";
 import { getUnitColor, activityTypeMeta, difficultyMeta } from "@/lib/course-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -105,7 +106,9 @@ export function LessonView() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 lg:p-8">
+    <>
+      <ReadingProgress colorClass={`bg-gradient-to-r ${color.gradient}`} />
+      <div className="mx-auto max-w-4xl space-y-6 p-4 lg:p-8">
       <PageHeader
         title={lesson.title}
         description={lesson.description}
@@ -267,6 +270,7 @@ export function LessonView() {
           <ArrowLeft className="mr-1 h-4 w-4" /> Volver a la unidad
         </Button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

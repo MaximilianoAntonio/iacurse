@@ -7,6 +7,7 @@ import { useFetch, postJSON } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { LoadingRows } from "@/components/app/loading";
+import { Celebration } from "@/components/app/celebration";
 import { useToast } from "@/hooks/use-toast";
 import {
   getUnitColor,
@@ -45,6 +46,14 @@ import {
 } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -66,6 +75,7 @@ import {
   Eye,
   EyeOff,
   BookOpen,
+  Flag,
 } from "lucide-react";
 
 // ---------- types ----------
@@ -306,6 +316,11 @@ function ActivityInner(props: ActivityInnerProps) {
   const [result, setResult] = useState<AttemptResult["attempt"] | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [celebrating, setCelebrating] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("incorrect");
+  const [reportComment, setReportComment] = useState("");
+  const [reported, setReported] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
 
   // Timer: arranca al montar / cambiar de actividad; se congela al enviar.
@@ -334,6 +349,10 @@ function ActivityInner(props: ActivityInnerProps) {
         );
         setResult(res.attempt);
         setSubmitted(true);
+        // Disparar celebración si fue correcta y ganó puntos (primera vez)
+        if (res.attempt.correct && res.attempt.pointsAwarded > 0) {
+          setCelebrating(true);
+        }
         toast({
           title: res.attempt.correct
             ? "¡Bien hecho!"
@@ -360,6 +379,9 @@ function ActivityInner(props: ActivityInnerProps) {
     setSubmitted(false);
     setSubmitting(false);
     setResetKey((k) => k + 1);
+    setReported(false);
+    setReportComment("");
+    setReportReason("incorrect");
   }, []);
 
   const handleNext = useCallback(() => {
@@ -367,8 +389,38 @@ function ActivityInner(props: ActivityInnerProps) {
     else onOpenLesson();
   }, [nextActivity, onOpenActivity, onOpenLesson]);
 
+  const submitReport = useCallback(async () => {
+    try {
+      await postJSON("/api/report", {
+        userId,
+        source: "activity",
+        sourceId: activity.id,
+        reason: reportReason,
+        comment: reportComment || undefined,
+      });
+      setReported(true);
+      setReportOpen(false);
+      setReportComment("");
+      toast({
+        title: "Reporte enviado",
+        description: "El equipo docente revisará esta retroalimentación. ¡Gracias!",
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error al enviar el reporte";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    }
+  }, [userId, activity.id, reportReason, reportComment, toast]);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 lg:p-8">
+      <Celebration
+        trigger={celebrating}
+        title="¡Actividad completada!"
+        description={activity.title}
+        points={result?.pointsAwarded}
+        onClose={() => setCelebrating(false)}
+        accentGradient={unitColor.gradient}
+      />
       <PageHeader
         title={activity.title}
         icon={typeMeta.icon}
@@ -445,6 +497,14 @@ function ActivityInner(props: ActivityInnerProps) {
           isLast={isLast}
           onRetry={handleRetry}
           onNext={handleNext}
+          reportOpen={reportOpen}
+          reportReason={reportReason}
+          reportComment={reportComment}
+          reported={reported}
+          onSetReportOpen={setReportOpen}
+          onSetReportReason={setReportReason}
+          onSetReportComment={setReportComment}
+          onSubmitReport={submitReport}
         />
       )}
 
@@ -1214,6 +1274,14 @@ interface ResultPanelProps {
   isLast: boolean;
   onRetry: () => void;
   onNext: () => void;
+  reportOpen: boolean;
+  reportReason: string;
+  reportComment: string;
+  reported: boolean;
+  onSetReportOpen: (open: boolean) => void;
+  onSetReportReason: (reason: string) => void;
+  onSetReportComment: (comment: string) => void;
+  onSubmitReport: () => void;
 }
 
 function ResultPanel({
@@ -1222,8 +1290,23 @@ function ResultPanel({
   isLast,
   onRetry,
   onNext,
+  reportOpen,
+  reportReason,
+  reportComment,
+  reported,
+  onSetReportOpen,
+  onSetReportReason,
+  onSetReportComment,
+  onSubmitReport,
 }: ResultPanelProps) {
   const correct = result.correct;
+  const reportReasons = [
+    { value: "incorrect", label: "Retroalimentación incorrecta" },
+    { value: "biased", label: "Contenido sesgado" },
+    { value: "offtopic", label: "Fuera de tema" },
+    { value: "harmful", label: "Contenido inapropiado" },
+    { value: "other", label: "Otro" },
+  ];
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -1285,8 +1368,28 @@ function ResultPanel({
         <CardContent className="space-y-4 pt-4">
           {/* Retroalimentación IA */}
           <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-800 dark:bg-violet-950/20">
-            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
-              <Bot className="h-3.5 w-3.5" /> Retroalimentación del tutor IA
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                <Bot className="h-3.5 w-3.5" /> Retroalimentación del tutor IA
+              </div>
+              <button
+                onClick={() => onSetReportOpen(true)}
+                disabled={reported}
+                className="flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-rose-500 disabled:cursor-default disabled:opacity-100"
+                title="Reportar esta retroalimentación"
+              >
+                {reported ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    <span className="text-emerald-600 dark:text-emerald-400">Reportado</span>
+                  </>
+                ) : (
+                  <>
+                    <Flag className="h-3 w-3" />
+                    <span className="hidden sm:inline">Reportar</span>
+                  </>
+                )}
+              </button>
             </div>
             <p className="text-sm leading-relaxed text-foreground/90">
               {result.feedback}
@@ -1342,6 +1445,71 @@ function ResultPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog de reporte de retroalimentación */}
+      <Dialog open={reportOpen} onOpenChange={onSetReportOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Flag className="h-4 w-4 text-rose-500" />
+              Reportar retroalimentación
+            </DialogTitle>
+            <DialogDescription>
+              Tu reporte será revisado por el equipo docente. Esto nos ayuda a mejorar la calidad de la retroalimentación IA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-foreground">
+                Motivo del reporte
+              </label>
+              <div className="space-y-1.5">
+                {reportReasons.map((r) => (
+                  <label
+                    key={r.value}
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors ${
+                      reportReason === r.value
+                        ? "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30"
+                        : "border-border hover:bg-accent"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="report-reason"
+                      value={r.value}
+                      checked={reportReason === r.value}
+                      onChange={(e) => onSetReportReason(e.target.value)}
+                      className="h-3.5 w-3.5 accent-rose-500"
+                    />
+                    {r.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-foreground">
+                Comentario (opcional)
+              </label>
+              <Textarea
+                value={reportComment}
+                onChange={(e) => onSetReportComment(e.target.value)}
+                placeholder="Describe el problema que encontraste..."
+                className="min-h-[70px] resize-none text-sm"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => onSetReportOpen(false)}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={onSubmitReport} className="bg-rose-600 hover:bg-rose-700">
+              <Flag className="mr-1 h-3.5 w-3.5" />
+              Enviar reporte
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
