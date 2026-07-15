@@ -430,7 +430,7 @@ export function ProgressView() {
                       <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 11 }}
@@ -866,6 +866,7 @@ export function ProgressView() {
       </Tabs>
 
       {/* Recent attempts feed */}
+      <div className="pt-2">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -937,6 +938,7 @@ export function ProgressView() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
@@ -963,7 +965,7 @@ function KpiCard({
         <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", colorClass)}>
           {icon}
         </div>
-        <div className="mt-3 text-2xl font-bold tracking-tight">{value}</div>
+        <div className="mt-3 text-3xl font-bold tracking-tight tabular-nums">{value}</div>
         <div className="text-xs font-medium text-muted-foreground">{label}</div>
         <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>
       </CardContent>

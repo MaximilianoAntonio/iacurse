@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { LoadingRows } from "@/components/app/loading";
 import { Celebration } from "@/components/app/celebration";
+import { BookmarkButton } from "@/components/app/bookmark-button";
 import { useToast } from "@/hooks/use-toast";
 import {
   getUnitColor,
@@ -527,17 +528,20 @@ function ActivityInner(props: ActivityInnerProps) {
                 {activity.points} pts
               </Badge>
             </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex cursor-default items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                    {formatDuration(elapsed)}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Tiempo en esta actividad</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex items-center gap-2">
+              <BookmarkButton activityId={activity.id} />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex cursor-default items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatDuration(elapsed)}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>Tiempo en esta actividad</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </CardHeader>
 
@@ -793,9 +797,12 @@ function GuidedProblemActivity({
   const [revealedHints, setRevealedHints] = useState<Set<number>>(
     new Set()
   );
+  const GP_MAX_HINTS = 2; // Máximo 2 pistas de paso en problemas guiados
 
   const allFilled = answers.every((a) => a.trim().length > 0);
   const canSubmit = allFilled && !submitting;
+  const hintsUsedCount = revealedHints.size;
+  const hintsLeft = GP_MAX_HINTS - hintsUsedCount;
 
   const handleSubmit = () => {
     if (!allFilled) return;
@@ -805,8 +812,11 @@ function GuidedProblemActivity({
   const toggleHint = (i: number) => {
     setRevealedHints((prev) => {
       const next = new Set(prev);
-      if (next.has(i)) next.delete(i);
-      else {
+      if (next.has(i)) {
+        next.delete(i);
+      } else {
+        // Solo permitir revelar si no se ha alcanzado el límite
+        if (next.size >= GP_MAX_HINTS) return prev;
         next.add(i);
         onHintUsed?.();
       }
@@ -868,17 +878,18 @@ function GuidedProblemActivity({
                   )}
                 />
                 {!submitted && (
-                  <div className="mt-1.5">
+                  <div className="mt-1.5 flex items-center gap-2">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleHint(i)}
-                      className="h-7 px-2 text-xs text-amber-700 dark:text-amber-300"
+                      disabled={!revealedHints.has(i) && hintsLeft <= 0}
+                      className="h-7 px-2 text-xs text-amber-700 dark:text-amber-300 disabled:opacity-40"
                     >
                       {revealedHints.has(i) ? (
                         <>
-                          <EyeOff className="mr-1 h-3 w-3" /> Ocultar pista
+                          <EyeOff className="mr-1 h-3 w-3" /> Ocultar
                         </>
                       ) : (
                         <>
@@ -886,12 +897,20 @@ function GuidedProblemActivity({
                         </>
                       )}
                     </Button>
+                    {hintsLeft <= 0 && !revealedHints.has(i) && (
+                      <span className="text-[10px] text-muted-foreground">({hintsUsedCount}/{GP_MAX_HINTS} usadas)</span>
+                    )}
                     {revealedHints.has(i) && (
-                      <p className="mt-1 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                      <p className="rounded-md bg-amber-50 px-2.5 py-1 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
                         {step.hint}
                       </p>
                     )}
                   </div>
+                )}
+                {submitted && revealedHints.has(i) && (
+                  <p className="mt-1 rounded-md bg-amber-50 px-2.5 py-1 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                    {step.hint}
+                  </p>
                 )}
                 {submitted && (
                   <div

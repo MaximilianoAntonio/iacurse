@@ -30,6 +30,7 @@ model User {
   userBadges    UserBadge[]
   selfAssess    SelfAssessment[]
   errorReports  ErrorReport[]
+  bookmarks     Bookmark[]
 }
 
 model Unit {
@@ -70,6 +71,7 @@ model Activity {
   difficulty String   @default("medium") // "easy" | "medium" | "hard"
   order      Int
   attempts   Attempt[]
+  bookmarks  Bookmark[]
 }
 
 model Attempt {
@@ -163,4 +165,16 @@ model ErrorReport {
   comment     String?
   status      String   @default("open") // "open" | "reviewed" | "resolved"
   createdAt   DateTime @default(now())
+}
+
+model Bookmark {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, activityId])
 }

@@ -39,6 +39,7 @@ import {
   PlayCircle,
   Zap,
   Settings2,
+  BookmarkCheck,
 } from "lucide-react";
 import type { Unit, User } from "@/lib/types";
 
@@ -94,6 +95,10 @@ export function DashboardView() {
   );
   const { data: recentBadgesData } = useFetch<{ badges: { id: string; name: string; icon: string; tier: string; description: string; awardedAt: string }[] }>(
     userId ? `/api/recent-badges?userId=${userId}` : null,
+    [userId]
+  );
+  const { data: bookmarksData } = useFetch<{ bookmarks: { id: string; activityId: string; activity: { id: string; title: string; type: string; difficulty: string; points: number; lesson: { id: string; title: string; unit: { id: string; title: string; color: string; icon: string } } } }[] }>(
+    userId ? `/api/bookmarks?userId=${userId}` : null,
     [userId]
   );
 
@@ -400,6 +405,44 @@ export function DashboardView() {
         {/* Actividad reciente */}
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">Actividad reciente</h2>
+
+          {/* Bookmarks guardados */}
+          {bookmarksData?.bookmarks && bookmarksData.bookmarks.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+              <CardContent className="p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <BookmarkCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <h3 className="text-sm font-semibold">Actividades guardadas</h3>
+                  <Badge variant="secondary" className="ml-auto text-[10px]">{bookmarksData.bookmarks.length}</Badge>
+                </div>
+                <div className="space-y-1.5">
+                  {bookmarksData.bookmarks.slice(0, 4).map((b) => {
+                    const color = getUnitColor(b.activity.lesson.unit.color);
+                    return (
+                      <button
+                        key={b.id}
+                        onClick={() => {
+                          useAppStore.getState().openLesson(b.activity.lesson.id);
+                          setTimeout(() => useAppStore.getState().openActivity(b.activityId), 50);
+                        }}
+                        className="group flex w-full items-center gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-amber-100/50 dark:hover:bg-amber-950/30"
+                      >
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color.bgSoft} ${color.text}`}>
+                          <DynamicIcon name="ListChecks" className="h-3 w-3" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium">{b.activity.title}</p>
+                          <p className="truncate text-[10px] text-muted-foreground">{b.activity.lesson.unit.title}</p>
+                        </div>
+                        <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="p-0">
               {recentAttempts.length === 0 ? (

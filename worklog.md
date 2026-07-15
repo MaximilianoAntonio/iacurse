@@ -801,3 +801,53 @@ The platform "ElectroMed IA" is mature with all features from cron-review-1 thro
 - **Activity hint limit for other types**: Currently only MultipleChoice has the hint limit; could extend to GuidedProblem (per-step hints).
 - **Compare more than 2 students**: Could allow comparing 3+ students in a table format.
 - **Export comparison**: Could export the comparison as a PDF report.
+
+---
+Task ID: cron-review-10
+Agent: Z.ai Code (web dev review)
+Task: Activity bookmarks, GuidedProblem hint limit, progress page styling polish
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is mature with all features from cron-review-1 through 9. This round focused on: (1) implementing activity bookmarks (save activities for later), (2) extending the hint limit to GuidedProblem activities (per-step hints), and (3) polishing the progress page styling per VLM feedback (larger KPIs, gridlines, spacing).
+
+## Current goals/completed modifications/verification results
+
+### New feature: Activity bookmarks
+- Added `Bookmark` Prisma model (userId, activityId, note, unique constraint on [userId, activityId]).
+- Created `/api/bookmarks` API: GET (list with activity details), POST (create), DELETE (remove).
+- Created `BookmarkButton` component: toggle button with Bookmark/BookmarkCheck icons, toast feedback, auto-refreshes bookmark state.
+- Added BookmarkButton to the activity view header (next to the timer).
+- Added "Actividades guardadas" section to the dashboard showing bookmarked activities with click-to-navigate.
+- Amber-themed bookmark cards with unit color icons and activity count badge.
+- **Verified**: Clicked "Guardar" on an activity → toast "Actividad guardada" → dashboard shows "Actividades guardadas" section with the saved activity.
+
+### New feature: GuidedProblem hint limit (max 2 step hints)
+- Added `GP_MAX_HINTS = 2` constant to GuidedProblemActivity.
+- `toggleHint` now checks `next.size >= GP_MAX_HINTS` and prevents revealing more hints if limit reached.
+- Hint button is disabled when limit reached and not already revealed for that step.
+- Shows "(2/2 usadas)" counter when limit is reached.
+- Hint text is shown both before and after submission (if revealed).
+- Encourages students to think about which steps need hints most.
+- **Verified**: Code compiles, lint clean.
+
+### Improvement: Progress page styling polish (VLM feedback)
+- Made KPI numbers larger: `text-2xl` → `text-3xl` with `tabular-nums` for better number alignment.
+- Enabled both horizontal and vertical gridlines on the 14-day activity chart (removed `vertical={false}`), with reduced opacity for subtlety.
+- Added spacing between the tabs section and the "Intentos recientes" feed (`pt-2` wrapper).
+- **Verified**: VLM confirmed KPI numbers are larger/bolder and gridlines are visible on the activity chart.
+
+### QA performed
+- Tested dashboard (bookmarks section appears after saving an activity), activity view (bookmark button toggle works with toast feedback), progress page (larger KPIs, gridlines visible).
+- VLM-verified: bookmarks section on dashboard, progress page polish.
+- Lint clean (0 errors, 0 warnings). No console/runtime errors.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Notification read state persistence**: Notifications use time-based heuristic; could persist read state in DB.
+- **Real-time notifications**: Could use WebSocket for instant notification delivery.
+- **Hint analytics over time**: Could add a time-series chart showing hint usage trends over days/weeks.
+- **Bookmark notes**: The `note` field exists in the Bookmark model but isn't used in the UI; could add a note editor.
+- **Bookmark management page**: Could add a dedicated bookmarks page (not just dashboard section) with sorting/filtering.
+- **Export comparison as PDF**: Could export the student comparison as a PDF report.
+- **Dark mode audit**: Should do a comprehensive dark mode visual audit across all views.
