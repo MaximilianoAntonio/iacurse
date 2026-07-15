@@ -128,10 +128,10 @@ interface TeacherResponse {
 
 const chartColors: Record<string, string> = {
   emerald: "#003366",
-  sky: "#0ea5e9",
+  sky: "#0066AA",
   amber: "#f59e0b",
   violet: "#fbbf24",
-  rose: "#f43f5e",
+  rose: "#c0392b",
 };
 
 function unitHex(color: string): string {
@@ -517,16 +517,16 @@ function TeacherDashboard({
                     cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                     content={<DistributionTooltip />}
                   />
-                  <Bar dataKey="low" stackId="a" name="Bajo (<40%)" fill="#f43f5e" barSize={22} />
+                  <Bar dataKey="low" stackId="a" name="Bajo (<40%)" fill="#c0392b" barSize={22} />
                   <Bar dataKey="mid" stackId="a" name="Medio (40–69%)" fill="#f59e0b" barSize={22} />
-                  <Bar dataKey="high" stackId="a" name="Alto (≥70%)" fill="#10b981" radius={[0, 6, 6, 0]} barSize={22} />
+                  <Bar dataKey="high" stackId="a" name="Alto (≥70%)" fill="#003366" radius={[0, 6, 6, 0]} barSize={22} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
-              <LegendDot color="#10b981" label="Alto (≥70%)" />
+              <LegendDot color="#003366" label="Alto (≥70%)" />
               <LegendDot color="#f59e0b" label="Medio (40–69%)" />
-              <LegendDot color="#f43f5e" label="Bajo (<40%)" />
+              <LegendDot color="#c0392b" label="Bajo (<40%)" />
             </div>
           </CardContent>
         </Card>
@@ -914,7 +914,7 @@ function StudentRow({
       <TableCell className="pr-4 text-right">
         {student.lastActive ? (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <Flame className="h-3 w-3 text-rose-500" />
+            <Flame className="h-3 w-3 text-amber-500" />
             {timeAgo(student.lastActive)}
           </span>
         ) : (

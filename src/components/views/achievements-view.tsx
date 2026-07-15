@@ -97,8 +97,8 @@ const kpiTheme: Record<string, { icon: string; gradient: string }> = {
     gradient: "from-amber-500 to-orange-600",
   },
   streak: {
-    icon: "bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400",
-    gradient: "from-rose-500 to-red-600",
+    icon: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
+    gradient: "from-amber-400 to-amber-600",
   },
   badges: {
     icon: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
@@ -513,7 +513,7 @@ function LeaderboardRow({
 
       {/* Streak */}
       <div className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-        <Flame className="h-3.5 w-3.5 text-rose-500" />
+        <Flame className="h-3.5 w-3.5 text-amber-500" />
         <span className="font-medium text-foreground">{entry.streak}</span>
         <span className="hidden md:inline">días</span>
       </div>

@@ -136,16 +136,16 @@ interface ProgressResponse {
 
 const chartColors: Record<string, string> = {
   emerald: "#003366",
-  sky: "#0ea5e9",
+  sky: "#0066AA",
   amber: "#f59e0b",
   violet: "#fbbf24",
-  rose: "#f43f5e",
+  rose: "#c0392b",
 };
 
 const difficultyColors: Record<Difficulty, string> = {
-  easy: "#10b981",
+  easy: "#003366",
   medium: "#f59e0b",
-  hard: "#f43f5e",
+  hard: "#c0392b",
 };
 
 const kpiColors: Record<string, string> = {
@@ -422,12 +422,12 @@ export function ProgressView() {
                 >
                   <defs>
                     <linearGradient id="attemptsGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#0066AA" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#0066AA" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="correctGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#003366" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#003366" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
@@ -450,7 +450,7 @@ export function ProgressView() {
                     type="monotone"
                     dataKey="attempts"
                     name="Intentos"
-                    stroke="#0ea5e9"
+                    stroke="#0066AA"
                     strokeWidth={2}
                     fill="url(#attemptsGrad)"
                   />
@@ -458,7 +458,7 @@ export function ProgressView() {
                     type="monotone"
                     dataKey="correct"
                     name="Correctos"
-                    stroke="#10b981"
+                    stroke="#003366"
                     strokeWidth={2}
                     fill="url(#correctGrad)"
                   />
@@ -479,7 +479,7 @@ export function ProgressView() {
                   sub={bestDay.attempts > 0 ? `${bestDay.attempts} intentos` : undefined}
                 />
                 <MiniStat
-                  icon={<Flame className="h-4 w-4 text-rose-500" />}
+                  icon={<Flame className="h-4 w-4 text-amber-500" />}
                   label="Racha actual"
                   value={`${user.streak} d`}
                 />
@@ -634,8 +634,8 @@ export function ProgressView() {
                       <Radar
                         name="Correctos"
                         dataKey="correct"
-                        stroke="#10b981"
-                        fill="#10b981"
+                        stroke="#003366"
+                        fill="#003366"
                         fillOpacity={0.4}
                       />
                       <Tooltip content={<ChartTooltip />} />
@@ -1073,7 +1073,7 @@ function ChartTooltip({
         <div key={i} className="flex items-center gap-2">
           <span
             className="h-2 w-2 rounded-full"
-            style={{ background: entry.color ?? "#0ea5e9" }}
+            style={{ background: entry.color ?? "#0066AA" }}
           />
           <span className="text-muted-foreground">{String(entry.name ?? "")}</span>
           <span className="font-medium">{String(entry.value ?? "")}</span>
@@ -1106,7 +1106,7 @@ function UnitBarTooltip({
       <div className="mb-1 flex items-center gap-2 font-medium">
         <span
           className="h-2 w-2 rounded-full"
-          style={{ background: d.color ?? "#10b981" }}
+          style={{ background: d.color ?? "#003366" }}
         />
         {d.title}
       </div>
@@ -1141,7 +1141,7 @@ function DiffPieTooltip({
       <div className="mb-1 flex items-center gap-2 font-medium">
         <span
           className="h-2 w-2 rounded-full"
-          style={{ background: d.color ?? "#10b981" }}
+          style={{ background: d.color ?? "#003366" }}
         />
         {d.label}
       </div>

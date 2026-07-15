@@ -117,7 +117,7 @@ const MVP_MODULES: ModuleInfo[] = [
     title: "Módulo tutor IA",
     description:
       "Asistente conversacional basado en IA generativa, con método socrático: guía sin entregar las respuestas.",
-    gradient: "from-rose-500 to-pink-600",
+    gradient: "from-amber-400 to-amber-600",
   },
   {
     icon: "BarChart3",
