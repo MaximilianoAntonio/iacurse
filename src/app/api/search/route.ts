@@ -33,12 +33,13 @@ export async function GET(req: NextRequest) {
     orderBy: { order: "asc" },
   });
 
-  // Buscar lecciones
+  // Buscar lecciones (incluyendo contenido markdown)
   const lessons = await db.lesson.findMany({
     where: {
       OR: [
         { title: { contains: q } },
         { description: { contains: q } },
+        { content: { contains: q } },
       ],
     },
     include: {

@@ -6,20 +6,23 @@ import { db } from "@/lib/db";
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
 
+  const selectFields = {
+    id: true,
+    email: true,
+    name: true,
+    role: true,
+    avatar: true,
+    points: true,
+    streak: true,
+    weeklyGoalMin: true,
+    lastActive: true,
+  };
+
   let user = null;
   if (userId) {
     user = await db.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        avatar: true,
-        points: true,
-        streak: true,
-        lastActive: true,
-      },
+      select: selectFields,
     });
   }
 
@@ -27,16 +30,7 @@ export async function GET(req: NextRequest) {
     user = await db.user.findFirst({
       where: { role: "student" },
       orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        avatar: true,
-        points: true,
-        streak: true,
-        lastActive: true,
-      },
+      select: selectFields,
     });
   }
 

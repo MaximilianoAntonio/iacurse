@@ -57,6 +57,7 @@ import {
   Search,
   X,
   Download,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,7 @@ interface Student {
   chatCount: number;
   lastActive: string | null;
   avgScore: number;
+  totalHintsUsed: number;
 }
 
 interface TeacherUnit {
@@ -512,6 +514,57 @@ function TeacherDashboard({
               <LegendDot color="#10b981" label="Alto (≥70%)" />
               <LegendDot color="#f59e0b" label="Medio (40–69%)" />
               <LegendDot color="#f43f5e" label="Bajo (<40%)" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Section 4b: Analítica de uso de pistas */}
+      {students.some((s) => s.totalHintsUsed > 0) && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+                <Lightbulb className="h-4 w-4" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Uso de pistas por estudiante</CardTitle>
+                <CardDescription>
+                  Total de pistas utilizadas en actividades. Un uso alto puede indicar dificultades conceptuales.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={students
+                    .filter((s) => s.totalHintsUsed > 0 || s.totalAttempts > 0)
+                    .map((s) => ({
+                      name: s.name.split(" ")[0] + " " + (s.name.split(" ")[1]?.[0] ?? "") + ".",
+                      hints: s.totalHintsUsed,
+                      attempts: s.totalAttempts,
+                    }))
+                    .sort((a, b) => b.hints - a.hints)}
+                  layout="vertical"
+                  margin={{ top: 8, right: 24, bottom: 8, left: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} stroke="hsl(var(--border))" />
+                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} content={<HintTooltip />} />
+                  <Bar dataKey="hints" name="Pistas usadas" fill="#f59e0b" radius={[0, 6, 6, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                Pistas usadas
+              </span>
+              <span>·</span>
+              <span>Estudiantes sin pistas no se muestran</span>
             </div>
           </CardContent>
         </Card>
@@ -948,6 +1001,36 @@ function DistributionTooltip(props: {
         <div>
           Bajo (&lt;40%): <span className="font-semibold text-rose-600 dark:text-rose-400">{row.low}</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Hint Tooltip ----------
+
+interface HintRow {
+  name: string;
+  hints: number;
+  attempts: number;
+}
+
+function HintTooltip(props: {
+  active?: boolean;
+  payload?: { payload: HintRow }[];
+}) {
+  if (!props.active || !props.payload || props.payload.length === 0) return null;
+  const row = props.payload[0].payload;
+  return (
+    <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+        <span className="font-medium">{row.name}</span>
+      </div>
+      <div className="mt-1 text-muted-foreground">
+        Pistas usadas: <span className="font-semibold text-foreground">{row.hints}</span>
+      </div>
+      <div className="text-muted-foreground">
+        Intentos totales: <span className="font-semibold text-foreground">{row.attempts}</span>
       </div>
     </div>
   );

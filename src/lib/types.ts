@@ -31,6 +31,7 @@ export interface User {
   avatar: string | null;
   points: number;
   streak: number;
+  weeklyGoalMin: number;
   lastActive: string | null;
 }
 

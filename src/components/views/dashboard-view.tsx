@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/store/app-store";
-import { useFetch } from "@/hooks/use-fetch";
+import { useFetch, postJSON } from "@/hooks/use-fetch";
+import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/app/page-header";
 import { LoadingGrid } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
@@ -13,6 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sparkles,
   Flame,
@@ -26,6 +38,7 @@ import {
   CheckCircle2,
   PlayCircle,
   Zap,
+  Settings2,
 } from "lucide-react";
 import type { Unit, User } from "@/lib/types";
 
@@ -83,6 +96,28 @@ export function DashboardView() {
     userId ? `/api/recent-badges?userId=${userId}` : null,
     [userId]
   );
+
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [goalInput, setGoalInput] = useState("180");
+  const { toast } = useToast();
+
+  const handleSaveGoal = async () => {
+    const minutes = parseInt(goalInput, 10);
+    if (isNaN(minutes) || minutes < 30 || minutes > 1200) {
+      toast({ title: "Valor inválido", description: "Ingresa entre 30 y 1200 minutos.", variant: "destructive" });
+      return;
+    }
+    try {
+      await postJSON("/api/user/weekly-goal", { userId, weeklyGoalMin: minutes });
+      useAppStore.setState((s) => ({
+        currentUser: s.currentUser ? { ...s.currentUser, weeklyGoalMin: minutes } : null,
+      }));
+      setGoalDialogOpen(false);
+      toast({ title: "Meta actualizada", description: `Tu meta semanal es ahora ${minutes} minutos.` });
+    } catch {
+      toast({ title: "Error", description: "No se pudo actualizar la meta.", variant: "destructive" });
+    }
+  };
 
   if (unitsLoading || !unitsData) {
     return (
@@ -210,17 +245,28 @@ export function DashboardView() {
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
-            <WeeklyGoalRing
-              current={(() => {
-                const days = progressData?.activityByDay ?? [];
-                return days.slice(-7).reduce((a, d) => a + d.timeMin, 0);
-              })()}
-              goal={180}
-              daysActive={(() => {
-                const days = progressData?.activityByDay ?? [];
-                return days.slice(-7).filter((d) => d.attempts > 0).length;
-              })()}
-            />
+            <div className="relative">
+              <WeeklyGoalRing
+                current={(() => {
+                  const days = progressData?.activityByDay ?? [];
+                  return days.slice(-7).reduce((a, d) => a + d.timeMin, 0);
+                })()}
+                goal={currentUser?.weeklyGoalMin ?? 180}
+                daysActive={(() => {
+                  const days = progressData?.activityByDay ?? [];
+                  return days.slice(-7).filter((d) => d.attempts > 0).length;
+                })()}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-7 gap-1 px-2 text-[11px] text-muted-foreground"
+                onClick={() => setGoalDialogOpen(true)}
+              >
+                <Settings2 className="h-3 w-3" />
+                Ajustar
+              </Button>
+            </div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30">
@@ -418,6 +464,56 @@ export function DashboardView() {
           </Card>
         </section>
       </div>
+
+      {/* Dialog: Editar meta semanal */}
+      <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ajustar meta semanal</DialogTitle>
+            <DialogDescription>
+              Define cuántos minutos quieres estudiar por semana. Recomendado: 120-300 min.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label htmlFor="goal-minutes" className="text-xs font-semibold">
+                Minutos por semana
+              </Label>
+              <Input
+                id="goal-minutes"
+                type="number"
+                min={30}
+                max={1200}
+                value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)}
+                className="mt-1.5"
+              />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                Equivalente a ~{Math.round(parseInt(goalInput || "0", 10) / 7)} min/día
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {[60, 120, 180, 300].map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => setGoalInput(String(preset))}
+                  className="flex-1 rounded-lg border border-border px-2 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
+                >
+                  {preset}m
+                </button>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setGoalDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={handleSaveGoal}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

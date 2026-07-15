@@ -11,16 +11,17 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  name        String
-  role        String   @default("student") // "student" | "teacher"
-  avatar      String?
-  points      Int      @default(0)
-  streak      Int      @default(0)
-  lastActive  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  role          String   @default("student") // "student" | "teacher"
+  avatar        String?
+  points        Int      @default(0)
+  streak        Int      @default(0)
+  weeklyGoalMin Int      @default(180) // Meta semanal de estudio en minutos
+  lastActive    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   attempts      Attempt[]
   progress      Progress[]

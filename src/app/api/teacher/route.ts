@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       });
       const attempts = await db.attempt.findMany({
         where: { userId: s.id },
-        select: { id: true, correct: true, score: true, timeSpent: true, createdAt: true, activityId: true },
+        select: { id: true, correct: true, score: true, timeSpent: true, hintsUsed: true, createdAt: true, activityId: true },
       });
       const correctActivities = await db.attempt.findMany({
         where: { userId: s.id, correct: true },
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
           attempts.length > 0
             ? Math.round(attempts.reduce((a, x) => a + (x.score ?? 0), 0) / attempts.length)
             : 0,
+        totalHintsUsed: attempts.reduce((a, x) => a + (x.hintsUsed ?? 0), 0),
       };
     })
   );

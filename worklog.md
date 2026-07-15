@@ -683,3 +683,58 @@ The platform "ElectroMed IA" is mature with URL navigation, chat sidebar, 5 unit
 - **Notification read state**: Notifications currently use a time-based heuristic (last 24h = unread); could persist read state in DB.
 - **Real-time notifications**: Could use WebSocket for instant notification delivery.
 - **Activity hint analytics chart**: Could add a chart in the teacher panel showing hint usage trends across all students.
+
+---
+Task ID: cron-review-8
+Agent: Z.ai Code (web dev review)
+Task: Hint analytics chart, weekly goal customization, markdown search, POST fix
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is mature with all features from cron-review-1 through 7: URL navigation, chat sidebar, 5 units, 32 activities, gamification (dynamic badges + progress indicators + celebrations), analytics, teacher panel (auto-refresh + student search + student detail modal + CSV export), error reporting, Continue card, reading progress bar, lesson TOC, global search (highlighting + Ctrl+K + search history), weekly goal ring, activity retry limit, hint tracking, notification bell. This round focused on: (1) adding a hint usage analytics chart to the teacher panel, (2) implementing weekly goal customization, (3) extending search to full lesson markdown content, and (4) fixing a POST/PATCH method mismatch bug.
+
+## Current goals/completed modifications/verification results
+
+### Bug fixed: POST vs PATCH method mismatch on weekly-goal API
+- **Problem**: The `/api/user/weekly-goal` endpoint exported a `PATCH` handler, but the frontend `postJSON` helper sends POST requests. This resulted in a 405 Method Not Allowed error when trying to save the weekly goal.
+- **Fix**: Changed the API handler from `PATCH` to `POST` (since `postJSON` is the standard helper used across the app).
+- **Verified**: Goal saved successfully — DB shows `weeklyGoalMin: 60` after saving, dashboard shows "/ 1h 0m".
+
+### New feature: Hint usage analytics chart (teacher panel)
+- Updated `/api/teacher` to include `hintsUsed` in the attempt selection and `totalHintsUsed` per student.
+- Added `totalHintsUsed` to the Student interface.
+- Created a new "Section 4b: Uso de pistas por estudiante" card with a horizontal BarChart showing hints used per student (sorted descending).
+- Chart only appears when at least one student has used hints (conditional rendering).
+- Custom `HintTooltip` component showing student name, hints used, and total attempts.
+- Amber-themed (matching the hint/Lightbulb color scheme).
+- **Verified**: Chart correctly hidden when no students have hints (seed data predates the hintsUsed field). Will appear once students use hints in activities.
+
+### New feature: Weekly goal customization
+- Added `weeklyGoalMin` field to the User Prisma model (Int, default 180).
+- Updated `/api/me` to include `weeklyGoalMin` in the response.
+- Created `/api/user/weekly-goal` POST endpoint to update the goal (validated 30-1200 min range).
+- Updated the `User` type to include `weeklyGoalMin`.
+- Updated dashboard's WeeklyGoalRing to use `currentUser.weeklyGoalMin` instead of hardcoded 180.
+- Added "Ajustar" button (with Settings2 icon) on the weekly goal card.
+- Edit dialog with: number input, daily equivalent display, 4 preset buttons (60m/120m/180m/300m), and save/cancel.
+- On save: updates the store's currentUser, shows toast, and the ring immediately reflects the new goal.
+- **Verified**: Changed goal from 180 to 60 → DB updated → dashboard shows "/ 1h 0m" → toast "Meta actualizada".
+
+### Improvement: Extended search to full lesson markdown content
+- Updated `/api/search` to also search within lesson `content` (the full markdown body), not just title and description.
+- This means searching for technical terms like "CMRR" or "RLD" will now find lessons that mention them in the body text, even if not in the title.
+- **Verified**: Searching "CMRR" returns 2 lessons (Acondicionamiento de Señal, Instrumentación y Filtrado del ECG) — both mention CMRR in their markdown content.
+
+### QA performed
+- Tested dashboard (weekly goal customization with edit dialog), teacher panel (hint analytics chart — correctly hidden when no data), search (markdown content search with "CMRR").
+- Lint clean (0 errors, 0 warnings). No console/runtime errors.
+- DB schema pushed + Prisma client regenerated + dev server restarted after schema change.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Notification read state persistence**: Notifications use time-based heuristic (last 24h = unread); could persist read state in DB.
+- **Student comparison view**: Could allow comparing two students side-by-side.
+- **Real-time notifications**: Could use WebSocket for instant notification delivery.
+- **Hint analytics over time**: Could add a time-series chart showing hint usage trends over days/weeks.
+- **Content search snippet**: Could show a snippet of the matching text from lesson markdown (not just the title).
+- **Seed data update**: The seed data predates the hintsUsed field; could re-seed with realistic hint usage data to demonstrate the chart.
