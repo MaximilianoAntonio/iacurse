@@ -498,3 +498,61 @@ The platform "ElectroMed IA" is stable with URL navigation, chat sidebar, 5 unit
 - **Lesson content search within markdown**: Currently searches titles/prompts; could extend to full markdown content (heavier query).
 - **Teacher search**: Could add search/filter for specific students in the teacher panel.
 - **Activity retry limit**: Could limit retries to encourage thoughtful answers.
+
+---
+Task ID: cron-review-5
+Agent: Z.ai Code (web dev review)
+Task: Activity retry limit, search highlighting, teacher student search, weekly goal ring
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is stable with URL navigation, chat sidebar, 5 units, 32 activities, gamification (points/streak/badges with dynamic auto-award + progress indicators), analytics, teacher panel (with auto-refresh), error reporting, Continue card, reading progress bar, celebrations (activity/badge/unit), lesson TOC, and global search. This round focused on: (1) adding an activity retry limit (max 3 attempts with visual indicator), (2) search result text highlighting, (3) teacher panel student search/filter, and (4) a weekly study goal ring widget on the dashboard.
+
+## Current goals/completed modifications/verification results
+
+### New feature: Activity retry limit (max 3 attempts)
+- **Pedagogical goal**: Encourages thoughtful answers instead of brute-force guessing.
+- Added `MAX_ATTEMPTS = 3` constant and `sessionAttempts` state to ActivityInner.
+- The attempt count = previous attempts (from API) + session attempts.
+- Added visual indicator in ResultPanel: 3 dots (filled = used, color-coded green for correct / amber for incorrect), "Intentos: N/3" text, and "X intentos restantes" label.
+- When max attempts reached and answer is still incorrect: retry button is replaced with an amber warning box "Has agotado tus intentos. Revisa el material de la lección e intenta la siguiente actividad."
+- Passed `attemptNumber`, `maxAttempts`, `attemptsLeft`, `maxReached` props from ActivityInner to ResultPanel.
+- **Verified**: VLM confirmed "Intentos: 1/3" with 3 dots (one filled) and retry button visible.
+
+### New feature: Search result text highlighting
+- Created `Highlight` component in global-search.tsx that wraps matching text in `<mark>` tags with amber background.
+- Applied to unit titles/summaries, lesson titles, and activity titles in search results.
+- Case-insensitive matching, supports multiple occurrences.
+- Dark mode compatible (amber-900/60 background in dark mode).
+- **Verified**: VLM confirmed "ECG" is highlighted in search results for the query "ECG".
+
+### New feature: Teacher panel student search/filter
+- Added search input ("Buscar estudiante...") to the teacher panel's student table header.
+- Filters students by name or email (case-insensitive).
+- Shows filtered count ("1 de 4") when searching, and "Sin resultados para 'X'" empty state.
+- Clears button (X icon) to reset search.
+- Uses `filteredStudents` in the table rendering instead of `students`.
+- **Verified**: Searching "Tomás" correctly filters to 1 of 4 students.
+
+### New feature: Weekly study goal ring (dashboard)
+- Created `WeeklyGoalRing` component: a circular SVG progress ring with animated stroke (framer-motion).
+- Shows weekly study minutes vs. 180-minute goal, with percentage in center and flame icon.
+- Includes 7-day activity dots (filled = active day) and "X/7 días activo" label.
+- Shows "¡Meta alcanzada esta semana!" when goal is met, or "Te faltan X min para tu meta" otherwise.
+- Added a companion "Racha actual" card showing the user's streak with 7-day activity bar.
+- Both placed in a new 3-column grid section between KPIs and the units list.
+- **Verified**: VLM confirmed circular progress ring (2% — correct since seed data is from 2 weeks ago) and streak card ("Racha actual: 12 días") are visible.
+
+### QA performed
+- Tested dashboard (weekly goal ring + streak card), search dialog (highlighting), teacher panel (student search), activity submission (retry limit indicator).
+- VLM-verified: weekly goal ring, search highlighting, retry limit indicator.
+- Lint clean (0 errors, 0 warnings). No console/runtime errors.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Search history**: Could save recent searches per user.
+- **Activity hint usage tracking**: Could track how many hints were used per activity (for analytics).
+- **Dashboard "recent badge" notification**: Could show newly earned badges as a notification card.
+- **Weekly goal customization**: Could let users set their own weekly study goal.
+- **Teacher student detail view**: Could add a student detail modal with per-activity breakdown.
+- **Content search in full markdown**: Currently searches titles/prompts only; could extend to full lesson markdown.

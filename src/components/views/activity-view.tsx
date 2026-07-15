@@ -260,6 +260,7 @@ export function ActivityView() {
   const unitColor = getUnitColor(lesson.unit.color);
   const typeMeta = activityTypeMeta[activity.type];
   const diffMeta = difficultyMeta[activity.difficulty];
+  const attemptCount = data.attemptsByActivity[activity.id]?.attempts ?? 0;
 
   return (
     <ActivityInner
@@ -275,6 +276,7 @@ export function ActivityView() {
       isLast={isLast}
       activityIndex={activityIndex}
       activityTotal={lesson.activities.length}
+      attemptCount={attemptCount}
       onNavigateUnits={() => navigate("units")}
       onOpenUnit={() => openUnit(lesson.unitId)}
       onOpenLesson={() => openLesson(lesson.id)}
@@ -297,6 +299,7 @@ interface ActivityInnerProps {
   isLast: boolean;
   activityIndex: number;
   activityTotal: number;
+  attemptCount: number;
   onNavigateUnits: () => void;
   onOpenUnit: () => void;
   onOpenLesson: () => void;
@@ -316,6 +319,7 @@ function ActivityInner(props: ActivityInnerProps) {
     isLast,
     activityIndex,
     activityTotal,
+    attemptCount,
     onNavigateUnits,
     onOpenUnit,
     onOpenLesson,
@@ -323,6 +327,9 @@ function ActivityInner(props: ActivityInnerProps) {
   } = props;
 
   const { toast } = useToast();
+
+  const MAX_ATTEMPTS = 3;
+  const totalAttempts = attemptCount; // from API (previous attempts)
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -336,7 +343,12 @@ function ActivityInner(props: ActivityInnerProps) {
   const [reportReason, setReportReason] = useState("incorrect");
   const [reportComment, setReportComment] = useState("");
   const [reported, setReported] = useState(false);
+  const [sessionAttempts, setSessionAttempts] = useState(0); // attempts in this session
   const startTimeRef = useRef<number>(Date.now());
+
+  const currentAttemptNumber = totalAttempts + sessionAttempts;
+  const attemptsLeft = Math.max(0, MAX_ATTEMPTS - currentAttemptNumber);
+  const maxReached = currentAttemptNumber >= MAX_ATTEMPTS;
 
   // Timer: arranca al montar / cambiar de actividad; se congela al enviar.
   useEffect(() => {
@@ -364,6 +376,7 @@ function ActivityInner(props: ActivityInnerProps) {
         );
         setResult(res.attempt);
         setSubmitted(true);
+        setSessionAttempts((n) => n + 1);
         // Disparar celebración si fue correcta y ganó puntos (primera vez)
         if (res.attempt.correct && res.attempt.pointsAwarded > 0) {
           setCelebrating(true);
@@ -559,6 +572,10 @@ function ActivityInner(props: ActivityInnerProps) {
           onSetReportReason={setReportReason}
           onSetReportComment={setReportComment}
           onSubmitReport={submitReport}
+          attemptNumber={currentAttemptNumber}
+          maxAttempts={MAX_ATTEMPTS}
+          attemptsLeft={attemptsLeft}
+          maxReached={maxReached}
         />
       )}
 
@@ -1336,6 +1353,10 @@ interface ResultPanelProps {
   onSetReportReason: (reason: string) => void;
   onSetReportComment: (comment: string) => void;
   onSubmitReport: () => void;
+  attemptNumber: number;
+  maxAttempts: number;
+  attemptsLeft: number;
+  maxReached: boolean;
 }
 
 function ResultPanel({
@@ -1352,6 +1373,10 @@ function ResultPanel({
   onSetReportReason,
   onSetReportComment,
   onSubmitReport,
+  attemptNumber,
+  maxAttempts,
+  attemptsLeft,
+  maxReached,
 }: ResultPanelProps) {
   const correct = result.correct;
   const reportReasons = [
@@ -1473,10 +1498,52 @@ function ResultPanel({
             </div>
           )}
 
+          {/* Indicador de intentos */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-2.5">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Intentos:</span>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: maxAttempts }).map((_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      "h-2 w-2 rounded-full transition-colors",
+                      i < attemptNumber
+                        ? result.correct
+                          ? "bg-emerald-500"
+                          : "bg-amber-500"
+                        : "bg-muted-foreground/20"
+                    )}
+                  />
+                ))}
+              </div>
+              <span className="ml-1 font-medium tabular-nums">
+                {attemptNumber}/{maxAttempts}
+              </span>
+            </div>
+            {!correct && attemptsLeft > 0 && (
+              <span className="text-[11px] text-muted-foreground">
+                {attemptsLeft} intento{attemptsLeft !== 1 ? "s" : ""} restante{attemptsLeft !== 1 ? "s" : ""}
+              </span>
+            )}
+            {!correct && maxReached && (
+              <span className="text-[11px] font-medium text-rose-500">
+                Sin intentos restantes
+              </span>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button onClick={onRetry} variant="outline" size="sm">
-              <RefreshCw className="mr-1.5 h-4 w-4" /> Reintentar
-            </Button>
+            {maxReached && !correct ? (
+              <div className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>Has agotado tus intentos. Revisa el material de la lección e intenta la siguiente actividad.</span>
+              </div>
+            ) : (
+              <Button onClick={onRetry} variant="outline" size="sm">
+                <RefreshCw className="mr-1.5 h-4 w-4" /> Reintentar
+              </Button>
+            )}
             <Button
               onClick={onNext}
               size="sm"

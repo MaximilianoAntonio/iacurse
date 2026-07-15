@@ -16,6 +16,29 @@ import { cn } from "@/lib/utils";
 import { getUnitColor, activityTypeMeta, difficultyMeta } from "@/lib/course-utils";
 import type { User } from "@/lib/types";
 
+// Helper para resaltar texto coincidente con la búsqueda
+function Highlight({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>;
+  const q = query.trim();
+  const lower = text.toLowerCase();
+  const qLower = q.toLowerCase();
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let idx = lower.indexOf(qLower, lastIndex);
+  while (idx !== -1) {
+    if (idx > lastIndex) parts.push(text.slice(lastIndex, idx));
+    parts.push(
+      <mark key={idx} className="rounded bg-amber-200 px-0.5 text-foreground dark:bg-amber-900/60">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+    );
+    lastIndex = idx + q.length;
+    idx = lower.indexOf(qLower, lastIndex);
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return <>{parts}</>;
+}
+
 interface SearchResultUnit {
   id: string;
   title: string;
@@ -159,8 +182,8 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                           <DynamicIcon name={u.icon} className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{u.title}</p>
-                          <p className="truncate text-xs text-muted-foreground">{u.summary}</p>
+                          <p className="truncate text-sm font-medium"><Highlight text={u.title} query={query} /></p>
+                          <p className="truncate text-xs text-muted-foreground"><Highlight text={u.summary} query={query} /></p>
                         </div>
                         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                       </button>
@@ -187,7 +210,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                           <FileText className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{l.title}</p>
+                          <p className="truncate text-sm font-medium"><Highlight text={l.title} query={query} /></p>
                           <p className="truncate text-xs text-muted-foreground">
                             {l.unit.title} · {l.durationMin} min
                           </p>
@@ -218,7 +241,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                           <ListChecks className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{a.title}</p>
+                          <p className="truncate text-sm font-medium"><Highlight text={a.title} query={query} /></p>
                           <p className="truncate text-xs text-muted-foreground">
                             {a.lesson.unit.title} · {a.lesson.title}
                           </p>

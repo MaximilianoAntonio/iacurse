@@ -5,6 +5,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
 import { LoadingGrid } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
+import { WeeklyGoalRing } from "@/components/app/weekly-goal-ring";
 import { getUnitColor, timeAgo, initials } from "@/lib/course-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -198,6 +199,58 @@ export function DashboardView() {
           sub="preguntas IA"
           color="violet"
         />
+      </section>
+
+      {/* Meta semanal + Resumen rápido */}
+      <section className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardContent className="p-5">
+            <WeeklyGoalRing
+              current={(() => {
+                const days = progressData?.activityByDay ?? [];
+                return days.slice(-7).reduce((a, d) => a + d.timeMin, 0);
+              })()}
+              goal={180}
+              daysActive={(() => {
+                const days = progressData?.activityByDay ?? [];
+                return days.slice(-7).filter((d) => d.attempts > 0).length;
+              })()}
+            />
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30">
+          <CardContent className="flex flex-col justify-between p-5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-600 text-white">
+                <Trophy className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Racha actual</p>
+                <p className="text-[11px] text-muted-foreground">Mantén la constancia</p>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="flex items-end gap-2">
+                <span className="text-3xl font-bold tabular-nums">{currentUser?.streak ?? 0}</span>
+                <span className="pb-1 text-sm text-muted-foreground">días</span>
+              </div>
+              <div className="mt-2 flex items-center gap-1">
+                {Array.from({ length: 7 }).map((_, i) => {
+                  const days = progressData?.activityByDay ?? [];
+                  const active = i < days.slice(-7).filter((d) => d.attempts > 0).length;
+                  return (
+                    <span
+                      key={i}
+                      className={`h-1.5 flex-1 rounded-full transition-colors ${
+                        active ? "bg-gradient-to-r from-amber-400 to-orange-500" : "bg-muted-foreground/15"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">

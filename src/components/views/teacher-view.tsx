@@ -54,8 +54,11 @@ import {
   Activity,
   Flag,
   Inbox,
+  Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { patchJSON } from "@/hooks/use-fetch";
 
 // ---------- Types ----------
@@ -220,6 +223,17 @@ function TeacherDashboard({
   onUnitFilterChange: (value: string) => void;
 }) {
   const { students, units, aggregate } = data;
+  const [studentSearch, setStudentSearch] = useState("");
+
+  // Filtrar estudiantes por nombre/email
+  const filteredStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    if (!q) return students;
+    return students.filter((s) =>
+      s.name.toLowerCase().includes(q) ||
+      s.email.toLowerCase().includes(q)
+    );
+  }, [students, studentSearch]);
 
   // Compute mastery distribution per unit (only when filter = all)
   const distributionByUnit = useMemo(() => {
@@ -359,12 +373,33 @@ function TeacherDashboard({
       {/* Section 3: Tabla de estudiantes */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Estudiantes del piloto</CardTitle>
-          <CardDescription>
-            {unitFilter === ALL_UNITS
-              ? "Resumen global de cada estudiante inscrito."
-              : `Filtrado por unidad seleccionada (${students.length} estudiantes con actividad).`}
-          </CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base">Estudiantes del piloto</CardTitle>
+              <CardDescription>
+                {unitFilter === ALL_UNITS
+                  ? `Resumen global de cada estudiante inscrito (${filteredStudents.length}${studentSearch ? ` de ${students.length}` : ""}).`
+                  : `Filtrado por unidad seleccionada (${filteredStudents.length} estudiantes con actividad).`}
+              </CardDescription>
+            </div>
+            <div className="relative sm:w-64">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                placeholder="Buscar estudiante..."
+                className="h-8 pl-8 pr-8 text-sm"
+              />
+              {studentSearch && (
+                <button
+                  onClick={() => setStudentSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -382,13 +417,21 @@ function TeacherDashboard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {students.map((s) => (
+                {filteredStudents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                      {studentSearch ? `Sin resultados para "${studentSearch}"` : "No hay estudiantes."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                filteredStudents.map((s) => (
                   <StudentRow
                     key={s.id}
                     student={s}
                     unitFilter={unitFilter}
                   />
-                ))}
+                ))
+                )}
               </TableBody>
             </Table>
           </div>
