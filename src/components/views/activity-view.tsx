@@ -629,7 +629,8 @@ function MultipleChoiceActivity({
     [activity.data]
   );
   const options = data.options ?? [];
-  const hints = data.hints ?? [];
+  const hints = (data.hints ?? []).slice(0, 2); // Máximo 2 pistas
+  const MAX_HINTS = 2;
 
   const [selected, setSelected] = useState<number | null>(null);
   const [hintIndex, setHintIndex] = useState(0);
@@ -715,7 +716,7 @@ function MultipleChoiceActivity({
               </AlertDescription>
             </Alert>
           ) : null}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {!showHint ? (
               <Button
                 type="button"
@@ -725,9 +726,10 @@ function MultipleChoiceActivity({
                 className="text-amber-700 dark:text-amber-300"
               >
                 <Lightbulb className="mr-1.5 h-4 w-4" /> Ver pista
+                <span className="ml-1 text-[10px] text-muted-foreground">(0/{MAX_HINTS})</span>
               </Button>
             ) : (
-              hintIndex < hints.length - 1 && (
+              hintIndex < hints.length - 1 && hintIndex < MAX_HINTS - 1 ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -735,7 +737,12 @@ function MultipleChoiceActivity({
                   onClick={() => { setHintIndex((i) => i + 1); onHintUsed?.(); }}
                 >
                   <Lightbulb className="mr-1.5 h-4 w-4" /> Otra pista
+                  <span className="ml-1 text-[10px] text-muted-foreground">({hintIndex + 1}/{MAX_HINTS})</span>
                 </Button>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">
+                  Sin más pistas ({Math.min(hintIndex + 1, MAX_HINTS)}/{MAX_HINTS} usadas)
+                </span>
               )
             )}
           </div>

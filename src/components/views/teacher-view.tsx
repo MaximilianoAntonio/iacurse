@@ -58,10 +58,12 @@ import {
   X,
   Download,
   Lightbulb,
+  GitCompare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StudentDetailModal } from "@/components/app/student-detail-modal";
+import { StudentCompareModal } from "@/components/app/student-compare-modal";
 import { patchJSON } from "@/hooks/use-fetch";
 
 // ---------- Types ----------
@@ -229,6 +231,7 @@ function TeacherDashboard({
   const { students, units, aggregate } = data;
   const [studentSearch, setStudentSearch] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   // Filtrar estudiantes por nombre/email
   const filteredStudents = useMemo(() => {
@@ -415,6 +418,16 @@ function TeacherDashboard({
                 <Download className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">CSV</span>
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setCompareOpen(true)}
+                title="Comparar dos estudiantes"
+              >
+                <GitCompare className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Comparar</span>
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -579,6 +592,9 @@ function TeacherDashboard({
         open={selectedStudentId !== null}
         onOpenChange={(open) => { if (!open) setSelectedStudentId(null); }}
       />
+
+      {/* Modal de comparación de estudiantes */}
+      <StudentCompareModal open={compareOpen} onOpenChange={setCompareOpen} />
     </div>
   );
 }

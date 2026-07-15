@@ -57,6 +57,15 @@ interface SearchResultLesson {
   unit: { id: string; title: string; color: string; icon: string; slug: string };
 }
 
+interface SearchResultLesson {
+  id: string;
+  title: string;
+  description: string;
+  durationMin: number;
+  unit: { id: string; title: string; color: string; icon: string; slug: string };
+  snippet?: string;
+}
+
 interface SearchResultActivity {
   id: string;
   title: string;
@@ -70,6 +79,7 @@ interface SearchResultActivity {
     unit: { id: string; title: string; color: string; icon: string; slug: string };
   };
   completed: boolean;
+  snippet?: string;
 }
 
 interface SearchResponse {
@@ -276,6 +286,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                           <p className="truncate text-xs text-muted-foreground">
                             {l.unit.title} · {l.durationMin} min
                           </p>
+                          {l.snippet && (
+                            <p className="mt-0.5 line-clamp-1 text-[11px] italic text-muted-foreground/70">
+                              <Highlight text={l.snippet} query={query} />
+                            </p>
+                          )}
                         </div>
                         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                       </button>
@@ -307,6 +322,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                           <p className="truncate text-xs text-muted-foreground">
                             {a.lesson.unit.title} · {a.lesson.title}
                           </p>
+                          {a.snippet && (
+                            <p className="mt-0.5 line-clamp-1 text-[11px] italic text-muted-foreground/70">
+                              <Highlight text={a.snippet} query={query} />
+                            </p>
+                          )}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           {a.completed && (

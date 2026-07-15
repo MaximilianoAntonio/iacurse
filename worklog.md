@@ -738,3 +738,66 @@ The platform "ElectroMed IA" is mature with all features from cron-review-1 thro
 - **Hint analytics over time**: Could add a time-series chart showing hint usage trends over days/weeks.
 - **Content search snippet**: Could show a snippet of the matching text from lesson markdown (not just the title).
 - **Seed data update**: The seed data predates the hintsUsed field; could re-seed with realistic hint usage data to demonstrate the chart.
+
+---
+Task ID: cron-review-9
+Agent: Z.ai Code (web dev review)
+Task: Seed hint data, search snippets, student compare, hint limit, cn import fix
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is mature with all features from cron-review-1 through 8. This round focused on: (1) updating seed data with realistic hint usage to demonstrate the hint analytics chart, (2) adding search result snippets showing matching markdown context, (3) implementing a student comparison view (side-by-side), and (4) adding an activity hint limit (max 2 hints).
+
+## Current goals/completed modifications/verification results
+
+### Improvement: Seed data with realistic hint usage
+- Updated the `makeAttempt` helper in seed.ts to accept a `hintsUsed` parameter (default 0).
+- Added realistic hint usage to Fernanda's and Tomás's attempts:
+  - Fernanda: 2 hints on an incorrect attempt, 1 hint on the retry.
+  - Tomás: 1 hint on an incorrect attempt, 2 hints on the retry, 2 hints on another incorrect attempt.
+- Reset DB and re-seeded with the new data.
+- **Verified**: The teacher panel's hint analytics chart now appears with data (3 charts instead of 2).
+
+### New feature: Search result snippets
+- Updated `/api/search` to extract a context snippet from lesson markdown content and activity prompts when they match the query.
+- Snippet: 60 chars before + query + 60 chars after, with "…" prefixes/suffixes, markdown stripped.
+- Updated `GlobalSearch` component to display snippets below lesson and activity results in italic muted text.
+- The `Highlight` component is applied to snippets too, so the matching term is highlighted in the snippet context.
+- **Verified**: VLM confirmed italic snippets show context with "CMRR" highlighted.
+
+### New feature: Student comparison view (side-by-side)
+- Created `StudentCompareModal` component with:
+  - Two student selectors (dropdowns) in the header.
+  - Side-by-side comparison with "VS" in the middle.
+  - 8 comparison rows: Puntos, Racha, Actividades completadas, Intentos totales, Tasa de acierto, Tiempo, Consultas IA, Pistas usadas.
+  - Winner highlighting (emerald for A, violet for B) when one student has a better value.
+  - Per-unit mastery comparison with dual progress bars.
+- Added "Comparar" button (GitCompare icon) to the teacher panel next to CSV export.
+- **Verified**: VLM confirmed two students shown side-by-side with VS and comparison metrics.
+
+### New feature: Activity hint limit (max 2)
+- Added `MAX_HINTS = 2` constant to MultipleChoiceActivity.
+- Hints array is sliced to max 2: `hints.slice(0, 2)`.
+- Hint button now shows counter: "(0/2)", "(1/2)", etc.
+- When max hints reached, shows "Sin más pistas (2/2 usadas)" text instead of the button.
+- Encourages students to think before using all hints.
+- **Verified**: Code compiles, lint clean.
+
+### Bug fixed: cn import error in student-compare-modal
+- **Problem**: Same as cron-review-7 — `cn` was imported from `@/lib/course-utils` but it's exported from `@/lib/utils`. Caused 500 on all pages.
+- **Fix**: Split the import — `cn` from `@/lib/utils`, other helpers from `@/lib/course-utils`.
+- **Verified**: Server returned 200 after fix.
+
+### QA performed
+- Tested teacher panel (hint chart now visible with data, compare modal with side-by-side comparison), search (snippets with highlighted matching context).
+- VLM-verified: hint chart visible, compare modal layout, search snippets with highlighting.
+- Lint clean (0 errors, 0 warnings). No console/runtime errors after cn import fix.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Notification read state persistence**: Notifications use time-based heuristic; could persist read state in DB.
+- **Real-time notifications**: Could use WebSocket for instant notification delivery.
+- **Hint analytics over time**: Could add a time-series chart showing hint usage trends over days/weeks.
+- **Activity hint limit for other types**: Currently only MultipleChoice has the hint limit; could extend to GuidedProblem (per-step hints).
+- **Compare more than 2 students**: Could allow comparing 3+ students in a table format.
+- **Export comparison**: Could export the comparison as a PDF report.

@@ -86,6 +86,20 @@ export async function GET(req: NextRequest) {
     attemptedMap = Object.fromEntries(attempts.map((a) => [a.activityId, true]));
   }
 
+  // Helper para extraer un snippet del contexto coincidente
+  const extractSnippet = (text: string, query: string, contextChars = 60): string => {
+    const lower = text.toLowerCase();
+    const idx = lower.indexOf(query.toLowerCase());
+    if (idx === -1) return "";
+    const start = Math.max(0, idx - contextChars);
+    const end = Math.min(text.length, idx + query.length + contextChars);
+    const prefix = start > 0 ? "…" : "";
+    const suffix = end < text.length ? "…" : "";
+    // Limpiar markdown básico
+    const snippet = text.slice(start, end).replace(/[#*`_~\[\]]/g, "").replace(/\n+/g, " ").trim();
+    return prefix + snippet + suffix;
+  };
+
   return NextResponse.json({
     results: {
       units: units.map((u) => ({ ...u })),
@@ -95,10 +109,12 @@ export async function GET(req: NextRequest) {
         description: l.description,
         durationMin: l.durationMin,
         unit: l.unit,
+        snippet: extractSnippet(l.content, q),
       })),
       activities: activities.map((a) => ({
         ...a,
         completed: Boolean(attemptedMap[a.id]),
+        snippet: extractSnippet(a.prompt, q),
       })),
     },
   });

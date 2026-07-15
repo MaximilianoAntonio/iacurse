@@ -2354,6 +2354,7 @@ async function main() {
     feedback: string,
     timeSpent: number,
     daysBack: number,
+    hintsUsed: number = 0,
   ) => {
     const userId = userMap[userEmail].id;
     const activity = activityMap[activityKey];
@@ -2367,6 +2368,7 @@ async function main() {
         score,
         correct,
         timeSpent,
+        hintsUsed,
         createdAt: daysAgo(daysBack),
       },
     });
@@ -2617,6 +2619,7 @@ async function main() {
     "No. El platino es polarizable. El estándar es Ag/AgCl porque es no polarizable.",
     50,
     5,
+    2, // usó 2 pistas
   );
   await makeAttempt(
     "fernanda.vega@uv.cl",
@@ -2627,6 +2630,7 @@ async function main() {
     "¡Ahora sí!",
     40,
     5,
+    1, // usó 1 pista en el reintento
   );
   await makeAttempt(
     "fernanda.vega@uv.cl",
@@ -2669,6 +2673,7 @@ async function main() {
     "No. Una sola fibra no se ve en superficie. El ECG es la suma de millones de potenciales.",
     30,
     8,
+    1, // usó 1 pista
   );
   await makeAttempt(
     "tomas.munoz@uv.cl",
@@ -2679,6 +2684,7 @@ async function main() {
     "¡Correcto! Te recomiendo repasar el material de origen celular.",
     45,
     8,
+    2, // usó 2 pistas en el reintento
   );
   await makeAttempt(
     "tomas.munoz@uv.cl",
@@ -2689,6 +2695,7 @@ async function main() {
     "El acero es más barato pero no es el apropiado. Recuerda: buscamos electrodos no polarizables.",
     40,
     5,
+    2, // usó 2 pistas
   );
   await makeAttempt(
     "tomas.munoz@uv.cl",
