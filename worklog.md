@@ -900,3 +900,40 @@ Cada concepto del libro se conectó con aplicaciones médicas concretas:
 - El script usó marcadores `---CODE---` en lugar de triple backtick (``` en el markdown porque causaban conflicto con el template literal de TypeScript. Se podrían reemplazar por backticks reales en el contenido.
 - Las actividades no tienen intentos de seed data (los usuarios existentes no tienen progreso en esta unidad).
 - Se podría añadir más contenido de otros capítulos del libro (Cap. 1: Numeración, Cap. 14: Comunicación Digital).
+
+---
+Task ID: digital-unit-fixes
+Agent: Z.ai Code (orchestrator)
+Task: Review and fix issues in the digital electronics unit content
+
+## Current project status description/assessment
+The new Unit 6 "Electrónica Digital en Equipos Médicos" was added in the previous task based on "Lessons In Electric Circuits, Vol. IV – Digital". This review found and fixed 3 issues in the content.
+
+## Current goals/completed modifications/verification results
+
+### Bug fixed: ---CODE--- placeholders in lessons 2 and 3
+- **Problem**: The seed script used `---CODE---` as a substitute for triple backticks (```) in markdown code blocks because backticks conflicted with the TypeScript template literal. The placeholders were stored in the database and rendered literally as text instead of code blocks.
+- **Fix**: Ran a database update script replacing all `---CODE---` with proper triple backticks in lessons 2 and 3.
+- **Verified**: Lesson 3 now renders 2 proper `<pre>` code blocks, no placeholder text.
+
+### Bug fixed: LaTeX math formulas ($...$) not rendering in lesson 1
+- **Problem**: Lesson 1 (Conversión ADC) used LaTeX-style `$...$` delimiters for inline math (e.g., `$2^{12} = 4096$`, `$f_s \geq 2 \times f_{max}$`). ReactMarkdown doesn't support LaTeX rendering, so the dollar signs appeared literally.
+- **Fix**: Replaced all `$...$` with backtick inline code spans (`` `...` ``) for readable monospace rendering.
+- **Verified**: 3 inline code elements now render in lesson 1.
+
+### Verification: All 8 activities validated
+- All 8 activities in the digital unit have valid JSON data.
+- Multiple choice, guided problem, case analysis, and self-assessment all render correctly.
+- Activity submission and hint buttons work.
+
+### Verification: All 6 units render correctly
+- All 6 units (5 original + 1 new digital) appear in the units view.
+- Dashboard shows "28/40 actividades" (32 original + 8 new).
+- Continue card works with the new unit.
+- Lesson TOC renders for digital lessons (8+ sections).
+- Code blocks render properly in lessons 2 and 3.
+
+## Unresolved issues or risks
+- No remaining issues in the digital unit content.
+- Could add more content from other chapters of the book (Cap. 1: Numeración, Cap. 14: Comunicación Digital).
+- Could add seed data attempts for the digital unit activities so existing students have progress.
