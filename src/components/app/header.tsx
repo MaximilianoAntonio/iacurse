@@ -4,6 +4,7 @@ import * as React from "react";
 import { useAppStore } from "@/store/app-store";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { GlobalSearch } from "@/components/app/global-search";
+import { NotificationBell } from "@/components/app/notification-bell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -106,6 +107,9 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
           <Sun className="hidden h-4 w-4 dark:block" suppressHydrationWarning />
           <Moon className="block h-4 w-4 dark:hidden" suppressHydrationWarning />
         </Button>
+
+        {/* Notificaciones */}
+        <NotificationBell />
 
         {/* Toggle chat del tutor (barra lateral derecha) */}
         {role === "student" && (

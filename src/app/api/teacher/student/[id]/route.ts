@@ -41,6 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       correct: true,
       score: true,
       timeSpent: true,
+      hintsUsed: true,
       createdAt: true,
       activityId: true,
       activity: {
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     correct: boolean;
     totalAttempts: number;
     totalTime: number;
+    totalHints: number;
     lastAttempt: string;
   }> = {};
 
@@ -83,12 +85,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         correct: false,
         totalAttempts: 0,
         totalTime: 0,
+        totalHints: 0,
         lastAttempt: a.createdAt.toISOString(),
       };
     }
     byActivity[key].attempts.push(a);
     byActivity[key].totalAttempts++;
     byActivity[key].totalTime += a.timeSpent ?? 0;
+    byActivity[key].totalHints += a.hintsUsed ?? 0;
     if (a.correct) byActivity[key].correct = true;
     if (a.score > byActivity[key].bestScore) byActivity[key].bestScore = a.score;
   }
@@ -165,6 +169,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       totalActivitiesCorrect: Object.values(byActivity).filter((a) => a.correct).length,
       totalTimeMin: Math.round(sessions.reduce((a, s) => a + s.duration, 0) / 60),
       avgScore: attempts.length > 0 ? Math.round(attempts.reduce((a, x) => a + x.score, 0) / attempts.length) : 0,
+      totalHintsUsed: attempts.reduce((a, x) => a + (x.hintsUsed ?? 0), 0),
     },
   });
 }

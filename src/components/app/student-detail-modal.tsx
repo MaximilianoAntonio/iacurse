@@ -23,6 +23,7 @@ import {
   MessageSquare,
   Target,
   TrendingUp,
+  Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { initials, timeAgo, getUnitColor, activityTypeMeta, difficultyMeta } from "@/lib/course-utils";
@@ -57,6 +58,7 @@ interface ActivityBreakdown {
   correct: boolean;
   totalAttempts: number;
   totalTime: number;
+  totalHints: number;
   lastAttempt: string;
 }
 
@@ -89,6 +91,7 @@ interface StudentDetailResponse {
     totalActivitiesCorrect: number;
     totalTimeMin: number;
     avgScore: number;
+    totalHintsUsed: number;
   };
 }
 
@@ -150,11 +153,12 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
       </div>
 
       {/* Stats row */}
-      <div className="grid shrink-0 grid-cols-3 gap-px border-b border-border bg-border sm:grid-cols-6">
+      <div className="grid shrink-0 grid-cols-4 gap-px border-b border-border bg-border lg:grid-cols-7">
         <StatCell icon={<Target className="h-3.5 w-3.5" />} label="Actividades" value={`${stats.totalActivitiesCorrect}/${stats.totalActivitiesAttempted}`} />
         <StatCell icon={<TrendingUp className="h-3.5 w-3.5" />} label="Intentos" value={`${stats.totalAttempts}`} />
         <StatCell icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Acierto" value={`${stats.totalAttempts > 0 ? Math.round((stats.correctAttempts / stats.totalAttempts) * 100) : 0}%`} />
         <StatCell icon={<Clock className="h-3.5 w-3.5" />} label="Tiempo" value={`${stats.totalTimeMin}m`} />
+        <StatCell icon={<Lightbulb className="h-3.5 w-3.5" />} label="Pistas" value={`${stats.totalHintsUsed}`} />
         <StatCell icon={<MessageSquare className="h-3.5 w-3.5" />} label="Consultas" value={`${chatCount}`} />
         <StatCell icon={<Trophy className="h-3.5 w-3.5" />} label="Badges" value={`${badges.length}`} />
       </div>
@@ -230,6 +234,12 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
                       <span>Mejor: {a.bestScore} pts</span>
                       <span>·</span>
                       <span>{a.totalTime > 0 ? `${Math.round(a.totalTime / 60)}m ${a.totalTime % 60}s` : "—"}</span>
+                      {a.totalHints > 0 && (
+                        <>
+                          <span>·</span>
+                          <span className="text-amber-600 dark:text-amber-400">{a.totalHints} pista{a.totalHints !== 1 ? "s" : ""}</span>
+                        </>
+                      )}
                       <span>·</span>
                       <span>{timeAgo(a.lastAttempt)}</span>
                     </div>

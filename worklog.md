@@ -621,3 +621,65 @@ The platform "ElectroMed IA" is stable with URL navigation, chat sidebar, 5 unit
 - **Activity hint analytics**: The hintsUsed data is now collected but not yet displayed in the teacher panel; could show hint usage per student/activity.
 - **Notification bell**: Could add a notification bell icon in the header for badge unlocks, error report updates, etc.
 - **Student comparison view**: Could allow comparing two students side-by-side.
+
+---
+Task ID: cron-review-7
+Agent: Z.ai Code (web dev review)
+Task: Hint analytics in teacher panel, CSV export, notification bell
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is mature with URL navigation, chat sidebar, 5 units, 32 activities, gamification (points/streak/badges with dynamic auto-award + progress indicators), analytics, teacher panel (with auto-refresh + student search + student detail modal), error reporting, Continue card, reading progress bar, celebrations, lesson TOC, global search (with highlighting + Ctrl+K + search history), weekly goal ring, activity retry limit, and hint usage tracking. This round focused on: (1) surfacing hint analytics in the teacher student detail modal, (2) adding CSV export of student data, and (3) adding a notification bell icon in the header.
+
+## Current goals/completed modifications/verification results
+
+### New feature: Hint analytics in teacher student detail modal
+- Updated `/api/teacher/student/[id]` to include `hintsUsed` in the attempt selection and aggregate `totalHints` per activity.
+- Added `totalHintsUsed` to the aggregate stats response.
+- Updated `StudentDetailModal`:
+  - Added "Pistas" (hints) stat cell in the 7-column stats row (with Lightbulb icon).
+  - Per-activity breakdown now shows "N pistas" (amber-colored) when hints were used.
+- Required Prisma client regeneration + dev server restart (the `hintsUsed` field was added in cron-review-5 but the running server had a cached old client).
+- **Verified**: VLM confirmed "Pistas" stat visible (0 for Camila — she hasn't used hints), activities tab shows per-activity breakdown.
+
+### New feature: Teacher CSV export
+- Added "CSV" export button next to the student search input in the teacher panel.
+- Created `exportStudentsCSV` helper that generates a CSV with: Nombre, Email, Puntos, Racha, Actividades completadas, Intentos totales, Intentos correctos, Tasa de acierto, Dominio medio, Tiempo total, Consultas IA, Última actividad.
+- Properly escapes commas/quotes/newlines in CSV cells.
+- Uses Blob + download link with UTF-8 BOM for Excel compatibility.
+- Filename includes date: `estudiantes-electromed-YYYY-MM-DD.csv`.
+- **Verified**: Button visible and clickable in teacher panel.
+
+### New feature: Notification bell in header
+- Created `/api/notifications` endpoint that returns:
+  - For students: recent badges (last 7 days) with "¡Nuevo badge desbloqueado!" title.
+  - For teachers: pending error reports with "Reporte de error pendiente" title.
+  - Unread count (notifications from last 24 hours).
+- Created `NotificationBell` component:
+  - Bell icon in header (between theme toggle and chat button).
+  - BellRing icon (amber) when there are unread notifications.
+  - Red badge with unread count on the bell.
+  - Dropdown with notification list: icon (type-colored), title, description, timestamp.
+  - Red dot for recent (<24h) notifications.
+  - Empty state with "Sin notificaciones" / "Estás al día".
+  - Clicking a notification navigates to the relevant view (achievements for badges, teacher for reports).
+- **Verified**: Student bell shows 2 badge notifications (Curioso, Maestro del ECG). Teacher bell shows 1 pending error report.
+
+### Bug fixed: Prisma client not regenerated after schema change
+- **Problem**: The `hintsUsed` field was added to the Attempt model in cron-review-5, but the running dev server had a cached Prisma client without the field. The student detail API returned 500 "Unknown field `hintsUsed`".
+- **Fix**: Ran `bun run db:generate` to regenerate the Prisma client, then restarted the dev server with `setsid -f`. API returned 200 after restart.
+- **Lesson**: Always regenerate Prisma client AND restart the dev server after schema changes.
+
+### QA performed
+- Tested dashboard (notification bell with badge notifications), teacher panel (CSV export button, student detail modal with hint analytics, notification bell with error reports).
+- VLM-verified: student detail modal shows "Pistas" stat and per-activity breakdown.
+- Lint clean (0 errors, 0 warnings). No console/runtime errors after Prisma client regeneration.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Weekly goal customization**: Could let users set their own weekly study goal.
+- **Content search in full markdown**: Currently searches titles/prompts only; could extend to full lesson markdown.
+- **Student comparison view**: Could allow comparing two students side-by-side.
+- **Notification read state**: Notifications currently use a time-based heuristic (last 24h = unread); could persist read state in DB.
+- **Real-time notifications**: Could use WebSocket for instant notification delivery.
+- **Activity hint analytics chart**: Could add a chart in the teacher panel showing hint usage trends across all students.

@@ -56,6 +56,7 @@ import {
   Inbox,
   Search,
   X,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -384,22 +385,34 @@ function TeacherDashboard({
                   : `Filtrado por unidad seleccionada (${filteredStudents.length} estudiantes con actividad).`}
               </CardDescription>
             </div>
-            <div className="relative sm:w-64">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                placeholder="Buscar estudiante..."
-                className="h-8 pl-8 pr-8 text-sm"
-              />
-              {studentSearch && (
-                <button
-                  onClick={() => setStudentSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+            <div className="flex items-center gap-2">
+              <div className="relative sm:w-64">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  placeholder="Buscar estudiante..."
+                  className="h-8 pl-8 pr-8 text-sm"
+                />
+                {studentSearch && (
+                  <button
+                    onClick={() => setStudentSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => exportStudentsCSV(filteredStudents)}
+                title="Exportar datos como CSV"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">CSV</span>
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -938,4 +951,67 @@ function DistributionTooltip(props: {
       </div>
     </div>
   );
+}
+
+// ---------- CSV Export helper ----------
+
+function exportStudentsCSV(students: Student[]) {
+  const headers = [
+    "Nombre",
+    "Email",
+    "Puntos",
+    "Racha (días)",
+    "Actividades completadas",
+    "Intentos totales",
+    "Intentos correctos",
+    "Tasa de acierto (%)",
+    "Dominio medio (%)",
+    "Tiempo total (min)",
+    "Consultas IA",
+    "Última actividad",
+  ];
+
+  const rows = students.map((s) => {
+    const acierto = s.totalAttempts > 0 ? Math.round((s.correctAttempts / s.totalAttempts) * 100) : 0;
+    const mastery = s.progressByUnit.length > 0
+      ? Math.round(s.progressByUnit.reduce((a, p) => a + p.mastery, 0) / s.progressByUnit.length)
+      : 0;
+    return [
+      s.name,
+      s.email,
+      s.points,
+      s.streak,
+      s.completedActivities,
+      s.totalAttempts,
+      s.correctAttempts,
+      acierto,
+      mastery,
+      s.totalTimeMin,
+      s.chatCount,
+      s.lastActive ?? "—",
+    ];
+  });
+
+  const csv = [
+    headers.join(","),
+    ...rows.map((row) =>
+      row.map((cell) => {
+        const str = String(cell);
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }).join(",")
+    ),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `estudiantes-electromed-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
