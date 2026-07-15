@@ -5,14 +5,15 @@ import { checkAndAwardBadges } from "@/lib/badges";
 
 // POST: chat con el tutor IA
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { userId, message, context } = body as {
-    userId: string;
-    message: string;
-    context?: string;
-  };
+  try {
+    const body = await req.json();
+    const { userId, message, context } = body as {
+      userId: string;
+      message: string;
+      context?: string;
+    };
 
-  if (!userId || !message) {
+    if (!userId || !message) {
     return NextResponse.json({ error: "Faltan userId o message" }, { status: 400 });
   }
 
@@ -70,6 +71,13 @@ export async function POST(req: NextRequest) {
     },
     newBadges: newBadges.length > 0 ? newBadges : undefined,
   });
+  } catch (error) {
+    console.error("Tutor API error:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor al procesar la consulta" },
+      { status: 500 }
+    );
+  }
 }
 
 // GET: historial de chat del usuario

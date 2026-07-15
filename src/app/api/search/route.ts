@@ -3,12 +3,13 @@ import { db } from "@/lib/db";
 
 // Búsqueda global de contenido: unidades, lecciones y actividades
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
-  const userId = req.nextUrl.searchParams.get("userId");
+  try {
+    const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
+    const userId = req.nextUrl.searchParams.get("userId");
 
-  if (q.length < 2) {
-    return NextResponse.json({ results: { units: [], lessons: [], activities: [] } });
-  }
+    if (q.length < 2) {
+      return NextResponse.json({ results: { units: [], lessons: [], activities: [] } });
+    }
 
   const query = q.toLowerCase();
 
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
       type: true,
       difficulty: true,
       points: true,
+      prompt: true,
       lessonId: true,
       lesson: {
         select: {
@@ -87,7 +89,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Helper para extraer un snippet del contexto coincidente
-  const extractSnippet = (text: string, query: string, contextChars = 60): string => {
+  const extractSnippet = (text: string | null | undefined, query: string, contextChars = 60): string => {
+    if (!text) return "";
     const lower = text.toLowerCase();
     const idx = lower.indexOf(query.toLowerCase());
     if (idx === -1) return "";
@@ -118,4 +121,8 @@ export async function GET(req: NextRequest) {
       })),
     },
   });
+  } catch (error) {
+    console.error("Search API error:", error);
+    return NextResponse.json({ error: "Error en la búsqueda" }, { status: 500 });
+  }
 }

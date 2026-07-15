@@ -3,9 +3,10 @@ import { db } from "@/lib/db";
 
 // Lista todas las unidades con conteo de lecciones y progreso del usuario
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
+  try {
+    const userId = req.nextUrl.searchParams.get("userId");
 
-  const units = await db.unit.findMany({
+    const units = await db.unit.findMany({
     orderBy: { order: "asc" },
     include: {
       lessons: {
@@ -63,4 +64,8 @@ export async function GET(req: NextRequest) {
   );
 
   return NextResponse.json({ units: unitsWithMeta });
+  } catch (error) {
+    console.error("Units API error:", error);
+    return NextResponse.json({ error: "Error al cargar las unidades" }, { status: 500 });
+  }
 }

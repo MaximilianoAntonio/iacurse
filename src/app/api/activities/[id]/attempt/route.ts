@@ -13,23 +13,24 @@ import { parseActivityData } from "@/lib/course-utils";
 
 // POST: registra un intento de actividad con retroalimentación IA
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id: activityId } = await params;
-  const body = await req.json();
-  const { userId, answer, timeSpent, hintsUsed } = body as {
-    userId: string;
-    answer: string;
-    timeSpent?: number;
-    hintsUsed?: number;
-  };
+  try {
+    const { id: activityId } = await params;
+    const body = await req.json();
+    const { userId, answer, timeSpent, hintsUsed } = body as {
+      userId: string;
+      answer: string;
+      timeSpent?: number;
+      hintsUsed?: number;
+    };
 
-  if (!userId || !answer) {
-    return NextResponse.json({ error: "Faltan userId o answer" }, { status: 400 });
-  }
+    if (!userId || !answer) {
+      return NextResponse.json({ error: "Faltan userId o answer" }, { status: 400 });
+    }
 
-  const activity = await db.activity.findUnique({
-    where: { id: activityId },
-    include: { lesson: { include: { unit: true } } },
-  });
+    const activity = await db.activity.findUnique({
+      where: { id: activityId },
+      include: { lesson: { include: { unit: true } } },
+    });
 
   if (!activity) {
     return NextResponse.json({ error: "Actividad no encontrada" }, { status: 404 });
@@ -292,4 +293,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       unitIcon,
     },
   });
+  } catch (error) {
+    console.error("Attempt API error:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor al procesar el intento" },
+      { status: 500 }
+    );
+  }
 }
