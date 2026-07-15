@@ -851,3 +851,52 @@ The platform "ElectroMed IA" is mature with all features from cron-review-1 thro
 - **Bookmark management page**: Could add a dedicated bookmarks page (not just dashboard section) with sorting/filtering.
 - **Export comparison as PDF**: Could export the student comparison as a PDF report.
 - **Dark mode audit**: Should do a comprehensive dark mode visual audit across all views.
+
+---
+Task ID: digital-content
+Agent: Z.ai Code (orchestrator)
+Task: Crear contenido de estudio basado en "Lessons In Electric Circuits, Vol. IV – Digital" con enfoque biomédico
+
+## Current project status description/assessment
+El usuario proporcionó el libro "Lessons In Electric Circuits, Volume IV – Digital" (http://www.faqs.org/docs/electric/Digital/index.html) como guía para crear contenido de estudio, recordando que debe ser bajo la vista biomédica (Electromedicina II).
+
+## Current goals/completed modifications/verification results
+
+### Nueva unidad: Electrónica Digital en Equipos Médicos (Unidad 6)
+- **Fuente**: "Lessons In Electric Circuits, Vol. IV – Digital" de Tony R. Kuphaldt
+- **Capítulos usados como base**:
+  - Cap. 13: Digital-Analog Conversion → Lección 1 (ADC/DAC en equipos médicos)
+  - Cap. 3: Logic Gates → Lección 2 (Compuertas lógicas en alarmas médicas)
+  - Cap. 10: Multivibrators → Lección 3 (Multivibradores en dispositivos médicos)
+
+### Lección 1: Conversión Analógico-Digital en Equipos Médicos
+- Contenido: Teorema de Nyquist, resolución de bits, DAC R/2R (del libro), ADC SAR, digitalización de ECG (cadena completa: electrodos → amplificador → filtro → ADC), pulsioximetría digital
+- 3 actividades: MC (resolución ADC), problema guiado (frecuencia de muestreo), análisis de caso (selección de ADC para pulsioxímetro)
+
+### Lección 2: Compuertas Lógicas y Circuitos de Alarma Médica
+- Contenido: Niveles lógicos y márgenes de ruido, Schmitt trigger (del libro), alarmas OR, interlocks AND (desfibrilador), detector de arritmia
+- 2 actividades: MC (interlock de desfibrilador), análisis de caso (sistema de alarma multi-parámetro)
+
+### Lección 3: Multivibradores y Temporizadores en Dispositivos Médicos
+- Contenido: Latch S-R, latch con enable, flip-flop D, astable (marcapasos VOO), monoestable (blanking post-desfibrilación), contador JK (medición de FC), tabla resumen de aplicaciones
+- 3 actividades: MC (circuito de marcapasos VOO), problema guiado (cálculo de astable 555 para alarma), autoevaluación (diseño de temporizadores)
+
+### Adaptación biomédica
+Cada concepto del libro se conectó con aplicaciones médicas concretas:
+- DAC R/2R → estimulación eléctrica funcional (FES)
+- Schmitt trigger → detector de onda R en ECG
+- AND gate → interlock de seguridad de desfibrilador
+- OR gate → alarma multi-parámetro de monitor
+- Astable → marcapasos VOO, tono de alarma
+- Monoestable → blanking post-desfibrilación, retardo de alarma
+- Contador → medición de frecuencia cardíaca
+
+### Verificación
+- Script `prisma/add-digital-unit.ts` ejecutado correctamente (sin resetear la BD)
+- VLM confirmó: markdown bien renderizado (headings, tablas, fórmulas), aplicaciones biomédicas visibles
+- La unidad aparece como "UNIDAD 6" en la vista de unidades con 3 lecciones y 8 actividades
+
+## Unresolved issues or risks
+- El script usó marcadores `---CODE---` en lugar de triple backtick (``` en el markdown porque causaban conflicto con el template literal de TypeScript. Se podrían reemplazar por backticks reales en el contenido.
+- Las actividades no tienen intentos de seed data (los usuarios existentes no tienen progreso en esta unidad).
+- Se podría añadir más contenido de otros capítulos del libro (Cap. 1: Numeración, Cap. 14: Comunicación Digital).
