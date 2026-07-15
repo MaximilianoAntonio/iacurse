@@ -153,12 +153,12 @@ function TabChip({ tab, active, onClick, onClose, onContextMenu }: TabChipProps)
           <span
             className={cn(
               "absolute inset-x-0 top-0 h-0.5 rounded-t-full transition-colors",
-              active ? "bg-gradient-to-r from-emerald-500 to-teal-600" : "bg-transparent group-hover:bg-border"
+              active ? "bg-gradient-to-r from-[#003366] to-[#0066AA]" : "bg-transparent group-hover:bg-border"
             )}
           />
           <DynamicIcon
             name={tab.icon}
-            className={cn("h-3.5 w-3.5 shrink-0", active ? "text-emerald-600" : "text-muted-foreground")}
+            className={cn("h-3.5 w-3.5 shrink-0", active ? "text-[#003366]" : "text-muted-foreground")}
           />
           <span className="flex-1 truncate font-medium">{tab.title}</span>
           {tab.closable ? (

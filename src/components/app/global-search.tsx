@@ -330,7 +330,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           {a.completed && (
-                            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[9px] text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950">
+                            <Badge variant="outline" className="border-[#003366]/20 bg-[#003366]/5 text-[9px] text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20">
                               ✓
                             </Badge>
                           )}

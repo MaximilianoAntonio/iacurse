@@ -101,8 +101,8 @@ const kpiTheme: Record<string, { icon: string; gradient: string }> = {
     gradient: "from-rose-500 to-red-600",
   },
   badges: {
-    icon: "bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400",
-    gradient: "from-violet-500 to-purple-600",
+    icon: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
+    gradient: "from-amber-400 to-amber-600",
   },
 };
 
@@ -361,7 +361,7 @@ function BadgeCard({
                 <DynamicIcon name={badge.icon} className="h-7 w-7" />
               </div>
               {badge.earned ? (
-                <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-emerald-500 text-white shadow-sm">
+                <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-[#003366] text-white shadow-sm">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 </div>
               ) : (
@@ -407,7 +407,7 @@ function BadgeCard({
           <div className="flex items-center justify-between text-[11px]">
             {badge.earned ? (
               <>
-                <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="inline-flex items-center gap-1 font-medium text-[#003366] dark:text-amber-400">
                   <CheckCircle2 className="h-3 w-3" />
                   Desbloqueada
                 </span>
@@ -465,7 +465,7 @@ function LeaderboardRow({
       className={cn(
         "flex items-center gap-3 px-4 py-3 transition-colors sm:px-6",
         isCurrentUser &&
-          "bg-emerald-50/80 dark:bg-emerald-950/30"
+          "bg-[#003366]/5/80 dark:bg-[#003366]/20/30"
       )}
     >
       {/* Rank / medal */}
@@ -492,7 +492,7 @@ function LeaderboardRow({
           className={cn(
             "text-xs font-medium",
             isCurrentUser
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+              ? "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400"
               : "bg-muted text-muted-foreground"
           )}
         >
@@ -503,7 +503,7 @@ function LeaderboardRow({
         <div className="flex items-center gap-2">
           <p className="truncate text-sm font-medium">{entry.name}</p>
           {isCurrentUser && (
-            <Badge className="bg-emerald-600 text-white">Tú</Badge>
+            <Badge className="bg-[#003366] text-white">Tú</Badge>
           )}
         </div>
         <p className="truncate text-[11px] text-muted-foreground">
@@ -524,7 +524,7 @@ function LeaderboardRow({
           className={cn(
             "text-sm font-bold tabular-nums",
             isCurrentUser
-              ? "text-emerald-600 dark:text-emerald-400"
+              ? "text-[#003366] dark:text-amber-400"
               : "text-foreground"
           )}
         >
@@ -545,7 +545,7 @@ function rankMedal(rank: number):
     case 1:
       return { Icon: Crown, gradient: "from-yellow-400 to-amber-600" };
     case 2:
-      return { Icon: Medal, gradient: "from-slate-300 to-slate-500" };
+      return { Icon: Medal, gradient: "from-amber-300 to-amber-500" };
     case 3:
       return { Icon: Award, gradient: "from-amber-600 to-orange-800" };
     default:

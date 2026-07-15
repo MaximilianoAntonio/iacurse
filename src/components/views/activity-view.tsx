@@ -477,7 +477,7 @@ function ActivityInner(props: ActivityInnerProps) {
         title="¡Unidad completada!"
         description={unitCelebration ? `Has dominado "${unitCelebration.title}"` : ""}
         onClose={() => setUnitCelebration(null)}
-        accentGradient={unitCelebration ? `from-${unitCelebration.color}-400 via-${unitCelebration.color}-500 to-${unitCelebration.color}-600` : "from-amber-400 via-orange-500 to-rose-500"}
+        accentGradient={unitCelebration ? `from-${unitCelebration.color}-400 via-${unitCelebration.color}-500 to-${unitCelebration.color}-600` : "from-amber-400 to-amber-600"}
       />
       <Celebration
         trigger={Boolean(badgeCelebration)}
@@ -677,7 +677,7 @@ function MultipleChoiceActivity({
                   "border-primary bg-accent/60 ring-1 ring-primary/30",
                 submitted &&
                   isCorrect &&
-                  "border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/40",
+                  "border-amber-400 bg-[#003366]/5 dark:border-amber-700 dark:bg-[#003366]/20/40",
                 submitted &&
                   isSelected &&
                   !isCorrect &&
@@ -696,7 +696,7 @@ function MultipleChoiceActivity({
               />
               <span className="flex-1 leading-relaxed">{opt}</span>
               {submitted && isCorrect && (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#003366]" />
               )}
               {submitted && isSelected && !isCorrect && (
                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
@@ -851,7 +851,7 @@ function GuidedProblemActivity({
                 </span>
                 <p className="flex-1 text-sm leading-relaxed">{step.prompt}</p>
                 {submitted && correct && (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[#003366]" />
                 )}
                 {submitted && wrong && (
                   <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
@@ -871,7 +871,7 @@ function GuidedProblemActivity({
                   className={cn(
                     submitted &&
                       correct &&
-                      "border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/30",
+                      "border-amber-400 bg-[#003366]/5 dark:border-amber-700 dark:bg-[#003366]/20/30",
                     submitted &&
                       wrong &&
                       "border-rose-400 bg-rose-50 dark:border-rose-700 dark:bg-rose-950/30"
@@ -917,7 +917,7 @@ function GuidedProblemActivity({
                     className={cn(
                       "mt-1.5 rounded-md px-2.5 py-1.5 text-xs",
                       correct
-                        ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        ? "bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/30 dark:text-amber-400"
                         : "bg-rose-50 text-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
                     )}
                   >
@@ -1015,7 +1015,7 @@ function CaseAnalysisActivity({
                   {q.prompt}
                 </p>
                 {submitted && matched && (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[#003366]" />
                 )}
               </div>
               <div className="space-y-2 pl-8">
@@ -1033,7 +1033,7 @@ function CaseAnalysisActivity({
                   className={cn(
                     submitted &&
                       matched &&
-                      "border-emerald-400 bg-emerald-50/50 dark:border-emerald-700 dark:bg-emerald-950/20"
+                      "border-amber-400 bg-[#003366]/5/50 dark:border-amber-700 dark:bg-[#003366]/20/20"
                   )}
                 />
                 {!submitted &&
@@ -1048,13 +1048,13 @@ function CaseAnalysisActivity({
                     className={cn(
                       "rounded-md p-3 text-xs",
                       matched
-                        ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
+                        ? "bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/30 dark:text-amber-200"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
                     <div className="mb-1 flex items-center gap-1.5 font-medium">
                       {matched ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-[#003366]" />
                       ) : (
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
                       )}
@@ -1091,11 +1091,11 @@ function CaseAnalysisActivity({
 // ---------- progressive exercise ----------
 
 const progressiveGradients = [
-  "from-emerald-500 to-teal-600",
-  "from-sky-500 to-cyan-600",
+  "from-[#003366] to-[#0066AA]",
+  "from-[#004488] to-[#0066AA]",
   "from-amber-500 to-orange-600",
   "from-rose-500 to-pink-600",
-  "from-violet-500 to-purple-600",
+  "from-amber-400 to-amber-600",
 ];
 
 function ProgressiveExerciseActivity({
@@ -1153,7 +1153,7 @@ function ProgressiveExerciseActivity({
                   Nivel {i + 1}
                 </span>
                 {submitted && correct && (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <CheckCircle2 className="h-4 w-4 text-[#003366]" />
                 )}
                 {submitted && wrong && (
                   <AlertTriangle className="h-4 w-4 text-rose-600" />
@@ -1173,7 +1173,7 @@ function ProgressiveExerciseActivity({
                 className={cn(
                   submitted &&
                     correct &&
-                    "border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/30",
+                    "border-amber-400 bg-[#003366]/5 dark:border-amber-700 dark:bg-[#003366]/20/30",
                   submitted &&
                     wrong &&
                     "border-rose-400 bg-rose-50 dark:border-rose-700 dark:bg-rose-950/30"
@@ -1184,7 +1184,7 @@ function ProgressiveExerciseActivity({
                   className={cn(
                     "rounded-md px-2.5 py-1.5 text-xs",
                     correct
-                      ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                      ? "bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/30 dark:text-amber-400"
                       : "bg-muted text-muted-foreground"
                   )}
                 >
@@ -1325,7 +1325,7 @@ function SelfAssessmentActivity({
           </span>
           <span
             className={
-              reflection.trim().length >= minChars ? "text-emerald-600" : ""
+              reflection.trim().length >= minChars ? "text-[#003366]" : ""
             }
           >
             {reflection.trim().length}/{minChars} mín.
@@ -1347,7 +1347,7 @@ function SelfAssessmentActivity({
       {submitted && (
         <div className="rounded-xl border border-border bg-muted/30 p-4">
           <p className="flex items-center gap-1.5 text-sm font-medium">
-            <Sparkles className="h-4 w-4 text-violet-600" /> Conceptos clave
+            <Sparkles className="h-4 w-4 text-amber-600" /> Conceptos clave
             detectados
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1357,7 +1357,7 @@ function SelfAssessmentActivity({
                 variant={present ? "default" : "outline"}
                 className={cn(
                   present
-                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
+                    ? "bg-[#003366]/10 text-[#003366] hover:bg-[#003366]/10 dark:bg-[#003366]/20 dark:text-amber-400"
                     : "text-muted-foreground"
                 )}
               >
@@ -1431,7 +1431,7 @@ function ResultPanel({
         className={cn(
           "overflow-hidden border-2",
           correct
-            ? "border-emerald-300 dark:border-emerald-800"
+            ? "border-amber-300 dark:border-[#003366]/30"
             : "border-amber-300 dark:border-amber-800"
         )}
       >
@@ -1439,7 +1439,7 @@ function ResultPanel({
           className={cn(
             "pb-4",
             correct
-              ? "bg-emerald-50 dark:bg-emerald-950/30"
+              ? "bg-[#003366]/5 dark:bg-[#003366]/20/30"
               : "bg-amber-50 dark:bg-amber-950/30"
           )}
         >
@@ -1447,7 +1447,7 @@ function ResultPanel({
             <div
               className={cn(
                 "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm",
-                correct ? "bg-emerald-600" : "bg-amber-600"
+                correct ? "bg-[#003366]" : "bg-amber-600"
               )}
             >
               {correct ? (
@@ -1481,9 +1481,9 @@ function ResultPanel({
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           {/* Retroalimentación IA */}
-          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-800 dark:bg-violet-950/20">
+          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-800 dark:bg-amber-950/20">
             <div className="mb-1.5 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
                 <Bot className="h-3.5 w-3.5" /> Retroalimentación del tutor IA
               </div>
               <button
@@ -1494,8 +1494,8 @@ function ResultPanel({
               >
                 {reported ? (
                   <>
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    <span className="text-emerald-600 dark:text-emerald-400">Reportado</span>
+                    <CheckCircle2 className="h-3 w-3 text-[#003366]" />
+                    <span className="text-[#003366] dark:text-amber-400">Reportado</span>
                   </>
                 ) : (
                   <>
@@ -1545,7 +1545,7 @@ function ResultPanel({
                       "h-2 w-2 rounded-full transition-colors",
                       i < attemptNumber
                         ? result.correct
-                          ? "bg-emerald-500"
+                          ? "bg-[#003366]"
                           : "bg-amber-500"
                         : "bg-muted-foreground/20"
                     )}

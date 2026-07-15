@@ -107,7 +107,7 @@ export function StudentDetailModal({ studentId, open, onOpenChange }: StudentDet
         <DialogTitle className="sr-only">Detalle del estudiante</DialogTitle>
         {loading || !data ? (
           <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-emerald-500" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-[#003366]" />
           </div>
         ) : (
           <StudentDetailContent data={data} />
@@ -124,10 +124,10 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
   return (
     <div className="flex max-h-[90vh] flex-col">
       {/* Header */}
-      <div className="shrink-0 border-b border-border bg-gradient-to-br from-slate-50 to-slate-100 p-5 dark:from-slate-900/50 dark:to-slate-900/30">
+      <div className="shrink-0 border-b border-border bg-gradient-to-br from-[#003366]/5 to-[#003366]/10 p-5 dark:from-[#003366]/20 dark:to-[#003366]/10">
         <div className="flex items-start gap-4">
           <Avatar className="h-14 w-14">
-            <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-bold text-white">
+            <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-sm font-bold text-white">
               {initials(student.name)}
             </AvatarFallback>
           </Avatar>
@@ -136,7 +136,7 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
             <p className="text-xs text-muted-foreground">{student.email}</p>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
               <span className="flex items-center gap-1 font-medium">
-                <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                 {student.points} pts
               </span>
               <span className="flex items-center gap-1">
@@ -176,14 +176,14 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
             className={cn(
               "flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
               activeTab === tab.key
-                ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                ? "border-[#003366] text-[#003366] dark:text-amber-400"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             {tab.label}
             <span className={cn(
               "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-              activeTab === tab.key ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-muted text-muted-foreground"
+              activeTab === tab.key ? "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400" : "bg-muted text-muted-foreground"
             )}>
               {tab.count}
             </span>
@@ -218,7 +218,7 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">
                         {a.correct ? (
-                          <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950">
+                          <Badge variant="outline" className="border-[#003366]/20 bg-[#003366]/5 text-[10px] text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20">
                             <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" /> OK
                           </Badge>
                         ) : (
@@ -265,7 +265,7 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
                       <p className="text-sm font-medium">{p.unit.title}</p>
                       <p className="text-[11px] text-muted-foreground">{p.completed}/{p.total} actividades · {p.mastery}% dominio</p>
                     </div>
-                    <Badge variant="secondary" className={cn("text-[10px]", pct === 100 && "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300")}>
+                    <Badge variant="secondary" className={cn("text-[10px]", pct === 100 && "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400")}>
                       {pct === 100 ? "Completa" : `${pct}%`}
                     </Badge>
                   </div>
@@ -284,7 +284,7 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
               badges.map((b) => {
                 const tierMeta = {
                   bronze: { color: "text-amber-600", bg: "bg-amber-100 dark:bg-amber-950/40" },
-                  silver: { color: "text-slate-600 dark:text-slate-300", bg: "bg-slate-100 dark:bg-slate-800/50" },
+                  silver: { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-950/40" },
                   gold: { color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-100 dark:bg-yellow-950/50" },
                 }[b.tier] ?? { color: "", bg: "" };
                 return (

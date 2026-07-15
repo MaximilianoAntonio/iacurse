@@ -127,10 +127,10 @@ interface TeacherResponse {
 // ---------- Visual config ----------
 
 const chartColors: Record<string, string> = {
-  emerald: "#10b981",
+  emerald: "#003366",
   sky: "#0ea5e9",
   amber: "#f59e0b",
-  violet: "#8b5cf6",
+  violet: "#fbbf24",
   rose: "#f43f5e",
 };
 
@@ -147,14 +147,14 @@ function formatHoursMinutes(min: number): string {
 }
 
 function aciertoClass(pct: number): string {
-  if (pct >= 70) return "text-emerald-600 dark:text-emerald-400";
+  if (pct >= 70) return "text-[#003366] dark:text-amber-400";
   if (pct >= 40) return "text-amber-600 dark:text-amber-400";
   return "text-rose-600 dark:text-rose-400";
 }
 
 function aciertoBadge(pct: number): string {
   if (pct >= 70)
-    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+    return "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400";
   if (pct >= 40)
     return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
   return "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
@@ -179,7 +179,7 @@ export function TeacherView() {
       <PageHeader
         title="Panel docente"
         icon="Users"
-        iconGradient="from-slate-600 to-slate-800"
+        iconGradient="from-[#003366] to-[#004488]"
         description="Seguimiento del aprendizaje del estudiantado en el piloto de Electromedicina II."
       />
 
@@ -623,7 +623,7 @@ const reasonLabels: Record<string, { label: string; color: string }> = {
 const statusLabels: Record<string, { label: string; color: string }> = {
   open: { label: "Pendiente", color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
   reviewed: { label: "Revisado", color: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300" },
-  resolved: { label: "Resuelto", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
+  resolved: { label: "Resuelto", color: "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400" },
 };
 
 function ErrorReportsSection() {
@@ -679,7 +679,7 @@ function ErrorReportsSection() {
           </div>
         ) : reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/40 dark:text-amber-400">
               <Inbox className="h-5 w-5" />
             </div>
             <p className="text-sm font-medium">Sin reportes pendientes</p>
@@ -698,7 +698,7 @@ function ErrorReportsSection() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-7 w-7">
-                        <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-[9px] font-bold text-white">
+                        <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-[9px] font-bold text-white">
                           {initials(r.user.name)}
                         </AvatarFallback>
                       </Avatar>
@@ -733,7 +733,7 @@ function ErrorReportsSection() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 px-2 text-[11px] text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                      className="h-7 px-2 text-[11px] text-[#003366] hover:bg-[#003366]/5 hover:text-[#003366]"
                       onClick={() => handleStatus(r.id, "resolved")}
                     >
                       <CheckCircle2 className="mr-1 h-3 w-3" /> Resolver
@@ -794,8 +794,8 @@ function UnitFilterBar({
 const kpiTones: Record<string, string> = {
   slate: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
   sky: "bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400",
-  violet: "bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400",
-  emerald: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400",
+  violet: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
+  emerald: "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400",
 };
 
 function AggregateKpi({
@@ -1009,7 +1009,7 @@ function DistributionTooltip(props: {
       </div>
       <div className="mt-1.5 space-y-0.5 text-muted-foreground">
         <div>
-          Alto (≥70%): <span className="font-semibold text-emerald-600 dark:text-emerald-400">{row.high}</span>
+          Alto (≥70%): <span className="font-semibold text-[#003366] dark:text-amber-400">{row.high}</span>
         </div>
         <div>
           Medio (40–69%): <span className="font-semibold text-amber-600 dark:text-amber-400">{row.mid}</span>

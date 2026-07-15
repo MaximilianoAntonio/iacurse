@@ -44,7 +44,7 @@ export function WeeklyGoalRing({ current, goal, daysActive }: WeeklyGoalRingProp
             fill="none"
             strokeWidth="10"
             strokeLinecap="round"
-            className={pct >= 100 ? "stroke-emerald-500" : "stroke-amber-500"}
+            className={pct >= 100 ? "stroke-[#003366]" : "stroke-amber-500"}
             strokeDasharray={circumference}
             initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset }}
@@ -95,7 +95,7 @@ export function WeeklyGoalRing({ current, goal, daysActive }: WeeklyGoalRingProp
           </span>
         </div>
         {pct >= 100 ? (
-          <p className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <p className="flex items-center gap-1 text-xs font-medium text-[#003366] dark:text-amber-400">
             <Target className="h-3 w-3" /> ¡Meta alcanzada esta semana!
           </p>
         ) : (

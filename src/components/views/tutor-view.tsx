@@ -88,17 +88,17 @@ const markdownComponents: Components = {
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   code: ({ children }) => (
-    <code className="rounded bg-violet-100 px-1 py-0.5 font-mono text-[0.85em] text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+    <code className="rounded bg-amber-100 px-1 py-0.5 font-mono text-[0.85em] text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
       {children}
     </code>
   ),
   pre: ({ children }) => (
-    <pre className="mb-2 overflow-x-auto rounded-lg bg-violet-950/10 p-2 text-xs last:mb-0 dark:bg-violet-950/40">
+    <pre className="mb-2 overflow-x-auto rounded-lg bg-amber-950/10 p-2 text-xs last:mb-0 dark:bg-amber-950/40">
       {children}
     </pre>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-violet-400 pl-3 italic text-muted-foreground">
+    <blockquote className="border-l-2 border-amber-400 pl-3 italic text-muted-foreground">
       {children}
     </blockquote>
   ),
@@ -107,7 +107,7 @@ const markdownComponents: Components = {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="underline decoration-violet-400/50 underline-offset-2 hover:text-violet-700 dark:hover:text-violet-300"
+      className="underline decoration-amber-400/50 underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300"
     >
       {children}
     </a>
@@ -163,7 +163,7 @@ function StarRating({
             aria-label={`${n} estrella${n > 1 ? "s" : ""}${
               value === n ? " (seleccionada)" : ""
             }`}
-            className="rounded p-0.5 transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className="rounded p-0.5 transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           >
             <Star
               className={cn(
@@ -188,7 +188,7 @@ function StarRating({
 function TypingIndicator() {
   return (
     <div className="flex items-end gap-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md">
         <Bot className="h-4 w-4" />
       </div>
       <div className="rounded-2xl rounded-bl-md bg-muted px-4 py-3">
@@ -196,7 +196,7 @@ function TypingIndicator() {
           {[0, 1, 2].map((i) => (
             <motion.span
               key={i}
-              className="h-2 w-2 rounded-full bg-violet-400"
+              className="h-2 w-2 rounded-full bg-amber-400"
               animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
               transition={{
                 duration: 0.9,
@@ -236,12 +236,12 @@ function MessageBubble({
       {/* Avatar */}
       {isUser ? (
         <Avatar className="h-9 w-9 border-0">
-          <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+          <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-white">
             {initials(userName) || <User className="h-4 w-4" />}
           </AvatarFallback>
         </Avatar>
       ) : (
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md">
           <Bot className="h-4 w-4" />
         </div>
       )}
@@ -257,7 +257,7 @@ function MessageBubble({
           className={cn(
             "rounded-2xl px-4 py-3 text-sm shadow-sm",
             isUser
-              ? "rounded-br-md bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
+              ? "rounded-br-md bg-gradient-to-br from-[#003366] to-[#0066AA] text-white"
               : "rounded-bl-md bg-muted text-foreground"
           )}
         >
@@ -312,8 +312,8 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
       className="flex flex-col items-center gap-5 px-4 py-10 text-center"
     >
       <div className="relative">
-        <div className="absolute inset-0 -z-10 rounded-full bg-violet-400/30 blur-2xl" />
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg">
+        <div className="absolute inset-0 -z-10 rounded-full bg-amber-400/30 blur-2xl" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg">
           <Sparkles className="h-8 w-8" />
         </div>
       </div>
@@ -333,9 +333,9 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
             key={p.text}
             type="button"
             onClick={() => onPick(p.text)}
-            className="group flex h-full flex-col items-start gap-2 rounded-xl border bg-card p-3 text-left text-xs transition hover:border-violet-300 hover:bg-violet-50/50 hover:shadow-md dark:hover:border-violet-700 dark:hover:bg-violet-950/30"
+            className="group flex h-full flex-col items-start gap-2 rounded-xl border bg-card p-3 text-left text-xs transition hover:border-amber-300 hover:bg-amber-50/50 hover:shadow-md dark:hover:border-amber-700 dark:hover:bg-amber-950/30"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600 transition group-hover:scale-110 dark:bg-violet-950/60 dark:text-violet-300">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600 transition group-hover:scale-110 dark:bg-amber-950/60 dark:text-amber-300">
               <DynamicIcon name={p.icon} className="h-3.5 w-3.5" />
             </span>
             <span className="leading-snug text-foreground/80">{p.text}</span>
@@ -516,7 +516,7 @@ export function TutorView() {
       <PageHeader
         title="Tutor IA"
         icon="MessageSquare"
-        iconGradient="from-violet-500 to-purple-600"
+        iconGradient="from-amber-400 to-amber-600"
         description="Tu asistente pedagógico. Te guía sin darte las respuestas — construye tu propio conocimiento."
         actions={
           <Button
@@ -538,7 +538,7 @@ export function TutorView() {
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <BookOpen className="h-4 w-4 text-violet-500" />
+            <BookOpen className="h-4 w-4 text-amber-500" />
             ¿Sobre qué unidad quieres conversar?
           </CardTitle>
           <CardDescription>
@@ -558,7 +558,7 @@ export function TutorView() {
                 "flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
                 selectedContext === null
                   ? "border-transparent bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-md"
-                  : "border-border bg-card text-foreground/80 hover:border-violet-300 hover:bg-violet-50/50 dark:hover:border-violet-700 dark:hover:bg-violet-950/30"
+                  : "border-border bg-card text-foreground/80 hover:border-amber-300 hover:bg-amber-50/50 dark:hover:border-amber-700 dark:hover:bg-amber-950/30"
               )}
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -588,7 +588,7 @@ export function TutorView() {
                           color.gradient
                         )
                       : cn(
-                          "border-border bg-card text-foreground/80 hover:border-violet-300 hover:bg-violet-50/50 dark:hover:border-violet-700 dark:hover:bg-violet-950/30"
+                          "border-border bg-card text-foreground/80 hover:border-amber-300 hover:bg-amber-50/50 dark:hover:border-amber-700 dark:hover:bg-amber-950/30"
                         )
                   )}
                 >
@@ -600,11 +600,11 @@ export function TutorView() {
           </div>
 
           {/* Disclaimer socrático */}
-          <div className="flex items-start gap-3 rounded-xl border border-violet-200/60 bg-violet-50/60 p-3 text-sm dark:border-violet-900/60 dark:bg-violet-950/30">
-            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-300">
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200/60 bg-amber-50/60 p-3 text-sm dark:border-amber-900/60 dark:bg-amber-950/30">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300">
               <Lightbulb className="h-3.5 w-3.5" />
             </span>
-            <p className="text-violet-900/80 dark:text-violet-100/80">
+            <p className="text-[#003366]/80 dark:text-amber-100/80">
               <strong className="font-semibold">Método socrático:</strong> el
               tutor te hará preguntas para que llegues a la respuesta por ti
               mismo. No te dará la solución directa, pero te acompañará paso a
@@ -632,9 +632,9 @@ export function TutorView() {
                   setInput(p.text);
                   requestAnimationFrame(() => textareaRef.current?.focus());
                 }}
-                className="group flex shrink-0 items-start gap-2 rounded-lg border bg-card p-2.5 text-left text-xs transition hover:border-violet-300 hover:bg-violet-50/50 hover:shadow-sm dark:hover:border-violet-700 dark:hover:bg-violet-950/30 lg:shrink"
+                className="group flex shrink-0 items-start gap-2 rounded-lg border bg-card p-2.5 text-left text-xs transition hover:border-amber-300 hover:bg-amber-50/50 hover:shadow-sm dark:hover:border-amber-700 dark:hover:bg-amber-950/30 lg:shrink"
               >
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-violet-100 text-violet-600 transition group-hover:scale-110 dark:bg-violet-950/60 dark:text-violet-300">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-600 transition group-hover:scale-110 dark:bg-amber-950/60 dark:text-amber-300">
                   <DynamicIcon name={p.icon} className="h-3 w-3" />
                 </span>
                 <span className="leading-snug text-foreground/80">{p.text}</span>
@@ -649,12 +649,12 @@ export function TutorView() {
         <CardHeader className="border-b bg-muted/30 py-3">
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <Bot className="h-4 w-4 text-violet-500" />
+              <Bot className="h-4 w-4 text-amber-500" />
               Conversación
               {selectedContext && (
                 <Badge
                   variant="secondary"
-                  className="ml-1 gap-1 bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300"
+                  className="ml-1 gap-1 bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
                 >
                   <BookOpen className="h-3 w-3" />
                   {selectedContext}
@@ -729,7 +729,7 @@ export function TutorView() {
         }}
         className="space-y-2"
       >
-        <div className="relative rounded-2xl border bg-card shadow-sm focus-within:border-violet-300 focus-within:ring-2 focus-within:ring-violet-400/30 dark:focus-within:border-violet-700">
+        <div className="relative rounded-2xl border bg-card shadow-sm focus-within:border-amber-300 focus-within:ring-2 focus-within:ring-amber-400/30 dark:focus-within:border-amber-700">
           <Textarea
             ref={textareaRef}
             value={input}
@@ -745,7 +745,7 @@ export function TutorView() {
             type="submit"
             size="icon"
             disabled={!input.trim() || isSending}
-            className="absolute bottom-2.5 right-2.5 h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md transition hover:opacity-90 disabled:opacity-40"
+            className="absolute bottom-2.5 right-2.5 h-9 w-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md transition hover:opacity-90 disabled:opacity-40"
             aria-label="Enviar mensaje"
           >
             <Send className="h-4 w-4" />
@@ -753,7 +753,7 @@ export function TutorView() {
         </div>
         <p className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1">
-            <Sparkles className="h-3 w-3 text-violet-400" />
+            <Sparkles className="h-3 w-3 text-amber-400" />
             El tutor responde con el método socrático.
           </span>
           <span className="hidden sm:inline">

@@ -54,12 +54,12 @@ const markdownComponents: Components = {
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   code: ({ children }) => (
-    <code className="rounded bg-violet-100 px-1 py-0.5 text-[11px] font-mono text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+    <code className="rounded bg-amber-100 px-1 py-0.5 text-[11px] font-mono text-amber-700 dark:bg-amber-950 dark:text-amber-300">
       {children}
     </code>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-violet-300 pl-3 italic text-muted-foreground">
+    <blockquote className="border-l-2 border-amber-300 pl-3 italic text-muted-foreground">
       {children}
     </blockquote>
   ),
@@ -241,10 +241,10 @@ export function ChatSidebar() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[380px] flex-col border-l border-violet-200 bg-background shadow-2xl dark:border-violet-900"
+            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[380px] flex-col border-l border-amber-200 bg-background shadow-2xl dark:border-amber-900"
           >
             {/* Cabecera */}
-            <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-gradient-to-r from-violet-600 to-purple-600 px-4 text-white">
+            <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-gradient-to-r from-[#003366] to-[#004488] px-4 text-white">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur">
                   <Bot className="h-5 w-5" />
@@ -252,7 +252,7 @@ export function ChatSidebar() {
                 <div className="leading-tight">
                   <div className="flex items-center gap-1.5 text-sm font-bold">
                     Tutor IA
-                    <Sparkles className="h-3 w-3 text-violet-200" />
+                    <Sparkles className="h-3 w-3 text-amber-200" />
                   </div>
                   <div className="text-[10px] text-white/80">Método socrático · Electromedicina II</div>
                 </div>
@@ -281,8 +281,8 @@ export function ChatSidebar() {
 
             {/* Contexto actual */}
             {tutorContextUnit && (
-              <div className="shrink-0 border-b border-border bg-violet-50/50 px-4 py-2 dark:bg-violet-950/20">
-                <div className="flex items-center gap-1.5 text-[11px] text-violet-700 dark:text-violet-300">
+              <div className="shrink-0 border-b border-border bg-amber-50/50 px-4 py-2 dark:bg-amber-950/20">
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300">
                   <Lightbulb className="h-3 w-3" />
                   <span className="font-medium">Contexto:</span>
                   <span className="truncate">{tutorContextUnit}</span>
@@ -300,7 +300,7 @@ export function ChatSidebar() {
                 </div>
               ) : allMessages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg">
                     <MessageSquare className="h-7 w-7" />
                   </div>
                   <h3 className="mb-1 text-sm font-semibold">¡Hola! Soy tu tutor IA</h3>
@@ -318,7 +318,7 @@ export function ChatSidebar() {
                           setInput(p);
                           textareaRef.current?.focus();
                         }}
-                        className="w-full rounded-lg border border-violet-200 bg-violet-50/50 px-3 py-2 text-left text-xs text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-300 dark:hover:bg-violet-950/50"
+                        className="w-full rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-left text-xs text-amber-700 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-950/50"
                       >
                         {p}
                       </button>
@@ -338,13 +338,13 @@ export function ChatSidebar() {
                   ))}
                   {sending && (
                     <div className="flex items-start gap-2">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white">
                         <Bot className="h-4 w-4" />
                       </div>
                       <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-muted px-3 py-3">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:-0.3s]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:-0.15s]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400 [animation-delay:-0.3s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400 [animation-delay:-0.15s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400" />
                       </div>
                     </div>
                   )}
@@ -364,13 +364,13 @@ export function ChatSidebar() {
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder="Escribe tu pregunta..."
-                  className="min-h-[44px] resize-none border-violet-200 pr-11 text-sm focus-visible:ring-violet-500 dark:border-violet-900"
+                  className="min-h-[44px] resize-none border-amber-200 pr-11 text-sm focus-visible:ring-[#003366] dark:border-amber-900"
                   rows={1}
                   disabled={sending}
                 />
                 <Button
                   size="icon"
-                  className="absolute bottom-1.5 right-1.5 h-8 w-8 rounded-lg bg-violet-600 hover:bg-violet-700"
+                  className="absolute bottom-1.5 right-1.5 h-8 w-8 rounded-lg bg-amber-500 hover:bg-[#004488]"
                   onClick={handleSend}
                   disabled={!input.trim() || sending}
                 >
@@ -431,8 +431,8 @@ function ChatBubble({
       <div
         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white ${
           isUser
-            ? "bg-gradient-to-br from-emerald-500 to-teal-600"
-            : "bg-gradient-to-br from-violet-500 to-purple-600"
+            ? "bg-gradient-to-br from-[#003366] to-[#0066AA]"
+            : "bg-gradient-to-br from-amber-400 to-amber-600"
         }`}
       >
         {isUser ? (
@@ -445,7 +445,7 @@ function ChatBubble({
         <div
           className={`rounded-2xl px-3 py-2 text-sm ${
             isUser
-              ? "rounded-tr-sm bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
+              ? "rounded-tr-sm bg-gradient-to-br from-[#003366] to-[#0066AA] text-white"
               : "rounded-tl-sm bg-muted text-foreground"
           }`}
         >
@@ -490,7 +490,7 @@ function ChatBubble({
                 ))}
               </div>
               {reported ? (
-                <span className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
+                <span className="flex items-center gap-0.5 text-[#003366] dark:text-amber-400">
                   <CheckCircle2 className="h-3 w-3" /> Reportado
                 </span>
               ) : (

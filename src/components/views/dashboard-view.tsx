@@ -274,10 +274,10 @@ export function DashboardView() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30">
+        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-950/20">
           <CardContent className="flex flex-col justify-between p-5">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-600 text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 text-white">
                 <Trophy className="h-4 w-4" />
               </div>
               <div>
@@ -315,9 +315,9 @@ export function DashboardView() {
           {recentBadgesData.badges.map((badge, i) => {
             const tierMeta = {
               bronze: { gradient: "from-amber-400 to-orange-500", bg: "bg-amber-50 dark:bg-amber-950/30", border: "border-amber-200 dark:border-amber-900" },
-              silver: { gradient: "from-slate-300 to-slate-500", bg: "bg-slate-50 dark:bg-slate-900/30", border: "border-slate-200 dark:border-slate-800" },
+              silver: { gradient: "from-amber-300 to-amber-500", bg: "bg-slate-50 dark:bg-slate-900/30", border: "border-slate-200 dark:border-slate-800" },
               gold: { gradient: "from-yellow-400 to-amber-500", bg: "bg-yellow-50 dark:bg-yellow-950/30", border: "border-yellow-200 dark:border-yellow-900" },
-            }[badge.tier] ?? { gradient: "from-violet-400 to-purple-500", bg: "bg-violet-50 dark:bg-violet-950/30", border: "border-violet-200 dark:border-violet-900" };
+            }[badge.tier] ?? { gradient: "from-amber-400 to-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30", border: "border-amber-200 dark:border-amber-900" };
             return (
               <motion.div
                 key={badge.id}
@@ -341,7 +341,7 @@ export function DashboardView() {
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate("achievements")}
-                  className="shrink-0 text-violet-600 hover:bg-violet-100 dark:hover:bg-violet-950"
+                  className="shrink-0 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950"
                 >
                   Ver <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -356,7 +356,7 @@ export function DashboardView() {
         <section className="space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Tus unidades</h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate("units")} className="text-emerald-600">
+            <Button variant="ghost" size="sm" onClick={() => navigate("units")} className="text-[#003366]">
               Ver todas <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Button>
           </div>
@@ -378,7 +378,7 @@ export function DashboardView() {
                       <DynamicIcon name={u.icon} className="h-5 w-5" />
                     </div>
                     {pct === 100 ? (
-                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      <Badge className="bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400">
                         <CheckCircle2 className="mr-1 h-3 w-3" /> Completada
                       </Badge>
                     ) : pct > 0 ? (
@@ -453,7 +453,7 @@ export function DashboardView() {
                   <p className="text-sm text-muted-foreground">
                     Aún no tienes actividad. ¡Comienza con la primera unidad!
                   </p>
-                  <Button size="sm" onClick={() => navigate("units")} className="bg-emerald-600 hover:bg-emerald-700">
+                  <Button size="sm" onClick={() => navigate("units")} className="bg-[#003366] hover:bg-[#004488]">
                     Explorar unidades
                   </Button>
                 </div>
@@ -461,7 +461,7 @@ export function DashboardView() {
                 <div className="divide-y divide-border">
                   {recentAttempts.map((a) => (
                     <div key={a.id} className="flex items-start gap-3 p-3.5">
-                      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${a.correct ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400" : "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"}`}>
+                      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${a.correct ? "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400" : "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"}`}>
                         {a.correct ? <CheckCircle2 className="h-4 w-4" /> : <Target className="h-4 w-4" />}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -471,7 +471,7 @@ export function DashboardView() {
                         </p>
                       </div>
                       <div className="text-right text-[10px] text-muted-foreground">
-                        <div className={a.correct ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+                        <div className={a.correct ? "font-semibold text-[#003366]" : "font-semibold text-amber-600"}>
                           +{a.score}
                         </div>
                         <div>{timeAgo(a.createdAt)}</div>
@@ -484,10 +484,10 @@ export function DashboardView() {
           </Card>
 
           {/* Siguiente insignia */}
-          <Card className="overflow-hidden border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 dark:border-violet-900 dark:from-violet-950/40 dark:to-purple-950/40">
+          <Card className="overflow-hidden border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100 dark:border-amber-900 dark:from-amber-950/40 dark:to-amber-950/20">
             <CardContent className="p-5">
               <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-600 text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 text-white">
                   <Trophy className="h-4 w-4" />
                 </div>
                 <div>
@@ -498,7 +498,7 @@ export function DashboardView() {
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-3 w-full border-violet-200 text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950"
+                className="mt-3 w-full border-amber-200 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950"
                 onClick={() => navigate("achievements")}
               >
                 Ver mis logros
@@ -572,10 +572,10 @@ function StatChip({ icon, value, label }: { icon: React.ReactNode; value: string
 }
 
 const kpiColors: Record<string, string> = {
-  emerald: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400",
+  emerald: "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400",
   sky: "bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400",
   amber: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
-  violet: "bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400",
+  violet: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
 };
 
 function KpiCard({

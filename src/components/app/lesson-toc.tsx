@@ -107,14 +107,14 @@ export function LessonToc({ content, className }: LessonTocProps) {
                   "block w-full py-1 text-left text-xs transition-colors",
                   item.level === 3 ? "pl-3" : "pl-0 font-medium",
                   activeId === item.id
-                    ? "text-emerald-600 dark:text-emerald-400"
+                    ? "text-[#003366] dark:text-amber-400"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <span
                   className={cn(
                     "block truncate",
-                    activeId === item.id && "border-l-2 border-emerald-500 pl-2 -ml-2"
+                    activeId === item.id && "border-l-2 border-[#003366] pl-2 -ml-2"
                   )}
                 >
                   {item.text}

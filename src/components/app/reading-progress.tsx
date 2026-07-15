@@ -4,7 +4,7 @@ import * as React from "react";
 
 interface ReadingProgressProps {
   className?: string;
-  colorClass?: string; // tailwind bg color class for the bar, e.g. "bg-emerald-500"
+  colorClass?: string; // tailwind bg color class for the bar, e.g. "bg-[#003366]"
 }
 
 /**
@@ -13,7 +13,7 @@ interface ReadingProgressProps {
  */
 export function ReadingProgress({
   className = "",
-  colorClass = "bg-gradient-to-r from-emerald-500 to-teal-600",
+  colorClass = "bg-gradient-to-r from-[#003366] to-[#0066AA]",
 }: ReadingProgressProps) {
   const [progress, setProgress] = React.useState(0);
 

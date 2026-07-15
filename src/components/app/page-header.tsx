@@ -17,7 +17,7 @@ export function PageHeader({
   title,
   description,
   icon,
-  iconGradient = "from-emerald-500 to-teal-600",
+  iconGradient = "from-[#003366] to-[#0066AA]",
   actions,
   breadcrumb,
   className,

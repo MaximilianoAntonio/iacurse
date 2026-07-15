@@ -89,14 +89,14 @@ const MVP_MODULES: ModuleInfo[] = [
     title: "Módulo de acceso",
     description:
       "Registro y autenticación de estudiantes. Cada estudiante tiene un perfil con su progreso, puntos e insignias.",
-    gradient: "from-sky-500 to-cyan-600",
+    gradient: "from-[#004488] to-[#0066AA]",
   },
   {
     icon: "BookOpen",
     title: "Módulo temático",
     description:
       "Unidades acotadas al programa de Electromedicina II, organizadas en lecciones con contenido markdown estructurado.",
-    gradient: "from-emerald-500 to-teal-600",
+    gradient: "from-[#003366] to-[#0066AA]",
   },
   {
     icon: "Lightbulb",
@@ -110,7 +110,7 @@ const MVP_MODULES: ModuleInfo[] = [
     title: "Módulo de metacognición",
     description:
       "Retroalimentación automática sobre las respuestas y autoevaluación con rúbricas para promover la autorregulación.",
-    gradient: "from-violet-500 to-purple-600",
+    gradient: "from-amber-400 to-amber-600",
   },
   {
     icon: "MessageSquare",
@@ -153,7 +153,7 @@ export function AboutView() {
       <PageHeader
         title="Acerca del piloto"
         icon="Info"
-        iconGradient="from-emerald-500 to-teal-600"
+        iconGradient="from-[#003366] to-[#0066AA]"
         description="Plataforma web con IA generativa para apoyar el aprendizaje personalizado."
       />
 
@@ -164,10 +164,10 @@ export function AboutView() {
         transition={{ duration: 0.3 }}
       >
         <Card className="overflow-hidden">
-          <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
+          <div className="h-1.5 w-full bg-gradient-to-r from-[#003366] via-[#004488] to-[#0066AA]" />
           <CardHeader>
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white shadow-md">
                 <Microscope className="h-5 w-5" />
               </div>
               <div className="space-y-1">
@@ -188,7 +188,7 @@ export function AboutView() {
                   key={item.label}
                   className="flex items-start gap-3 border-b border-border/60 pb-3 last:border-b-0 sm:last:border-b-0"
                 >
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/50 dark:text-amber-400">
                     <item.icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
@@ -210,7 +210,7 @@ export function AboutView() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white shadow-md">
               <Target className="h-5 w-5" />
             </div>
             <div>
@@ -236,7 +236,7 @@ export function AboutView() {
       {/* ---------- Módulos del MVP ---------- */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <BookOpen className="h-5 w-5 text-[#003366] dark:text-amber-400" />
           <h2 className="text-lg font-semibold">Módulos del MVP</h2>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -285,7 +285,7 @@ export function AboutView() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md">
                 <GraduationCap className="h-5 w-5" />
               </div>
               <div>
@@ -300,7 +300,7 @@ export function AboutView() {
             <ul className="space-y-3">
               {PEDAGOGICAL_PRINCIPLES.map((p) => (
                 <li key={p} className="flex items-start gap-2.5">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-violet-500 dark:text-violet-400" />
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" />
                   <span className="text-sm leading-relaxed">{p}</span>
                 </li>
               ))}
@@ -339,9 +339,9 @@ export function AboutView() {
       </div>
 
       {/* ---------- Pregunta de investigación ---------- */}
-      <Card className="relative overflow-hidden border-l-4 border-l-emerald-500">
+      <Card className="relative overflow-hidden border-l-4 border-l-[#003366]">
         <CardContent className="space-y-3 pt-6">
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+          <div className="flex items-center gap-2 text-[#003366] dark:text-amber-400">
             <Quote className="h-5 w-5" />
             <span className="text-xs font-semibold uppercase tracking-wide">
               Pregunta de investigación

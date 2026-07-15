@@ -146,7 +146,7 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-3 text-left transition hover:bg-accent">
                 <Avatar className="h-7 w-7">
-                  <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-[10px] font-bold text-white">
+                  <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-[10px] font-bold text-white">
                     {initials(currentUser.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -171,7 +171,7 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
                   className="flex items-center gap-2 py-2"
                 >
                   <Avatar className="h-7 w-7">
-                    <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-[9px] font-bold text-white">
+                    <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-[9px] font-bold text-white">
                       {initials(u.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -182,7 +182,7 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
                     </div>
                   </div>
                   {u.id === currentUser.id && (
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="h-2 w-2 rounded-full bg-[#003366]" />
                   )}
                 </DropdownMenuItem>
               ))}

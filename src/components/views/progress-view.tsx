@@ -135,10 +135,10 @@ interface ProgressResponse {
 // ---------- Color & format helpers ----------
 
 const chartColors: Record<string, string> = {
-  emerald: "#10b981",
+  emerald: "#003366",
   sky: "#0ea5e9",
   amber: "#f59e0b",
-  violet: "#8b5cf6",
+  violet: "#fbbf24",
   rose: "#f43f5e",
 };
 
@@ -149,10 +149,10 @@ const difficultyColors: Record<Difficulty, string> = {
 };
 
 const kpiColors: Record<string, string> = {
-  emerald: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400",
+  emerald: "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400",
   sky: "bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400",
   amber: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
-  violet: "bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400",
+  violet: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
 };
 
 function formatHoursMinutes(min: number): string {
@@ -199,7 +199,7 @@ export function ProgressView() {
         <PageHeader
           title="Mi progreso"
           icon="BarChart3"
-          iconGradient="from-sky-500 to-cyan-600"
+          iconGradient="from-[#004488] to-[#0066AA]"
           description="Analítica de tu aprendizaje adaptativo en Electromedicina II."
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -231,7 +231,7 @@ export function ProgressView() {
         <PageHeader
           title="Mi progreso"
           icon="BarChart3"
-          iconGradient="from-sky-500 to-cyan-600"
+          iconGradient="from-[#004488] to-[#0066AA]"
           description="Analítica de tu aprendizaje adaptativo en Electromedicina II."
         />
         <Card>
@@ -350,7 +350,7 @@ export function ProgressView() {
       <PageHeader
         title="Mi progreso"
         icon="BarChart3"
-        iconGradient="from-sky-500 to-cyan-600"
+        iconGradient="from-[#004488] to-[#0066AA]"
         description="Analítica de tu aprendizaje adaptativo en Electromedicina II."
       />
 
@@ -473,7 +473,7 @@ export function ProgressView() {
                   value={`${periodAttempts}`}
                 />
                 <MiniStat
-                  icon={<Calendar className="h-4 w-4 text-emerald-500" />}
+                  icon={<Calendar className="h-4 w-4 text-[#003366]" />}
                   label="Mejor día"
                   value={bestDay.date ? formatShortDate(bestDay.date) : "—"}
                   sub={bestDay.attempts > 0 ? `${bestDay.attempts} intentos` : undefined}
@@ -493,7 +493,7 @@ export function ProgressView() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <BarChart3 className="h-4 w-4 text-emerald-600" /> Dominio por unidad
+                <BarChart3 className="h-4 w-4 text-[#003366]" /> Dominio por unidad
               </CardTitle>
               <CardDescription>
                 Porcentaje de dominio alcanzado en cada unidad del curso.
@@ -575,7 +575,7 @@ export function ProgressView() {
                       </p>
                     </div>
                     {p.mastery >= 100 ? (
-                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      <Badge className="bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400">
                         <CheckCircle2 className="mr-1 h-3 w-3" /> Listo
                       </Badge>
                     ) : (
@@ -602,7 +602,7 @@ export function ProgressView() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Target className="h-4 w-4 text-violet-600" /> Rendimiento por tipo
+                  <Target className="h-4 w-4 text-amber-600" /> Rendimiento por tipo
                 </CardTitle>
                 <CardDescription>
                   Total de intentos vs. aciertos en cada tipo de actividad.
@@ -710,7 +710,7 @@ export function ProgressView() {
                       <tr key={row.type} className="border-b last:border-0">
                         <td className="py-2.5 pr-4 font-medium">{row.label}</td>
                         <td className="py-2.5 pr-4 text-muted-foreground">{row.total}</td>
-                        <td className="py-2.5 pr-4 text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2.5 pr-4 text-[#003366] dark:text-amber-400">
                           {row.correct}
                         </td>
                         <td className="py-2.5 pr-4 font-medium">{row.rate}%</td>
@@ -795,7 +795,7 @@ export function ProgressView() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="h-4 w-4 text-violet-600" /> Autoevaluación metacognitiva
+                <Brain className="h-4 w-4 text-amber-600" /> Autoevaluación metacognitiva
               </CardTitle>
               <CardDescription>
                 Registro de tu nivel de confianza y reflexiones sobre tu aprendizaje.
@@ -804,8 +804,8 @@ export function ProgressView() {
             <CardContent>
               {selfAssess.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-950">
-                    <Brain className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950">
+                    <Brain className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Aún no has registrado autoevaluaciones</p>
@@ -820,9 +820,9 @@ export function ProgressView() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Trophy className="h-4 w-4 text-violet-600" />
+                      <Trophy className="h-4 w-4 text-amber-600" />
                       <span className="text-sm font-medium">Confianza promedio</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -889,7 +889,7 @@ export function ProgressView() {
                       className={cn(
                         "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
                         a.correct
-                          ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+                          ? "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400"
                           : "bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400"
                       )}
                     >
@@ -923,7 +923,7 @@ export function ProgressView() {
                         className={cn(
                           "font-semibold",
                           a.correct
-                            ? "text-emerald-600 dark:text-emerald-400"
+                            ? "text-[#003366] dark:text-amber-400"
                             : "text-rose-600 dark:text-rose-400"
                         )}
                       >
@@ -1150,7 +1150,7 @@ function DiffPieTooltip({
       </div>
       <div className="text-muted-foreground">
         Correctos:{" "}
-        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+        <span className="font-medium text-[#003366] dark:text-amber-400">
           {d.correct ?? 0}
         </span>{" "}
         ({rate}%)

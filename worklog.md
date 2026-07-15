@@ -1140,3 +1140,50 @@ Updated `globals.css` with UV institutional colors:
 ### Verification
 - VLM confirmed: dark blue sidebar with golden logo/accents, dark blue hero banner with golden buttons, blue/gold header badges, professional cohesive design.
 - Lint: 0 errors, 0 warnings. No runtime errors.
+
+---
+Task ID: uv-branding-full
+Agent: Z.ai Code (orchestrator)
+Task: Apply UV institutional colors across ALL pages — comprehensive audit and fix
+
+## Current project status description/assessment
+User reported that not all pages were updated with the Universidad de Valparaíso institutional colors (azul #003366 + dorado #FFD700). A comprehensive audit found 22 files with old color references (emerald/teal/cyan/violet/purple). This round performed a systematic replacement across every file.
+
+## Current goals/completed modifications/verification results
+
+### Root cause: course-utils.ts color map
+- The `unitColorMap` in `course-utils.ts` defined all 5 unit colors using emerald/teal/cyan/violet. Every component that used `getUnitColor()` inherited these old colors.
+- **Fix**: Replaced all 5 color entries with UV institutional palette:
+  - `emerald` (Unit 1, Bioseñales) → Azul UV oscuro (#003366)
+  - `rose` (Unit 2, ECG) → Rose kept (clinical distinction for cardiology)
+  - `sky` (Unit 3, Monitoreo + Unit 6, Digital) → Azul UV claro (#0066AA)
+  - `amber` (Unit 4, Terapéuticos) → Dorado UV (kept)
+  - `violet` (Unit 5, Seguridad) → Azul UV medio (#004488)
+
+### Mass color replacement (22 files, 3 passes)
+Performed systematic sed replacements across all .tsx files in views/ and app/:
+- **Pass 1**: emerald→[#003366], teal→[#004488], cyan→[#0066AA], violet→amber, purple→amber
+- **Pass 2**: Remaining visual references (gradients, borders, backgrounds, text colors)
+- **Pass 3**: Edge cases (filter chips, focus rings, hover states, decorations)
+- **Chart hex colors**: Updated in progress-view.tsx and teacher-view.tsx (#10b981→#003366, #8b5cf6→#fbbf24)
+
+### Pages verified (9 total)
+| Page | UV Colors | No Old Colors |
+|------|-----------|---------------|
+| Dashboard | ✅ | ✅ |
+| Units | ✅ | ✅ |
+| Achievements | ✅ | ✅ |
+| Progress | ✅ | ✅ |
+| About | ✅ | ✅ |
+| Teacher panel | ✅ | ✅ |
+| Unit detail | ✅ | ✅ |
+| Lesson | ✅ | ✅ |
+| Activity | ✅ | ✅ |
+| Chat sidebar | ✅ | ✅ |
+
+VLM confirmed: "All pages use dark blue (#003366) and gold/amber (#fbbf24). No pages use green/teal/violet colors."
+
+### Verification
+- Lint: 0 errors, 0 warnings.
+- No console/runtime errors.
+- VLM-verified all 10 pages (dashboard, units, achievements, progress, about, teacher, unit detail, lesson, activity, chat sidebar) — all use UV institutional colors.

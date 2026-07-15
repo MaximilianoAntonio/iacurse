@@ -95,7 +95,7 @@ export function NotificationBell() {
             {notifications.map((n) => {
               const isRecent = new Date(n.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000);
               const typeColor = {
-                badge: "bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400",
+                badge: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
                 report: "bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400",
                 info: "bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400",
               }[n.type];

@@ -30,7 +30,7 @@ export function Celebration({
   description,
   points,
   onClose,
-  accentGradient = "from-amber-400 via-orange-500 to-rose-500",
+  accentGradient = "from-amber-400 to-amber-600",
 }: CelebrationProps) {
   // Generar piezas de confeti
   const confettiPieces = React.useMemo(() => {
@@ -152,7 +152,7 @@ export function Celebration({
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.5, type: "spring", damping: 14 }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-4 py-1.5 text-sm font-bold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-4 py-1.5 text-sm font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                 >
                   <Sparkles className="h-4 w-4" />
                   +{points} puntos

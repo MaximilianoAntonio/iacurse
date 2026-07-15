@@ -57,9 +57,9 @@ export function StudentCompareModal({ open, onOpenChange }: StudentCompareModalP
         <DialogTitle className="sr-only">Comparar estudiantes</DialogTitle>
         <div className="flex max-h-[90vh] flex-col">
           {/* Header */}
-          <div className="shrink-0 border-b border-border bg-gradient-to-br from-slate-50 to-slate-100 p-5 dark:from-slate-900/50 dark:to-slate-900/30">
+          <div className="shrink-0 border-b border-border bg-gradient-to-br from-[#003366]/5 to-[#003366]/10 p-5 dark:from-[#003366]/20 dark:to-[#003366]/10">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-600 text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#003366] text-white">
                 <GitCompare className="h-4 w-4" />
               </div>
               <div>
@@ -141,14 +141,14 @@ function ComparisonContent({ a, b }: { a: CompareStudent; b: CompareStudent }) {
             : false;
           return (
             <div key={i} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-accent/30">
-              <div className={cn("text-right text-sm font-medium tabular-nums", aWins && "text-emerald-600 dark:text-emerald-400")}>
+              <div className={cn("text-right text-sm font-medium tabular-nums", aWins && "text-[#003366] dark:text-amber-400")}>
                 {row.valueA}
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 {row.icon}
                 <span className="hidden sm:inline">{row.label}</span>
               </div>
-              <div className={cn("text-left text-sm font-medium tabular-nums", bWins && "text-violet-600 dark:text-violet-400")}>
+              <div className={cn("text-left text-sm font-medium tabular-nums", bWins && "text-amber-600 dark:text-amber-400")}>
                 {row.valueB}
               </div>
             </div>
@@ -188,8 +188,8 @@ function ComparisonContent({ a, b }: { a: CompareStudent; b: CompareStudent }) {
 
 function StudentHeader({ student, color }: { student: CompareStudent; color: "emerald" | "violet" }) {
   const colorMap = {
-    emerald: "from-emerald-500 to-teal-600",
-    violet: "from-violet-500 to-purple-600",
+    emerald: "from-[#003366] to-[#0066AA]",
+    violet: "from-amber-400 to-amber-600",
   };
   return (
     <div className="flex items-center gap-2">

@@ -124,7 +124,7 @@ export function UnitDetailView() {
           { label: unit.title },
         ]}
         actions={
-          <Button variant="outline" size="sm" onClick={askTutor} className="border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-900 dark:text-violet-300 dark:hover:bg-violet-950">
+          <Button variant="outline" size="sm" onClick={askTutor} className="border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900 dark:text-amber-300 dark:hover:bg-amber-950">
             <MessageSquare className="mr-1.5 h-4 w-4" /> Preguntar al tutor
           </Button>
         }
@@ -163,7 +163,7 @@ export function UnitDetailView() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <BookOpen className="h-5 w-5 text-emerald-600" />
+            <BookOpen className="h-5 w-5 text-[#003366]" />
             Lecciones
           </h2>
           <span className="text-xs text-muted-foreground">{unit.lessons.length} lecciones</span>
@@ -193,7 +193,7 @@ export function UnitDetailView() {
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-semibold leading-tight">{lesson.title}</h3>
                         {isDone ? (
-                          <Badge className="shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                          <Badge className="shrink-0 bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400">
                             <CheckCircle2 className="mr-1 h-3 w-3" /> Completa
                           </Badge>
                         ) : lessonPct > 0 ? (
@@ -232,7 +232,7 @@ export function UnitDetailView() {
                             onClick={() => openActivity(a.id)}
                             className={`group inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                               status?.completed
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                ? "border-[#003366]/20 bg-[#003366]/5 text-[#003366] hover:bg-[#003366]/10 dark:border-[#003366]/30 dark:bg-[#003366]/20/40 dark:text-amber-400"
                                 : status
                                 ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
                                 : "border-border bg-background text-muted-foreground hover:bg-accent"

@@ -1,6 +1,8 @@
 import type { ActivityType, Difficulty } from "@/lib/types";
 
-// Mapeo de colores de unidades a clases Tailwind
+// Mapeo de colores de unidades — Paleta institucional UV
+// Azul UV (#003366) como base, dorado UV (#fbbf24) como acento
+// Cada unidad mantiene un color distintivo pero dentro de la familia UV
 export const unitColorMap: Record<
   string,
   {
@@ -14,13 +16,13 @@ export const unitColorMap: Record<
   }
 > = {
   emerald: {
-    bg: "bg-emerald-600",
-    bgSoft: "bg-emerald-50 dark:bg-emerald-950/40",
-    text: "text-emerald-700 dark:text-emerald-300",
-    border: "border-emerald-200 dark:border-emerald-800",
-    ring: "ring-emerald-500/30",
-    gradient: "from-emerald-500 to-teal-600",
-    dot: "bg-emerald-500",
+    bg: "bg-[#003366]",
+    bgSoft: "bg-[#003366]/5 dark:bg-[#0066AA]/10",
+    text: "text-[#003366] dark:text-[#5b9bd5]",
+    border: "border-[#003366]/20 dark:border-[#0066AA]/30",
+    ring: "ring-[#003366]/30",
+    gradient: "from-[#003366] to-[#0066AA]",
+    dot: "bg-[#003366]",
   },
   rose: {
     bg: "bg-rose-600",
@@ -28,35 +30,35 @@ export const unitColorMap: Record<
     text: "text-rose-700 dark:text-rose-300",
     border: "border-rose-200 dark:border-rose-800",
     ring: "ring-rose-500/30",
-    gradient: "from-rose-500 to-pink-600",
+    gradient: "from-rose-500 to-rose-700",
     dot: "bg-rose-500",
   },
   sky: {
-    bg: "bg-sky-600",
-    bgSoft: "bg-sky-50 dark:bg-sky-950/40",
-    text: "text-sky-700 dark:text-sky-300",
-    border: "border-sky-200 dark:border-sky-800",
-    ring: "ring-sky-500/30",
-    gradient: "from-sky-500 to-cyan-600",
-    dot: "bg-sky-500",
+    bg: "bg-[#0066AA]",
+    bgSoft: "bg-[#0066AA]/5 dark:bg-[#0066AA]/10",
+    text: "text-[#0066AA] dark:text-[#5b9bd5]",
+    border: "border-[#0066AA]/20 dark:border-[#0066AA]/30",
+    ring: "ring-[#0066AA]/30",
+    gradient: "from-[#004488] to-[#0066AA]",
+    dot: "bg-[#0066AA]",
   },
   amber: {
-    bg: "bg-amber-600",
+    bg: "bg-amber-500",
     bgSoft: "bg-amber-50 dark:bg-amber-950/40",
     text: "text-amber-700 dark:text-amber-300",
     border: "border-amber-200 dark:border-amber-800",
     ring: "ring-amber-500/30",
-    gradient: "from-amber-500 to-orange-600",
+    gradient: "from-amber-400 to-amber-600",
     dot: "bg-amber-500",
   },
   violet: {
-    bg: "bg-violet-600",
-    bgSoft: "bg-violet-50 dark:bg-violet-950/40",
-    text: "text-violet-700 dark:text-violet-300",
-    border: "border-violet-200 dark:border-violet-800",
-    ring: "ring-violet-500/30",
-    gradient: "from-violet-500 to-purple-600",
-    dot: "bg-violet-500",
+    bg: "bg-[#004488]",
+    bgSoft: "bg-[#004488]/5 dark:bg-[#004488]/10",
+    text: "text-[#004488] dark:text-[#5b9bd5]",
+    border: "border-[#004488]/20 dark:border-[#004488]/30",
+    ring: "ring-[#004488]/30",
+    gradient: "from-[#003366] to-[#004488]",
+    dot: "bg-[#004488]",
   },
 };
 

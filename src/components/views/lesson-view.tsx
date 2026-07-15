@@ -121,7 +121,7 @@ export function LessonView() {
           { label: lesson.title },
         ]}
         actions={
-          <Button variant="outline" size="sm" onClick={askTutor} className="border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-900 dark:text-violet-300">
+          <Button variant="outline" size="sm" onClick={askTutor} className="border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900 dark:text-amber-300">
             <MessageSquare className="mr-1.5 h-4 w-4" /> Tutor
           </Button>
         }
@@ -141,7 +141,7 @@ export function LessonView() {
           <span className="text-muted-foreground">Progreso:</span>
           <span className="font-semibold">{completedCount}/{totalActivities}</span>
           {lessonPct === 100 && totalActivities > 0 && (
-            <Badge className="ml-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <Badge className="ml-1 bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400">
               <CheckCircle2 className="mr-1 h-3 w-3" /> Completa
             </Badge>
           )}
@@ -225,7 +225,7 @@ export function LessonView() {
                     onClick={() => openActivity(a.id)}
                     className={`group flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-all hover:shadow-sm ${
                       isCompleted
-                        ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
+                        ? "border-[#003366]/20 bg-[#003366]/5/50 dark:border-[#003366]/30 dark:bg-[#003366]/20/20"
                         : attempted
                         ? "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20"
                         : "border-border hover:border-foreground/20"
@@ -233,7 +233,7 @@ export function LessonView() {
                   >
                     <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       isCompleted
-                        ? "bg-emerald-500 text-white"
+                        ? "bg-[#003366] text-white"
                         : attempted
                         ? "bg-amber-400 text-white"
                         : "bg-muted text-muted-foreground"
@@ -266,7 +266,7 @@ export function LessonView() {
           <Card className={`bg-gradient-to-br ${color.bgSoft} ${color.border}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-white">
                   <MessageSquare className="h-4 w-4" />
                 </div>
                 <div>
@@ -274,7 +274,7 @@ export function LessonView() {
                   <p className="text-[11px] text-muted-foreground">Pregunta al tutor IA</p>
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="mt-3 w-full border-violet-200 text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:text-violet-300" onClick={askTutor}>
+              <Button size="sm" variant="outline" className="mt-3 w-full border-amber-200 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:text-amber-300" onClick={askTutor}>
                 Abrir tutor
               </Button>
             </CardContent>

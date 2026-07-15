@@ -68,11 +68,11 @@ export function UnitsView() {
         title="Unidades temáticas"
         description="Contenido del programa de Electromedicina II, organizado por unidades de aprendizaje."
         icon="BookOpen"
-        iconGradient="from-emerald-500 to-teal-600"
+        iconGradient="from-[#003366] to-[#0066AA]"
         actions={
           <div className="hidden items-center gap-4 rounded-xl border border-border bg-card px-4 py-2 text-sm sm:flex">
             <div className="flex items-center gap-1.5">
-              <BookMarked className="h-4 w-4 text-emerald-600" />
+              <BookMarked className="h-4 w-4 text-[#003366]" />
               <span className="font-semibold">{units.length}</span>
               <span className="text-muted-foreground">unidades</span>
             </div>
@@ -87,15 +87,15 @@ export function UnitsView() {
       />
 
       {/* Intro banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-6 dark:border-emerald-900 dark:from-emerald-950/30 dark:via-teal-950/20 dark:to-cyan-950/20">
-        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-emerald-200/40 blur-2xl dark:bg-emerald-800/20" />
+      <div className="relative overflow-hidden rounded-2xl border border-[#003366]/20 bg-gradient-to-br from-[#003366]/5 via-[#004488]/5 to-[#0066AA]/5 p-6 dark:border-[#003366]/30 dark:from-[#003366]/20 dark:via-[#004488]/10 dark:to-[#0066AA]/10">
+        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-amber-200/40 blur-2xl dark:bg-amber-800/20" />
         <div className="relative flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white shadow-lg">
             <DynamicIcon name="Lightbulb" className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">¿Cómo se estructura el aprendizaje?</h3>
-            <p className="max-w-2xl text-sm text-emerald-800/80 dark:text-emerald-200/70">
+            <h3 className="font-semibold text-[#003366] dark:text-amber-100">¿Cómo se estructura el aprendizaje?</h3>
+            <p className="max-w-2xl text-sm text-[#003366]/80 dark:text-amber-200/70">
               Cada unidad contiene lecciones con material teórico y actividades guiadas. Resuelve problemas, analiza casos clínicos
               y recibe retroalimentación inmediata del tutor IA. Tu progreso y dominio se actualizan automáticamente.
             </p>
@@ -131,12 +131,12 @@ export function UnitsView() {
               onClick={() => setFilter(opt.key)}
               className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
                 filter === opt.key
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                  ? "border-amber-300 bg-[#003366]/5 text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20/40 dark:text-amber-400"
                   : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
               {opt.label}
-              <span className={`rounded-full px-1.5 text-[10px] ${filter === opt.key ? "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" : "bg-muted"}`}>
+              <span className={`rounded-full px-1.5 text-[10px] ${filter === opt.key ? "bg-amber-200 text-[#003366] dark:bg-amber-900 dark:text-amber-200" : "bg-muted"}`}>
                 {opt.count}
               </span>
             </button>
@@ -202,7 +202,7 @@ export function UnitsView() {
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <h3 className="font-bold leading-tight">{u.title}</h3>
                   {isComplete ? (
-                    <Badge className="shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    <Badge className="shrink-0 bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400">
                       <CheckCircle2 className="mr-1 h-3 w-3" /> OK
                     </Badge>
                   ) : isInProgress ? (
@@ -237,7 +237,7 @@ export function UnitsView() {
 
                 {/* CTA */}
                 <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                  <span className="text-xs font-medium text-emerald-600">
+                  <span className="text-xs font-medium text-[#003366]">
                     {isComplete ? "Revisar unidad" : isInProgress ? "Continuar" : "Comenzar"}
                   </span>
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full ${color.bgSoft} ${color.text} transition-transform group-hover:translate-x-0.5`}>
@@ -254,7 +254,7 @@ export function UnitsView() {
       {/* Tip card */}
       <Card className="border-dashed bg-muted/30">
         <CardContent className="flex items-start gap-3 p-5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400">
             <DynamicIcon name="MessageSquare" className="h-4 w-4" />
           </div>
           <div>
@@ -266,7 +266,7 @@ export function UnitsView() {
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto shrink-0 text-violet-600"
+            className="ml-auto shrink-0 text-amber-600"
             onClick={() => useAppStore.getState().setChatOpen(true)}
           >
             Abrir tutor <ArrowRight className="ml-1 h-3.5 w-3.5" />
