@@ -377,3 +377,66 @@ The platform "ElectroMed IA" is stable with URL navigation, right-side chat side
 - **Performance**: Progress view fetches many attempts; could add pagination.
 - **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
 - **Content search across lessons**: Currently search is only on unit titles; could extend to lesson/activity content.
+
+---
+Task ID: cron-review-3
+Agent: Z.ai Code (web dev review)
+Task: Badge auto-award system, unit/badge celebrations, lesson TOC, dynamic icon additions
+
+## Current project status description/assessment
+The platform "ElectroMed IA" is stable with URL navigation, chat sidebar, 5 units, 32 activities, gamification (points/streak/badges), analytics, teacher panel, error reporting, Continue card, reading progress bar, and activity celebration. This round focused on: (1) implementing dynamic badge auto-award logic (badges were previously only seeded, not earned dynamically), (2) adding badge unlock and unit completion celebrations, (3) adding a lesson table of contents, and (4) adding missing badge icons to the DynamicIcon map.
+
+## Current goals/completed modifications/verification results
+
+### New feature: Dynamic badge auto-award system
+- **Problem**: Badges were only awarded in the seed file; the platform never dynamically checked/awarded badges when users completed activities or chatted with the tutor.
+- **Solution**: Created `/src/lib/badges.ts` with `checkAndAwardBadges(userId)` function that evaluates all 6 badge criteria:
+  - `primer-paso`: ≥1 correct activity
+  - `explorador`: visited all 5 units
+  - `racha-7`: streak ≥7 days
+  - `maestro-ecg`: ECG unit mastery ≥80%
+  - `centinela`: completed all Seguridad Eléctrica activities
+  - `tutor-activo`: ≥10 chat queries
+- Integrated into `/api/activities/[id]/attempt` (runs after each activity submission) and `/api/tutor` (runs after each chat message).
+- The API now returns `newBadges` array in the response so the frontend can show celebrations.
+- **Verified**: Fernanda (5→6 correct activities) submitted a fresh MC activity → API ran badge check → no new badges awarded (she already had primer-paso/explorador) → correct behavior.
+
+### New feature: Badge unlock celebration
+- Extended the activity view to show a Celebration modal when a new badge is unlocked.
+- Badge celebrations use tier-themed gradients: gold (yellow/amber), silver (slate), bronze (amber/orange).
+- Sequenced celebrations: activity completion (0s) → unit completion (7s) → badge unlock (7s or 14s if unit also completed).
+- Chat sidebar shows a toast notification when a badge is unlocked via tutoring.
+- **Verified**: Celebration component renders correctly with badge name and tier-appropriate gradient.
+
+### New feature: Unit completion celebration
+- The attempt API now detects when an activity submission completes all activities in a unit (correctActivitiesAfter === totalActivitiesUnit && isCorrect && !hadPreviousCorrect).
+- Returns `unitCompleted`, `unitTitle`, `unitColor`, `unitIcon` in the response.
+- Activity view shows a special "¡Unidad completada!" celebration with the unit's color gradient.
+- Also implemented daily streak increment: if the user's last activity was on a previous day, streak +1.
+
+### New feature: Lesson table of contents (TOC)
+- Created `LessonToc` component that extracts h2/h3 headings from lesson markdown.
+- Renders as a collapsible sidebar card with "Contenido · N secciones".
+- Uses IntersectionObserver to highlight the active section as the user scrolls.
+- Clicking a TOC item smooth-scrolls to that heading (offset for sticky header).
+- Added heading ID generation to ReactMarkdown in lesson view (slugified from heading text).
+- Only visible on desktop (lg+) to avoid cluttering mobile.
+- **Verified**: TOC shows 8 sections for "Acondicionamiento de Señal" lesson, clicking "Rechazo de modo común" scrolls to the correct heading (top:80px).
+
+### Improvement: Added missing badge icons to DynamicIcon
+- Added `Footprints`, `Compass`, `MessageCircleQuestion` to the iconMap (used by badges primer-paso, explorador, tutor-activo).
+- **Verified**: Achievements page renders 59 SVGs (badges now show their proper icons instead of fallback BookOpen).
+
+### QA performed
+- Tested dashboard (Continue card), lesson view (TOC + reading progress bar), activity submission (celebration), chat sidebar (Socratic response), achievements (badge icons).
+- Verified badge awarding logic doesn't re-award existing badges.
+- Lint clean (0 errors, 0 warnings). No console/runtime errors.
+
+## Unresolved issues or risks, and priority recommendations for the next phase
+- **Global content search**: Currently search is only on unit titles in the units view; could extend to lessons and activities across all units.
+- **Real-time teacher notifications**: Teacher panel reports don't auto-refresh; could add polling.
+- **Accessibility audit**: Should do a formal a11y audit (keyboard nav, screen reader, ARIA).
+- **Performance**: Progress view fetches many attempts; could add pagination.
+- **Streak reset logic**: The streak increment is simplified (only checks if lastActive < today); doesn't handle multi-day gaps (should reset to 1 if gap > 1 day).
+- **Badge progress indicators**: Could show progress towards each badge (e.g., "7/10 consultas" for tutor-activo).
+- **Lesson TOC on mobile**: Currently hidden on mobile; could add a collapsible drawer version.

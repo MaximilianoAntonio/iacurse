@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateActivityFeedback } from "@/lib/ai";
+import { checkAndAwardBadges } from "@/lib/badges";
 import type {
   MultipleChoiceData,
   GuidedProblemData,
@@ -215,6 +216,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
+  // Actualizar racha diaria (si es la primera actividad del día, incrementar racha)
+  // Simplificado: si lastActive fue ayer o antes, +1 racha; si es hoy, no cambia.
+  const userRecord = await db.user.findUnique({ where: { id: userId }, select: { lastActive: true, streak: true } });
+  let unitCompleted = false;
+  let unitTitle = "";
+  let unitColor = "";
+  let unitIcon = "";
+  if (userRecord) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastActive = userRecord.lastActive ? new Date(userRecord.lastActive) : null;
+    const lastDay = lastActive ? new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate()) : null;
+    if (!lastDay || lastDay < today) {
+      // Es un día nuevo: incrementar racha
+      await db.user.update({
+        where: { id: userId },
+        data: { streak: { increment: 1 } },
+      });
+    }
+  }
+
+  // Verificar si la unidad se completó con este intento
+  const correctActivitiesAfter = await db.attempt.findMany({
+    where: { userId, correct: true, activity: { lesson: { unitId } } },
+    select: { activityId: true },
+    distinct: ["activityId"],
+  });
+  const totalActivitiesUnit = await db.activity.count({
+    where: { lesson: { unitId } },
+  });
+  if (correctActivitiesAfter.length === totalActivitiesUnit && totalActivitiesUnit > 0 && isCorrect && !hadPreviousCorrect) {
+    // La unidad se completó justo ahora (antes había N-1 correctas, ahora N)
+    unitCompleted = true;
+    const unitInfo = await db.unit.findUnique({ where: { id: unitId }, select: { title: true, color: true, icon: true } });
+    unitTitle = unitInfo?.title ?? "";
+    unitColor = unitInfo?.color ?? "emerald";
+    unitIcon = unitInfo?.icon ?? "BookOpen";
+  }
+
+  // Evaluar y otorgar badges
+  const newBadges = await checkAndAwardBadges(userId);
+
   return NextResponse.json({
     attempt: {
       id: attempt.id,
@@ -223,6 +266,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       feedback,
       correctAnswer,
       pointsAwarded,
+      newBadges,
+      unitCompleted,
+      unitTitle,
+      unitColor,
+      unitIcon,
     },
   });
 }

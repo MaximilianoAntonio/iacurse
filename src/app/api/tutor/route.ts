@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getZAI, TUTOR_SYSTEM_PROMPT } from "@/lib/ai";
+import { checkAndAwardBadges } from "@/lib/badges";
 
 // POST: chat con el tutor IA
 export async function POST(req: NextRequest) {
@@ -57,6 +58,9 @@ export async function POST(req: NextRequest) {
     data: { userId, role: "assistant", content: assistantContent, context: context ?? null },
   });
 
+  // Evaluar badges (ej. "tutor-activo" tras 10 consultas)
+  const newBadges = await checkAndAwardBadges(userId);
+
   return NextResponse.json({
     message: {
       id: saved.id,
@@ -64,6 +68,7 @@ export async function POST(req: NextRequest) {
       content: assistantContent,
       createdAt: saved.createdAt.toISOString(),
     },
+    newBadges: newBadges.length > 0 ? newBadges : undefined,
   });
 }
 

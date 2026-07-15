@@ -126,7 +126,7 @@ export function ChatSidebar() {
     setSending(true);
 
     try {
-      const res = await postJSON<{ message: ChatMessage }>("/api/tutor", {
+      const res = await postJSON<{ message: ChatMessage; newBadges?: { badgeName: string; badgeTier: string }[] }>("/api/tutor", {
         userId,
         message: text,
         context: tutorContextUnit ?? undefined,
@@ -137,6 +137,15 @@ export function ChatSidebar() {
         { ...userMsg, id: `srv-${userMsg.id}` },
         res.message,
       ]);
+      // Notificar badges desbloqueados
+      if (res.newBadges && res.newBadges.length > 0) {
+        for (const badge of res.newBadges) {
+          toast({
+            title: "¡Badge desbloqueado!",
+            description: `${badge.badgeName} — ¡Sigue así!`,
+          });
+        }
+      }
       // Refetch para sincronizar IDs reales
       refetch();
     } catch (e) {

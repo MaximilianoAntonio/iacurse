@@ -110,6 +110,14 @@ interface LessonResponse {
   >;
 }
 
+interface BadgeAwardInfo {
+  badgeSlug: string;
+  badgeName: string;
+  badgeIcon: string;
+  badgeTier: string;
+  newlyAwarded: boolean;
+}
+
 interface AttemptResult {
   attempt: {
     id: string;
@@ -118,6 +126,11 @@ interface AttemptResult {
     feedback: string;
     correctAnswer: string;
     pointsAwarded: number;
+    newBadges?: BadgeAwardInfo[];
+    unitCompleted?: boolean;
+    unitTitle?: string;
+    unitColor?: string;
+    unitIcon?: string;
   };
 }
 
@@ -317,6 +330,8 @@ function ActivityInner(props: ActivityInnerProps) {
   const [resetKey, setResetKey] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
+  const [badgeCelebration, setBadgeCelebration] = useState<BadgeAwardInfo | null>(null);
+  const [unitCelebration, setUnitCelebration] = useState<{ title: string; color: string; icon: string } | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("incorrect");
   const [reportComment, setReportComment] = useState("");
@@ -353,6 +368,23 @@ function ActivityInner(props: ActivityInnerProps) {
         if (res.attempt.correct && res.attempt.pointsAwarded > 0) {
           setCelebrating(true);
         }
+        // Disparar celebración de unidad completada (tiene prioridad sobre badge)
+        if (res.attempt.unitCompleted && res.attempt.unitTitle) {
+          setTimeout(() => {
+            setUnitCelebration({
+              title: res.attempt.unitTitle!,
+              color: res.attempt.unitColor ?? "emerald",
+              icon: res.attempt.unitIcon ?? "BookOpen",
+            });
+          }, 7000); // después de que cierre la celebración de actividad
+        }
+        // Disparar celebración de badge desbloqueado
+        if (res.attempt.newBadges && res.attempt.newBadges.length > 0) {
+          const delay = res.attempt.unitCompleted ? 14000 : 7000;
+          setTimeout(() => {
+            setBadgeCelebration(res.attempt.newBadges![0]);
+          }, delay);
+        }
         toast({
           title: res.attempt.correct
             ? "¡Bien hecho!"
@@ -382,6 +414,8 @@ function ActivityInner(props: ActivityInnerProps) {
     setReported(false);
     setReportComment("");
     setReportReason("incorrect");
+    setBadgeCelebration(null);
+    setUnitCelebration(null);
   }, []);
 
   const handleNext = useCallback(() => {
@@ -420,6 +454,26 @@ function ActivityInner(props: ActivityInnerProps) {
         points={result?.pointsAwarded}
         onClose={() => setCelebrating(false)}
         accentGradient={unitColor.gradient}
+      />
+      <Celebration
+        trigger={Boolean(unitCelebration)}
+        title="¡Unidad completada!"
+        description={unitCelebration ? `Has dominado "${unitCelebration.title}"` : ""}
+        onClose={() => setUnitCelebration(null)}
+        accentGradient={unitCelebration ? `from-${unitCelebration.color}-400 via-${unitCelebration.color}-500 to-${unitCelebration.color}-600` : "from-amber-400 via-orange-500 to-rose-500"}
+      />
+      <Celebration
+        trigger={Boolean(badgeCelebration)}
+        title={badgeCelebration ? `¡Badge desbloqueado!` : ""}
+        description={badgeCelebration ? badgeCelebration.badgeName : ""}
+        onClose={() => setBadgeCelebration(null)}
+        accentGradient={
+          badgeCelebration?.badgeTier === "gold"
+            ? "from-yellow-400 via-amber-500 to-orange-500"
+            : badgeCelebration?.badgeTier === "silver"
+            ? "from-slate-300 via-slate-400 to-slate-500"
+            : "from-amber-600 via-orange-700 to-rose-700"
+        }
       />
       <PageHeader
         title={activity.title}

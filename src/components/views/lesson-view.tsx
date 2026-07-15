@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { LoadingRows } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { ReadingProgress } from "@/components/app/reading-progress";
+import { LessonToc } from "@/components/app/lesson-toc";
 import { getUnitColor, activityTypeMeta, difficultyMeta } from "@/lib/course-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -158,7 +159,22 @@ export function LessonView() {
               </CardTitle>
             </CardHeader>
             <CardContent className="prose prose-sm max-w-none p-5 dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h2:text-lg prose-h2:mt-6 prose-h3:text-base prose-p:leading-relaxed prose-li:my-1 prose-strong:font-semibold prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
-              <ReactMarkdown>{lesson.content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  h2: ({ children }) => {
+                    const text = String(children);
+                    const id = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                    return <h2 id={id}>{children}</h2>;
+                  },
+                  h3: ({ children }) => {
+                    const text = String(children);
+                    const id = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                    return <h3 id={id}>{children}</h3>;
+                  },
+                }}
+              >
+                {lesson.content}
+              </ReactMarkdown>
             </CardContent>
           </Card>
 
@@ -181,8 +197,11 @@ export function LessonView() {
           </Card>
         </div>
 
-        {/* Sidebar: actividades */}
+        {/* Sidebar: TOC + actividades */}
         <div className="space-y-4">
+          <div className="hidden lg:block">
+            <LessonToc content={lesson.content} />
+          </div>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
