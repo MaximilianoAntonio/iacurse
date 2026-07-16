@@ -12,6 +12,7 @@ export type ViewKey =
   | "progress"
   | "achievements"
   | "teacher"
+  | "course-builder"
   | "about";
 
 export type ActivityType =

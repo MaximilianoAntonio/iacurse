@@ -31,6 +31,9 @@ model User {
   selfAssess    SelfAssessment[]
   errorReports  ErrorReport[]
   bookmarks     Bookmark[]
+  courses       Course[]
+  questionBanks QuestionBank[]
+  dataResources DataResource[]
 }
 
 model Unit {
@@ -190,4 +193,113 @@ model Bookmark {
 
   @@unique([userId, activityId])
   @@index([userId])
+}
+
+// === Sistema de creación docente (Sandbox) ===
+// Permite al docente crear cursos, bancos de preguntas y recursos de datos
+
+model Course {
+  id          String   @id @default(cuid())
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  color       String   @default("sky")
+  icon        String   @default("BookOpen")
+  status      String   @default("draft") // "draft" | "published" | "archived"
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  units       CourseUnit[]
+
+  @@index([authorId])
+  @@index([status])
+}
+
+model CourseUnit {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  summary     String
+  description String
+  icon        String   @default("BookOpen")
+  color       String   @default("sky")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lessons     CourseLesson[]
+
+  @@index([courseId])
+}
+
+model CourseLesson {
+  id          String   @id @default(cuid())
+  unitId      String
+  unit        CourseUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  content     String   // Markdown content
+  durationMin Int      @default(15)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions   Question[]
+
+  @@index([unitId])
+}
+
+model QuestionBank {
+  id          String   @id @default(cuid())
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  category    String   @default("general") // "mc" | "guided" | "case" | "self" | "general"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions   Question[]
+
+  @@index([authorId])
+  @@index([category])
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  bankId      String?
+  bank        QuestionBank? @relation(fields: [bankId], references: [id], onDelete: SetNull)
+  lessonId    String?
+  lesson      CourseLesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  type        String   // "multiple_choice" | "guided_problem" | "case_analysis" | "progressive_exercise" | "self_assessment"
+  title       String
+  prompt      String
+  data        String   // JSON: options, answer, hints, steps, explanation, rubric
+  points      Int      @default(10)
+  difficulty  String   @default("medium") // "easy" | "medium" | "hard"
+  tags        String?  // Comma-separated tags for search
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([bankId])
+  @@index([lessonId])
+  @@index([type])
+}
+
+model DataResource {
+  id          String   @id @default(cuid())
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  name        String
+  type        String   // "glossary" | "formula" | "diagram" | "reference" | "dataset"
+  content     String   // Markdown or JSON content
+  tags        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([type])
 }

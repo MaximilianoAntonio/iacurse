@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { key: "progress", label: "Mi progreso", icon: "BarChart3", roles: ["student"], description: "Analítica de aprendizaje" },
   { key: "achievements", label: "Logros", icon: "Trophy", roles: ["student"], description: "Insignias y ranking" },
   { key: "teacher", label: "Panel docente", icon: "Users", roles: ["teacher"], description: "Seguimiento de estudiantes" },
+  { key: "course-builder", label: "Gestión de Contenidos", icon: "BookOpen", roles: ["teacher"], description: "Cursos, preguntas y datos" },
   { key: "about", label: "Acerca del piloto", icon: "Info", roles: ["student", "teacher"], description: "Sobre el proyecto" },
 ];
 

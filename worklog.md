@@ -1771,3 +1771,57 @@ This ensures keyboard navigation is visually visible across the entire platform 
 ## Unresolved issues or risks
 - The large activity-view.tsx (1754 lines) could benefit from component extraction, but it's functionally correct and would be a refactoring-only task with no user-facing impact.
 - The platform passes basic accessibility checks. A formal WCAG 2.1 AA audit with screen reader testing would be the next step for production compliance.
+
+---
+Task ID: course-builder
+Agent: Z.ai Code (orchestrator)
+Task: Sistema de creación docente — cursos sandbox, banco de preguntas y recursos de datos
+
+## Current project status description/assessment
+El usuario solicitó que como profesor se pueda crear cursos de forma sandbox, tener una base de datos de preguntas, cursos y datos para cargar y modificar, junto con los que ya existen.
+
+## Current goals/completed modifications/verification results
+
+### Schema Prisma: 5 nuevos modelos
+- **Course**: Curso sandbox creado por el docente (authorId, title, description, color, icon, status: draft/published/archived)
+- **CourseUnit**: Unidades dentro de un curso sandbox (courseId, title, summary, description)
+- **CourseLesson**: Lecciones dentro de unidades sandbox (unitId, title, content Markdown, durationMin)
+- **QuestionBank**: Banco de preguntas reutilizable (authorId, name, description, category)
+- **Question**: Pregunta individual (bankId opcional, lessonId opcional, type, title, prompt, data JSON, points, difficulty, tags)
+- **DataResource**: Recurso de datos (authorId, name, type: glossary/formula/reference/dataset, content, tags)
+- Todos con índices apropiados y relaciones cascade
+
+### API Routes CRUD (4 archivos, 16 endpoints)
+- `/api/courses` — GET (listar), POST (crear), PATCH (actualizar), DELETE (eliminar)
+- `/api/question-banks` — GET, POST, PATCH, DELETE
+- `/api/question-banks/questions` — GET, POST, PATCH, DELETE
+- `/api/data-resources` — GET, POST, PATCH, DELETE
+- Todas con try/catch, validación de input y console.error
+
+### Vista: Course Builder (course-builder-view.tsx)
+- 3 tabs: **Cursos**, **Banco de Preguntas**, **Recursos de Datos**
+- **Cursos**: lista de cursos sandbox con estado (draft/published), botones editar/eliminar/publicar, dialog crear/editar con título, descripción, color e icono
+- **Banco de Preguntas**: lista de bancos como badges con contador, lista de preguntas con tipo/dificultad/puntos/tags, dialog crear/editar con todos los campos incluyendo editor JSON para datos
+- **Recursos de Datos**: grid de tarjetas con tipo (glosario/fórmula/referencia/dataset), dialog crear/editar con editor de contenido Markdown
+
+### Integración en la plataforma
+- Nuevo item en sidebar del docente: "Gestión de Contenidos" (icon BookOpen)
+- ViewKey actualizado con "course-builder"
+- TEACHER_VIEWS actualizado para incluir "course-builder"
+- ViewRouter actualizado para renderizar CourseBuilderView
+
+### Verificación con agent-browser
+- Cambiado a cuenta de docente (Prof. Hermes Mora)
+- "Gestión de Contenidos" aparece en el sidebar ✅
+- Página carga con 3 tabs ✅
+- Tab Cursos: botón "Nuevo Curso" visible, dialog funciona ✅
+- Tab Banco de Preguntas: botones "Nuevo Banco" y "Nueva Pregunta" visibles ✅
+- Tab Recursos de Datos: visible ✅
+- **Curso sandbox creado**: "Electrónica Médica Avanzada" — aparece en la lista ✅
+- VLM confirmó: 3 tabs, botones de creación, empty states visibles
+
+### Estado
+- Lint: 0 errores, 0 warnings
+- Sin errores de runtime
+- 4 API routes con 16 endpoints CRUD funcionando
+- La plataforma ahora permite al docente crear contenido editable de forma sandbox

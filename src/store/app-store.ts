@@ -45,7 +45,7 @@ interface AppState {
 
 // Vistas permitidas por rol
 const STUDENT_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "progress", "achievements", "about"];
-const TEACHER_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "teacher", "about"];
+const TEACHER_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "teacher", "course-builder", "about"];
 
 function isViewAllowed(view: ViewKey, role: Role): boolean {
   return role === "teacher" ? TEACHER_VIEWS.includes(view) : STUDENT_VIEWS.includes(view);
