@@ -201,7 +201,7 @@ export function AchievementsView() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {badges.map((badge, i) => (
               <BadgeCard key={badge.id} badge={badge} index={i} progress={progressMap[badge.id]} />
             ))}
@@ -303,7 +303,7 @@ function KpiCard({
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="text-2xl font-bold tracking-tight">{value}</div>
+          <div className="text-3xl font-bold tabular-nums">{value}</div>
           <div className="text-xs font-medium text-muted-foreground">{label}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>
         </div>
@@ -373,7 +373,7 @@ function BadgeCard({
             <Badge
               variant="outline"
               className={cn(
-                "gap-1 border",
+                "gap-1 border px-2.5 py-1 text-xs",
                 badge.earned
                   ? cn(tier.bg, tier.color, tier.border)
                   : "text-muted-foreground"
@@ -428,7 +428,7 @@ function BadgeCard({
                 </div>
                 <Progress
                   value={progress!.pct}
-                  className={cn("h-1.5", tier.bg)}
+                  className="h-2 bg-muted/50 [&_[data-slot=progress-indicator]]:bg-amber-500"
                 />
               </div>
             ) : (

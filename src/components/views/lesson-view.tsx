@@ -128,7 +128,7 @@ export function LessonView() {
       />
 
       {/* Meta bar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-3.5 text-xs">
         <span className="flex items-center gap-1.5 text-muted-foreground">
           <Clock className="h-3.5 w-3.5" /> {lesson.durationMin} min de lectura
         </span>
@@ -158,7 +158,7 @@ export function LessonView() {
                 Material de estudio
               </CardTitle>
             </CardHeader>
-            <CardContent className="prose prose-sm max-w-none p-5 dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h2:text-lg prose-h2:mt-6 prose-h3:text-base prose-p:leading-relaxed prose-li:my-1 prose-strong:font-semibold prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+            <CardContent className="prose prose-sm max-w-none p-5 dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-base prose-h3:mb-2 prose-p:leading-relaxed prose-p:my-3 prose-li:my-1 prose-strong:font-semibold prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
               <ReactMarkdown
                 components={{
                   h2: ({ children }) => {
@@ -189,7 +189,7 @@ export function LessonView() {
                 <span className="text-muted-foreground">Resuelve las actividades para afianzar los conceptos.</span>
               </p>
               {lesson.activities[0] && (
-                <Button size="sm" onClick={() => openActivity(lesson.activities[0].id)} className={`bg-gradient-to-br ${color.gradient} text-white hover:opacity-90`}>
+                <Button size="sm" onClick={() => openActivity(lesson.activities[0].id)} className="h-10 bg-gradient-to-br from-[#003366] to-[#0066AA] text-white hover:opacity-90">
                   <PlayCircle className="mr-1 h-4 w-4" /> Empezar
                 </Button>
               )}
@@ -247,7 +247,7 @@ export function LessonView() {
                           <DynamicIcon name={meta?.icon ?? "Circle"} className="h-2.5 w-2.5" />
                           {meta?.label ?? a.type}
                         </span>
-                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${diff.bg} ${diff.color}`}>
+                        <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium ${diff.bg} ${diff.color}`}>
                           {diff.label}
                         </span>
                         <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">

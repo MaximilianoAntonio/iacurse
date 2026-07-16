@@ -84,7 +84,7 @@ export function LessonToc({ content, className }: LessonTocProps) {
   };
 
   return (
-    <nav className={cn("rounded-xl border border-border bg-card p-3", className)}>
+    <nav className={cn("rounded-xl border-2 border-[#003366]/10 bg-[#003366]/5 p-3", className)}>
       <button
         onClick={() => setCollapsed((c) => !c)}
         className="flex w-full items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
@@ -93,7 +93,7 @@ export function LessonToc({ content, className }: LessonTocProps) {
           <List className="h-3.5 w-3.5" />
           Contenido
         </span>
-        <span className="text-[10px] normal-case tracking-normal text-muted-foreground">
+        <span className="text-xs font-bold normal-case tracking-normal text-muted-foreground">
           {tocItems.length} secciones
         </span>
       </button>

@@ -87,15 +87,15 @@ export function UnitsView() {
       />
 
       {/* Intro banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-[#003366]/20 bg-gradient-to-br from-[#003366]/5 via-[#004488]/5 to-[#0066AA]/5 p-6 dark:border-[#003366]/30 dark:from-[#003366]/20 dark:via-[#004488]/10 dark:to-[#0066AA]/10">
+      <div className="relative overflow-hidden rounded-2xl border border-[#003366]/20 bg-gradient-to-br from-[#003366]/5 via-[#004488]/5 to-[#0066AA]/5 p-7 dark:border-[#003366]/30 dark:from-[#003366]/20 dark:via-[#004488]/10 dark:to-[#0066AA]/10">
         <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-amber-200/40 blur-2xl dark:bg-amber-800/20" />
         <div className="relative flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white shadow-lg">
             <DynamicIcon name="Lightbulb" className="h-6 w-6" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <h3 className="font-semibold text-[#003366] dark:text-amber-100">¿Cómo se estructura el aprendizaje?</h3>
-            <p className="max-w-2xl text-sm text-[#003366]/80 dark:text-amber-200/70">
+            <p className="max-w-2xl text-sm leading-relaxed text-[#003366]/80 dark:text-amber-200/70">
               Cada unidad contiene lecciones con material teórico y actividades guiadas. Resuelve problemas, analiza casos clínicos
               y recibe retroalimentación inmediata del tutor IA. Tu progreso y dominio se actualizan automáticamente.
             </p>
@@ -111,7 +111,7 @@ export function UnitsView() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar unidades, temas, conceptos..."
-            className="h-10 pl-9 pr-9"
+            className="h-11 pl-9 pr-9 focus-visible:ring-2 focus-visible:ring-[#003366]/30"
           />
           {search && (
             <button
@@ -123,20 +123,20 @@ export function UnitsView() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Filter className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           {filterOptions.map((opt) => (
             <button
               key={opt.key}
               onClick={() => setFilter(opt.key)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all ${
                 filter === opt.key
                   ? "border-amber-300 bg-[#003366]/5 text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20/40 dark:text-amber-400"
                   : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
               {opt.label}
-              <span className={`rounded-full px-1.5 text-[10px] ${filter === opt.key ? "bg-amber-200 text-[#003366] dark:bg-amber-900 dark:text-amber-200" : "bg-muted"}`}>
+              <span className={`rounded-full px-1.5 text-[11px] ${filter === opt.key ? "bg-amber-200 text-[#003366] dark:bg-amber-900 dark:text-amber-200" : "bg-muted"}`}>
                 {opt.count}
               </span>
             </button>
@@ -229,7 +229,7 @@ export function UnitsView() {
                     <span className="text-muted-foreground">Progreso</span>
                     <span className="font-semibold">{completed}/{total}</span>
                   </div>
-                  <Progress value={pct} className={`h-1.5 ${color.bg}`} />
+                  <Progress value={pct} className={`h-2 bg-muted ${color.bg}`} />
                   <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground">
                     <span>Dominio: <span className="font-semibold text-foreground">{mastery}%</span></span>
                   </div>
@@ -237,9 +237,19 @@ export function UnitsView() {
 
                 {/* CTA */}
                 <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                  <span className="text-xs font-medium text-[#003366]">
-                    {isComplete ? "Revisar unidad" : isInProgress ? "Continuar" : "Comenzar"}
-                  </span>
+                  {isComplete ? (
+                    <span className="inline-flex items-center rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+                      Revisar unidad
+                    </span>
+                  ) : isInProgress ? (
+                    <span className="inline-flex items-center rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-[#003366] shadow-sm">
+                      Continuar
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-gradient-to-r from-[#003366] to-[#0066AA] px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                      Comenzar
+                    </span>
+                  )}
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full ${color.bgSoft} ${color.text} transition-transform group-hover:translate-x-0.5`}>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </span>

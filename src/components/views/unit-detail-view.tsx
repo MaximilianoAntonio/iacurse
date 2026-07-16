@@ -22,7 +22,6 @@ import {
   ListChecks,
   PlayCircle,
   MessageSquare,
-  Lightbulb,
 } from "lucide-react";
 import type { User } from "@/lib/types";
 
@@ -152,7 +151,7 @@ export function UnitDetailView() {
               <Separator className="bg-white/20" />
               <div className="flex items-center justify-between text-xs">
                 <span className="text-white/80">Dominio</span>
-                <span className="text-lg font-bold">{mastery}%</span>
+                <span className="text-2xl font-bold">{mastery}%</span>
               </div>
             </div>
           </div>
@@ -169,7 +168,7 @@ export function UnitDetailView() {
           <span className="text-xs text-muted-foreground">{unit.lessons.length} lecciones</span>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {unit.lessons.map((lesson, idx) => {
             const lessonActivities = lesson.activities;
             const lessonCompleted = lessonActivities.filter((a) => attemptsByActivity[a.id]?.completed).length;
@@ -181,7 +180,7 @@ export function UnitDetailView() {
                 <div className="flex flex-col gap-0 sm:flex-row">
                   {/* Number column */}
                   <div className={`flex items-center justify-center bg-gradient-to-br ${color.gradient} p-4 sm:w-16 sm:shrink-0`}>
-                    <span className="text-2xl font-bold text-white">{idx + 1}</span>
+                    <span className="text-3xl font-bold text-white">{idx + 1}</span>
                   </div>
 
                   {/* Content */}
@@ -230,7 +229,7 @@ export function UnitDetailView() {
                           <button
                             key={a.id}
                             onClick={() => openActivity(a.id)}
-                            className={`group inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                            className={`group inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                               status?.completed
                                 ? "border-[#003366]/20 bg-[#003366]/5 text-[#003366] hover:bg-[#003366]/10 dark:border-[#003366]/30 dark:bg-[#003366]/20/40 dark:text-amber-400"
                                 : status
@@ -258,24 +257,6 @@ export function UnitDetailView() {
           })}
         </div>
       </section>
-
-      {/* CTA al tutor */}
-      <Card className={`border-dashed ${color.border} ${color.bgSoft}`}>
-        <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${color.gradient} text-white`}>
-            <Lightbulb className="h-5 w-5" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">¿Necesitas ayuda con esta unidad?</p>
-            <p className="text-xs text-muted-foreground">
-              El tutor IA puede guiarte por el triángulo de Einthoven, filtrado de señales, seguridad eléctrica y más.
-            </p>
-          </div>
-          <Button onClick={askTutor} className={`bg-gradient-to-br ${color.gradient} text-white hover:opacity-90`}>
-            <MessageSquare className="mr-1.5 h-4 w-4" /> Consultar al tutor
-          </Button>
-        </CardContent>
-      </Card>
 
       <div className="flex justify-between pt-2">
         <Button variant="ghost" size="sm" onClick={() => navigate("units")}>

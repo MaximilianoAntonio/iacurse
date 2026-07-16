@@ -586,7 +586,7 @@ export function ProgressView() {
                     <Progress value={p.mastery} className="h-1.5" />
                   </div>
                   {p.lastVisited && (
-                    <p className="mt-2 text-[10px] text-muted-foreground">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       Última visita {timeAgo(p.lastVisited)}
                     </p>
                   )}
@@ -991,7 +991,7 @@ function MiniStat({
         <span>{label}</span>
       </div>
       <div className="text-lg font-bold leading-none">{value}</div>
-      {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+      {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }

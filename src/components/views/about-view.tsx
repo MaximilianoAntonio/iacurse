@@ -149,7 +149,7 @@ const ETHICS_POINTS: string[] = [
 
 export function AboutView() {
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 lg:p-8">
+    <div className="mx-auto max-w-4xl space-y-8 p-4 lg:p-8">
       <PageHeader
         title="Acerca del piloto"
         icon="Info"
@@ -182,7 +182,7 @@ export function AboutView() {
             </div>
           </CardHeader>
           <CardContent>
-            <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
               {PROJECT_META.map((item) => (
                 <div
                   key={item.label}
@@ -243,7 +243,7 @@ export function AboutView() {
           La plataforma piloto se organiza en seis módulos funcionales
           interconectados.
         </p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {MVP_MODULES.map((m, i) => (
             <motion.div
               key={m.title}
@@ -263,7 +263,7 @@ export function AboutView() {
                     >
                       <DynamicIcon name={m.icon} className="h-5 w-5" />
                     </div>
-                    <Badge variant="outline" className="text-[10px] tabular-nums">
+                    <Badge variant="outline" className="text-xs tabular-nums">
                       {i + 1}
                     </Badge>
                   </div>

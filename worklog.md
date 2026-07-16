@@ -1187,3 +1187,99 @@ VLM confirmed: "All pages use dark blue (#003366) and gold/amber (#fbbf24). No p
 - Lint: 0 errors, 0 warnings.
 - No console/runtime errors.
 - VLM-verified all 10 pages (dashboard, units, achievements, progress, about, teacher, unit detail, lesson, activity, chat sidebar) — all use UV institutional colors.
+
+---
+Task ID: ux-lesson-ach
+Agent: general-purpose (UX fix: lesson + achievements views)
+Task: Fix UX/UI spacing, contrast, and prominence issues in lesson-view and achievements-view
+
+Work Log:
+- Read worklog tail (lines 1159-1190) to confirm UV color palette context (#003366 dark blue, #fbbf24 gold, #0066AA light blue, amber-400/500/600) and prior color-migration work.
+- Read lesson-view.tsx, achievements-view.tsx, lesson-toc.tsx, progress.tsx, badge.tsx, utils.ts, and course-utils.ts (badgeTierMeta) to understand exact class strings and the Progress component's track/indicator DOM (Root has bg-primary/20 track; Indicator has hardcoded bg-primary fill).
+
+File 1: src/components/views/lesson-view.tsx (4 changes)
+1. Meta bar — `gap-3 ... p-3` → `gap-4 ... p-3.5` for more breathing room between duration/progress items.
+2. Markdown prose container — added `prose-p:my-3 prose-h2:mb-3 prose-h3:mb-2` (kept existing `prose-p:leading-relaxed prose-h2:mt-6`) for better paragraph + heading rhythm.
+3. "Empezar" CTA button — replaced unit-color gradient with fixed UV gradient `bg-gradient-to-br from-[#003366] to-[#0066AA] text-white` and added `h-10` (overrides default size="sm" h-9) for more prominence.
+4. Difficulty pill ("Básico/Intermedio/Avanzado") — `text-[10px]` → `text-[11px]` font-medium. (Activity title was already `text-sm font-medium leading-tight`, verified — no change needed.)
+
+File 1b: src/components/app/lesson-toc.tsx (TOC visibility — component renders the TOC card)
+- TOC card surface: `border border-border bg-card` → `border-2 border-[#003366]/10 bg-[#003366]/5` for subtle UV-tinted elevation that separates it from page content.
+- Section count label ("X secciones"): `text-[10px]` → `text-xs font-bold` for stronger hierarchy against the "Contenido" label.
+
+File 2: src/components/views/achievements-view.tsx (5 changes)
+1. Badge grid — `gap-4` → `gap-5` for consistent card spacing.
+2. KPI value — `text-2xl font-bold tracking-tight` → `text-3xl font-bold tabular-nums` (drops tracking-tight, adds tabular-nums for stable number alignment).
+3. Tier label badge — added `px-2.5 py-1 text-xs` to override Badge default `px-2 py-0.5`, making Bronze/Plata/Oro tier labels bigger and more distinct.
+4. Badge progress bar — `h-1.5` + tier.bg → `h-2 bg-muted/50 [&_[data-slot=progress-indicator]]:bg-amber-500`. Uses descendant selector to recolor the Radix indicator (hardcoded bg-primary) to amber-500 for consistent fill across all tiers; track now uses bg-muted/50 for visible contrast on unearned badges.
+5. Ranking text sizes — verified student name (`text-sm font-medium`) and points (`text-sm font-bold tabular-nums`) already at the spec'd sizes; no change required. Noted in report.
+
+Color compliance:
+- All new colors are from the UV palette: #003366 (dark blue), #0066AA (light blue), amber-500, muted (neutral). No emerald/teal/cyan/violet/purple introduced. Tier gradients (amber/orange/slate/yellow) left untouched.
+
+Verification:
+- `bun run lint` → 0 errors, 0 warnings (clean exit, no output).
+- No functionality changed; only className strings modified.
+
+---
+Task ID: ux-units
+Agent: general-purpose (units + unit-detail UX fixes)
+Task: Fix UX/UI issues in the units listing and unit detail views (styling/spacing only — no functional changes)
+
+Work Log:
+- Read worklog.md (last 30 lines) to understand context: prior task replaced institutional colors across 22 files; UV palette = #003366 (dark blue) + #fbbf24/#f59e0b (gold/amber); ESLint config has no-unused-vars OFF.
+- Read both target files end-to-end: src/components/views/units-view.tsx (279 lines, single button card per unit) and src/components/views/unit-detail-view.tsx (287 lines, hero + lesson list + bottom tutor CTA).
+
+File 1: src/components/views/units-view.tsx
+1. Filter chips — container gap-1.5 → gap-2 (more breathing room between Filter icon and chips); chip padding px-3 py-1.5 → px-3.5 py-2; chip font text-xs → text-sm; count badge font text-[10px] → text-[11px].
+2. Progress bars on unit cards — h-1.5 → h-2 and added bg-muted track for contrast: `h-2 bg-muted ${color.bg}`.
+3. Button hierarchy on unit cards — replaced the plain gray text label ("Revisar unidad" / "Continuar" / "Comenzar") with three visually distinct styled spans (the entire card is a <button>, so nested <button>s would be invalid HTML — used <span> elements styled as pill badges instead):
+   • Revisar unidad (complete): outline/ghost pill — `border border-border bg-card text-muted-foreground`
+   • Continuar (in progress): solid amber — `bg-amber-400 text-[#003366]`
+   • Comenzar (not started): UV blue gradient — `bg-gradient-to-r from-[#003366] to-[#0066AA] text-white`
+4. Intro banner — p-6 → p-7 (more generous padding); inner content space-y-1 → space-y-1.5; description <p> added `leading-relaxed` for better line-height.
+5. Search bar — Input height h-10 → h-11 (better touch target) and added `focus-visible:ring-2 focus-visible:ring-[#003366]/30` for an accessible UV-themed focus ring.
+
+File 2: src/components/views/unit-detail-view.tsx
+1. Lesson number column — text-2xl font-bold → text-3xl font-bold (more prominent hierarchy).
+2. Activity chips — text-[11px] → text-xs and py-1 → py-1.5 (better touch targets, consistent with new units-view chip sizing).
+3. Redundant tutor CTA — removed the entire bottom "Consultar al tutor" Card (lines 262-278 in the original file) that duplicated the "Preguntar al tutor" action already in the PageHeader. Removed the now-orphaned Lightbulb import from lucide-react to keep imports tidy. askTutor() function is still wired to the PageHeader button — no functional change.
+4. Hero progress — mastery percentage text-lg font-bold → text-2xl font-bold (gives the stat more visual weight in the hero card).
+5. Lesson spacing — container space-y-3 → space-y-4 (clearer separation between lesson cards).
+
+Verification
+- Ran `bun run lint` (eslint .) — clean output, 0 errors, 0 warnings.
+- Did not touch any logic, state, props, types, or imports beyond removing the now-unused Lightbulb icon. All existing functionality (search, filters, navigation, askTutor, openUnit, openLesson, openActivity) is intact.
+- All colors used stay within the UV institutional palette (#003366, #0066AA, #fbbf24, amber-400/500/600). No emerald/teal/cyan/violet/purple introduced.
+
+Stage Summary:
+- units-view.tsx: filter chips larger and airier (text-sm, px-3.5 py-2, gap-2); progress bars h-2 with bg-muted track; three-state CTA pills with clear visual hierarchy (gradient blue "Comenzar" > amber "Continuar" > outline "Revisar unidad"); intro banner p-7 with leading-relaxed description; search input h-11 with UV-blue focus ring.
+- unit-detail-view.tsx: lesson number text-3xl font-bold; activity chips text-xs + py-1.5; removed redundant bottom "Consultar al tutor" CTA (kept the PageHeader "Preguntar al tutor" button); hero mastery % text-2xl font-bold; lessons spaced with space-y-4.
+- Lint clean. No functional regressions.
+
+---
+Task ID: ux-dashboard
+Agent: general-purpose (UX fix)
+Task: Fix dashboard UX issues
+
+Work Log:
+- Read worklog.md (last 30 lines) for context — UV institutional palette (#003366, #004488, #0066AA, #fbbf24) already enforced project-wide.
+- Read full dashboard-view.tsx (709 lines) and supporting files: button.tsx (confirmed size="sm"=h-8, default=h-9), weekly-goal-ring.tsx (horizontal flex layout, safe to unwrap), globals.css (sidebar-foreground=#f8fafc, so used text-foreground/70 as the on-amber-background equivalent).
+- Applied 9 targeted UX fixes via MultiEdit (no functional changes, styling/spacing only):
+  1. Spacing: changed inner grid `gap-6` → `gap-8` so "Tus unidades" / "Actividad reciente" stack spacing matches outer `space-y-8`.
+  2. KPI cards: removed redundant `flex items-center justify-between` wrapper around the lone icon, added `tabular-nums` to the value for cleaner numeric alignment.
+  3. ContinueCard: changed "Ver unidad" button from `size="sm"` (h-8) to `size="default" h-9` for proper touch target; activity title now uses `line-clamp-2` instead of `truncate` so longer titles show two lines.
+  4. Unit cards: added `duration-200` to existing `transition-all` for smoother hover feedback (hover:shadow-lg was already present); "Ver todas" button gained explicit `hover:bg-[#003366]/10 hover:text-[#004488]` hover state.
+  5. Actividad reciente list: bumped item padding `p-3.5` → `p-4`; time/score container `text-[10px]` → `text-xs` for legibility.
+  6. Weekly goal ring: removed `relative` wrapper + `absolute right-0 top-0` positioning of the "Ajustar" button; now placed below the ring in a `mt-3 flex justify-end` container so it never overlaps the ring on smaller screens (touch-friendly, no hover dependency).
+  7. Streak card: changed "Mantén la constancia" and "días" labels from `text-muted-foreground` to `text-foreground/70` (higher-contrast equivalent of `text-sidebar-foreground/70` for an amber background); enlarged streak number `text-3xl` → `text-4xl`.
+  8. Recent badges notification cards: added `transition-shadow hover:shadow-md` to the motion.div for interactivity feedback; explicit `h-8` added to the "Ver" button className to guarantee the minimum touch target.
+  9. Empty state (recentAttempts.length === 0): replaced the small `h-12 w-12` muted icon with a larger `h-16 w-16 rounded-2xl` UV-colored icon (bg-[#003366]/5, icon text-[#003366]); added a two-level text hierarchy (semibold heading "Sin actividad reciente" + muted description); increased vertical padding to `py-10`.
+- Verified UV palette compliance: all new colors are #003366 / #004488 / amber-400 / amber-500. No emerald, teal, cyan, violet, or purple introduced.
+- Ran `bun run lint` — 0 errors, 0 warnings.
+
+Stage Summary:
+- All 9 dashboard UX issues resolved in `/home/z/my-project/src/components/views/dashboard-view.tsx`.
+- Changes are purely visual/spacing/UX — no logic, props, imports, or data flow touched.
+- `bun run lint` passes cleanly.
+- Result: consistent section spacing, more prominent KPI numbers, accessible touch targets (h-9 Ver unidad, h-8 Ver), two-line activity title truncation, clearer hover affordances on unit cards / "Ver todas" / badge cards, non-overlapping Ajustar button, higher-contrast streak card with bigger number, and a richer empty state with UV-colored icon and two-level text hierarchy.

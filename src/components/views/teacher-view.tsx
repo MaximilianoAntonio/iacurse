@@ -437,12 +437,12 @@ function TeacherDashboard({
               <TableHeader>
                 <TableRow className="bg-muted/40">
                   <TableHead className="min-w-[220px] pl-4">Estudiante</TableHead>
-                  <TableHead className="text-center">Actividades</TableHead>
-                  <TableHead className="text-center">Intentos</TableHead>
-                  <TableHead className="text-center">Acierto</TableHead>
-                  <TableHead className="min-w-[140px]">Dominio medio</TableHead>
-                  <TableHead className="text-center">Tiempo</TableHead>
-                  <TableHead className="text-center">Consultas IA</TableHead>
+                  <TableHead className="text-center border-l border-border/40">Actividades</TableHead>
+                  <TableHead className="text-center border-l border-border/40">Intentos</TableHead>
+                  <TableHead className="text-center border-l border-border/40">Acierto</TableHead>
+                  <TableHead className="min-w-[140px] border-l border-border/40">Dominio medio</TableHead>
+                  <TableHead className="text-center border-l border-border/40">Tiempo</TableHead>
+                  <TableHead className="text-center border-l border-border/40">Consultas IA</TableHead>
                   <TableHead className="text-right pr-4">Última actividad</TableHead>
                 </TableRow>
               </TableHeader>
@@ -766,7 +766,7 @@ function UnitFilterBar({
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Filter className="h-4 w-4" />
-        <span>Filtrar por unidad:</span>
+        <span className="font-medium">Filtrar por unidad:</span>
       </div>
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger className="w-[260px]" size="sm">
@@ -875,16 +875,16 @@ function StudentRow({
           </div>
         </div>
       </TableCell>
-      <TableCell className="text-center">
+      <TableCell className="text-center border-l border-border/40">
         <span className="inline-flex items-center gap-1 text-sm tabular-nums">
           <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
           {student.completedActivities}
         </span>
       </TableCell>
-      <TableCell className="text-center text-sm tabular-nums">
+      <TableCell className="text-center text-sm tabular-nums border-l border-border/40">
         {student.totalAttempts}
       </TableCell>
-      <TableCell className="text-center">
+      <TableCell className="text-center border-l border-border/40">
         <span
           className={cn(
             "inline-flex min-w-[3rem] justify-center rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums",
@@ -905,7 +905,7 @@ function StudentRow({
       <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
         {formatHoursMinutes(student.totalTimeMin)}
       </TableCell>
-      <TableCell className="text-center">
+      <TableCell className="text-center border-l border-border/40">
         <span className="inline-flex items-center gap-1 text-sm tabular-nums">
           <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
           {student.chatCount}

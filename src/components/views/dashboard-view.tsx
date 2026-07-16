@@ -250,22 +250,22 @@ export function DashboardView() {
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
-            <div className="relative">
-              <WeeklyGoalRing
-                current={(() => {
-                  const days = progressData?.activityByDay ?? [];
-                  return days.slice(-7).reduce((a, d) => a + d.timeMin, 0);
-                })()}
-                goal={currentUser?.weeklyGoalMin ?? 180}
-                daysActive={(() => {
-                  const days = progressData?.activityByDay ?? [];
-                  return days.slice(-7).filter((d) => d.attempts > 0).length;
-                })()}
-              />
+            <WeeklyGoalRing
+              current={(() => {
+                const days = progressData?.activityByDay ?? [];
+                return days.slice(-7).reduce((a, d) => a + d.timeMin, 0);
+              })()}
+              goal={currentUser?.weeklyGoalMin ?? 180}
+              daysActive={(() => {
+                const days = progressData?.activityByDay ?? [];
+                return days.slice(-7).filter((d) => d.attempts > 0).length;
+              })()}
+            />
+            <div className="mt-3 flex justify-end">
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-7 gap-1 px-2 text-[11px] text-muted-foreground"
+                className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                 onClick={() => setGoalDialogOpen(true)}
               >
                 <Settings2 className="h-3 w-3" />
@@ -282,13 +282,13 @@ export function DashboardView() {
               </div>
               <div>
                 <p className="text-sm font-semibold">Racha actual</p>
-                <p className="text-[11px] text-muted-foreground">Mantén la constancia</p>
+                <p className="text-xs text-foreground/70">Mantén la constancia</p>
               </div>
             </div>
             <div className="mt-3">
               <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold tabular-nums">{currentUser?.streak ?? 0}</span>
-                <span className="pb-1 text-sm text-muted-foreground">días</span>
+                <span className="text-4xl font-bold tabular-nums">{currentUser?.streak ?? 0}</span>
+                <span className="pb-1.5 text-sm text-foreground/70">días</span>
               </div>
               <div className="mt-2 flex items-center gap-1">
                 {Array.from({ length: 7 }).map((_, i) => {
@@ -324,7 +324,7 @@ export function DashboardView() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className={`flex items-center gap-3 rounded-2xl border ${tierMeta.border} ${tierMeta.bg} p-4`}
+                className={`flex items-center gap-3 rounded-2xl border ${tierMeta.border} ${tierMeta.bg} p-4 transition-shadow hover:shadow-md`}
               >
                 <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${tierMeta.gradient} text-white shadow-lg`}>
                   <DynamicIcon name={badge.icon} className="h-5 w-5" />
@@ -341,7 +341,7 @@ export function DashboardView() {
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate("achievements")}
-                  className="shrink-0 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950"
+                  className="h-8 shrink-0 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950"
                 >
                   Ver <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </Button>
@@ -351,12 +351,12 @@ export function DashboardView() {
         </section>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-8 lg:grid-cols-3">
         {/* Continuar aprendiendo */}
         <section className="space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Tus unidades</h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate("units")} className="text-[#003366]">
+            <Button variant="ghost" size="sm" onClick={() => navigate("units")} className="text-[#003366] hover:bg-[#003366]/10 hover:text-[#004488]">
               Ver todas <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Button>
           </div>
@@ -370,7 +370,7 @@ export function DashboardView() {
                 <button
                   key={u.id}
                   onClick={() => openUnit(u.id)}
-                  className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                  className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   <div className={`absolute right-0 top-0 h-24 w-24 rounded-bl-full bg-gradient-to-br ${color.gradient} opacity-10 transition-opacity group-hover:opacity-20`} />
                   <div className="flex items-start justify-between">
@@ -446,13 +446,16 @@ export function DashboardView() {
           <Card>
             <CardContent className="p-0">
               {recentAttempts.length === 0 ? (
-                <div className="space-y-3 p-6 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <BookOpen className="h-5 w-5 text-muted-foreground" />
+                <div className="space-y-4 px-6 py-10 text-center">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#003366]/5 dark:bg-amber-400/10">
+                    <BookOpen className="h-7 w-7 text-[#003366] dark:text-amber-400" />
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Aún no tienes actividad. ¡Comienza con la primera unidad!
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Sin actividad reciente</p>
+                    <p className="text-xs text-muted-foreground">
+                      Aún no tienes actividad. ¡Comienza con la primera unidad!
+                    </p>
+                  </div>
                   <Button size="sm" onClick={() => navigate("units")} className="bg-[#003366] hover:bg-[#004488]">
                     Explorar unidades
                   </Button>
@@ -460,7 +463,7 @@ export function DashboardView() {
               ) : (
                 <div className="divide-y divide-border">
                   {recentAttempts.map((a) => (
-                    <div key={a.id} className="flex items-start gap-3 p-3.5">
+                    <div key={a.id} className="flex items-start gap-3 p-4">
                       <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${a.correct ? "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400" : "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"}`}>
                         {a.correct ? <CheckCircle2 className="h-4 w-4" /> : <Target className="h-4 w-4" />}
                       </div>
@@ -470,7 +473,7 @@ export function DashboardView() {
                           {a.activity.lesson.unit.title}
                         </p>
                       </div>
-                      <div className="text-right text-[10px] text-muted-foreground">
+                      <div className="text-right text-xs text-muted-foreground">
                         <div className={a.correct ? "font-semibold text-[#003366]" : "font-semibold text-amber-600"}>
                           +{a.score}
                         </div>
@@ -594,12 +597,10 @@ function KpiCard({
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${kpiColors[color]}`}>
-            {icon}
-          </div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${kpiColors[color]}`}>
+          {icon}
         </div>
-        <div className="mt-3 text-2xl font-bold tracking-tight">{value}</div>
+        <div className="mt-3 text-2xl font-bold tracking-tight tabular-nums">{value}</div>
         <div className="text-xs font-medium text-muted-foreground">{label}</div>
         <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>
       </CardContent>
@@ -665,7 +666,7 @@ function ContinueCard({ recommendation, onOpenActivity, onOpenUnit }: ContinueCa
                 Unidad {unit.order} · {unit.title}
               </span>
             </div>
-            <h3 className="truncate text-base font-bold leading-tight sm:text-lg">
+            <h3 className="line-clamp-2 text-base font-bold leading-tight sm:text-lg">
               {activity.title}
             </h3>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -688,8 +689,8 @@ function ContinueCard({ recommendation, onOpenActivity, onOpenUnit }: ContinueCa
         <div className="flex shrink-0 items-center gap-2">
           <Button
             variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
+            size="default"
+            className="h-9 text-muted-foreground"
             onClick={() => onOpenUnit(unit.id)}
           >
             Ver unidad
