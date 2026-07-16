@@ -175,6 +175,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
             <button
               onClick={() => setQuery("")}
               className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label="Limpiar búsqueda"
             >
               <X className="h-4 w-4" />
             </button>
@@ -208,6 +209,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                       localStorage.removeItem("electromed-search-history");
                     }}
                     className="px-3 text-xs text-muted-foreground hover:text-foreground"
+                    aria-label="Limpiar historial de búsquedas"
                   >
                     Limpiar historial
                   </button>

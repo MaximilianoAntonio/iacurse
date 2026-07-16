@@ -89,6 +89,7 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
           onClick={() => setSearchOpen(true)}
           className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title="Buscar (Ctrl+K)"
+          aria-label="Abrir búsqueda global"
         >
           <Search className="h-3.5 w-3.5" />
           <span className="hidden md:inline">Buscar...</span>
@@ -144,7 +145,7 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
         {currentUser && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-3 text-left transition hover:bg-accent">
+              <button className="flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-3 text-left transition hover:bg-accent" aria-label="Cambiar de cuenta">
                 <Avatar className="h-7 w-7">
                   <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-xs font-bold text-white">
                     {initials(currentUser.name)}

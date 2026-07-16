@@ -123,4 +123,13 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Ensure keyboard focus is visible on all interactive elements */
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply outline-none ring-2 ring-[#003366]/40 ring-offset-2 ring-offset-background;
+  }
 }
