@@ -1598,3 +1598,55 @@ The platform is mature and stable. Previous rounds added try/catch to 9 API rout
 - The `route.ts` health check endpoint doesn't need try/catch (no DB calls).
 - Mobile responsive testing still pending.
 - Accessibility audit still pending.
+
+---
+Task ID: engineering-review-5
+Agent: Z.ai Code (orchestrator)
+Task: Deep engineering audit — dead code removal, database indexes, N+1 analysis
+
+## Current project status description/assessment
+The platform is mature with 100% API error handling coverage. This round performed a deep engineering audit covering N+1 queries, SQL injection, secrets, TypeScript strictness, database indexes, and dead code.
+
+## Current goals/completed modifications/verification results
+
+### Dead code removed: tutor-view.tsx (774 lines)
+- **Problem**: `tutor-view.tsx` (774 lines) existed but was never imported — the tutor was converted to a sidebar component (`chat-sidebar.tsx`) in a previous round, making this file dead code.
+- **Fix**: Deleted the file. No imports were affected.
+- **Impact**: Reduced codebase by 774 lines of unused code.
+
+### Database indexes added (7 indexes across 4 models)
+- **Problem**: The Prisma schema had 0 indexes (`@@index`) across 13 models. All queries were doing full table scans, which would degrade performance as data grows.
+- **Fix**: Added indexes for the most common query patterns:
+  - `Attempt`: `@@index([userId, activityId])` — used in progress calculation, attempt retrieval
+  - `Attempt`: `@@index([userId, correct])` — used in badge awarding, correct activity counting
+  - `Attempt`: `@@index([activityId])` — used in lesson activity status
+  - `ChatMessage`: `@@index([userId])` — used in chat history loading
+  - `ChatMessage`: `@@index([userId, role])` — used in chat count for badge
+  - `StudySession`: `@@index([userId])` — used in analytics, time calculation
+  - `Bookmark`: `@@index([userId])` — used in bookmark listing
+  - `ErrorReport`: `@@index([userId])` — used in notification queries
+  - `ErrorReport`: `@@index([status])` — used in teacher panel report filtering
+- Schema pushed and Prisma client regenerated. Dev server restarted.
+
+### Deep audit results
+| Check | Result |
+|-------|--------|
+| N+1 queries | ⚠ 2 routes have await-in-loop (progress, student-detail) — acceptable for current data volume |
+| Input validation | ✔ All 5 POST routes validate input |
+| SQL injection | ✔ No raw SQL queries |
+| Hardcoded secrets | ✔ None found |
+| TypeScript strict | ✔ `strict: true` enabled |
+| Error responses | ✔ All POST routes have 400/404 + 500 |
+| Large files | ⚠ 6 files >500 lines (activity-view: 1754, teacher-view: 1117, progress-view: 1161) |
+
+### Verification
+- Lint: 0 errors, 0 warnings.
+- All APIs return 200.
+- Browser loads correctly with no console errors.
+- Database indexes applied successfully.
+
+## Unresolved issues or risks
+- N+1 queries in progress and student-detail routes — acceptable for pilot scale (4 students, 40 activities) but would need optimization for production
+- Large view files (activity-view: 1754 lines) could benefit from extracting sub-components, but functionality is correct
+- Mobile responsive testing still pending
+- Accessibility audit still pending
