@@ -158,7 +158,7 @@ export function LessonView() {
                 Material de estudio
               </CardTitle>
             </CardHeader>
-            <CardContent className="prose prose-sm:max-w-none sm:prose-base p-6 sm:p-7 dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-3 prose-h3:text-lg prose-h3:mt-5 prose-h3:mb-2 prose-p:leading-7 prose-p:my-4 prose-li:my-1.5 prose-strong:font-semibold prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+            <CardContent className="prose prose-sm:max-w-none p-4 sm:p-6 sm:prose-base dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-3 prose-h3:text-lg prose-h3:mt-5 prose-h3:mb-2 prose-p:leading-7 prose-p:my-4 prose-li:my-1.5 prose-strong:font-semibold prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
               <ReactMarkdown
                 components={{
                   h2: ({ children }) => {

@@ -415,7 +415,7 @@ export function ProgressView() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={220}>
                 <AreaChart
                   data={activityChartData}
                   margin={{ top: 10, right: 12, left: -16, bottom: 0 }}
@@ -505,7 +505,7 @@ export function ProgressView() {
                   No hay progreso registrado todavía.
                 </p>
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={260}>
                   <BarChart
                     data={unitChartData}
                     layout="vertical"
@@ -612,7 +612,7 @@ export function ProgressView() {
                 {radarData.length === 0 ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">Sin datos.</p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={280}>
+                  <ResponsiveContainer width="100%" height={220}>
                     <RadarChart data={radarData} outerRadius={95}>
                       <PolarGrid stroke="hsl(var(--border))" />
                       <PolarAngleAxis
@@ -659,7 +659,7 @@ export function ProgressView() {
                 {diffData.length === 0 ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">Sin datos.</p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={280}>
+                  <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
                       <Pie
                         data={diffData}
@@ -884,7 +884,7 @@ export function ProgressView() {
               {recentAttempts.map((a) => {
                 const color = getUnitColor(a.activity.lesson.unit.color);
                 return (
-                  <li key={a.id} className="flex items-start gap-3 px-6 py-3">
+                  <li key={a.id} className="flex items-start gap-2.5 px-4 py-2.5 sm:px-6 sm:py-3">
                     <div
                       className={cn(
                         "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full",

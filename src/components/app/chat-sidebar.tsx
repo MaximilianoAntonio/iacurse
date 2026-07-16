@@ -441,7 +441,7 @@ function ChatBubble({
           <Bot className="h-4 w-4" />
         )}
       </div>
-      <div className={`max-w-[78%] ${isUser ? "items-end" : "items-start"}`}>
+      <div className={`max-w-[85%] ${isUser ? "items-end" : "items-start"}`}>
         <div
           className={`rounded-2xl px-3 py-2 text-sm ${
             isUser
