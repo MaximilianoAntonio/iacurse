@@ -146,6 +146,7 @@ function CoursesTab({ authorId }: { authorId: string }) {
   const { toast } = useToast();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editCourse, setEditCourse] = React.useState<Course | null>(null);
+  const [editingCourseId, setEditingCourseId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState({ title: "", description: "", color: "sky", icon: "BookOpen" });
 
   const handleCreate = async () => {
@@ -188,6 +189,10 @@ function CoursesTab({ authorId }: { authorId: string }) {
   };
 
   const courses = data?.courses ?? [];
+
+  if (editingCourseId) {
+    return <CourseEditor courseId={editingCourseId} onBack={() => { setEditingCourseId(null); refetch(); }} />;
+  }
 
   return (
     <div className="space-y-4">
@@ -243,6 +248,14 @@ function CoursesTab({ authorId }: { authorId: string }) {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-8 text-xs bg-[#003366] hover:bg-[#004488]"
+                    onClick={() => setEditingCourseId(c.id)}
+                  >
+                    <BookOpen className="mr-1 h-3.5 w-3.5" /> Editar contenido
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -769,6 +782,327 @@ function DataTab({ authorId }: { authorId: string }) {
             <Button variant="outline" size="sm" onClick={() => { setCreateOpen(false); setEditR(null); }}>Cancelar</Button>
             <Button size="sm" onClick={handleSave} className="bg-[#003366] hover:bg-[#004488]">
               <Save className="mr-1.5 h-3.5 w-3.5" /> {editR ? "Guardar" : "Crear"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ COURSE EDITOR (unidades, lecciones, preguntas) ============
+
+interface CourseUnitDetail {
+  id: string;
+  title: string;
+  summary: string;
+  description: string;
+  icon: string;
+  color: string;
+  order: number;
+  lessons: {
+    id: string;
+    title: string;
+    description: string;
+    content: string;
+    durationMin: number;
+    order: number;
+    questionCount: number;
+  }[];
+}
+
+interface CourseDetail {
+  id: string;
+  title: string;
+  description: string;
+  color: string;
+  icon: string;
+  status: string;
+  units: CourseUnitDetail[];
+}
+
+function CourseEditor({ courseId, onBack }: { courseId: string; onBack: () => void }) {
+  const { data, loading, refetch } = useFetch<{ course: CourseDetail }>(
+    `/api/courses/${courseId}`,
+    [courseId]
+  );
+  const { toast } = useToast();
+  const [newUnitOpen, setNewUnitOpen] = React.useState(false);
+  const [newLessonFor, setNewLessonFor] = React.useState<string | null>(null);
+  const [editLesson, setEditLesson] = React.useState<{ id: string; title: string; description: string; content: string; durationMin: number } | null>(null);
+  const [unitForm, setUnitForm] = React.useState({ title: "", summary: "", description: "" });
+  const [lessonForm, setLessonForm] = React.useState({ title: "", description: "", content: "", durationMin: 15 });
+
+  const course = data?.course;
+
+  const handleCreateUnit = async () => {
+    if (!unitForm.title.trim()) return;
+    try {
+      await postJSON(`/api/courses/${courseId}`, unitForm);
+      setUnitForm({ title: "", summary: "", description: "" });
+      setNewUnitOpen(false);
+      refetch();
+      toast({ title: "Unidad creada" });
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
+  const handleCreateLesson = async (unitId: string) => {
+    if (!lessonForm.title.trim()) return;
+    try {
+      await patchJSON(`/api/courses/${courseId}`, {
+        action: "createLesson",
+        unitId,
+        ...lessonForm,
+      });
+      setLessonForm({ title: "", description: "", content: "", durationMin: 15 });
+      setNewLessonFor(null);
+      refetch();
+      toast({ title: "Lección creada" });
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
+  const handleSaveLesson = async () => {
+    if (!editLesson) return;
+    try {
+      await patchJSON(`/api/courses/${courseId}`, {
+        action: "updateLesson",
+        lessonId: editLesson.id,
+        title: editLesson.title,
+        description: editLesson.description,
+        content: editLesson.content,
+        durationMin: editLesson.durationMin,
+      });
+      setEditLesson(null);
+      refetch();
+      toast({ title: "Lección actualizada" });
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteUnit = async (unitId: string) => {
+    if (!confirm("¿Eliminar esta unidad y todas sus lecciones?")) return;
+    try {
+      await patchJSON(`/api/courses/${courseId}`, { action: "deleteUnit", unitId });
+      refetch();
+      toast({ title: "Unidad eliminada" });
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteLesson = async (lessonId: string) => {
+    if (!confirm("¿Eliminar esta lección?")) return;
+    try {
+      await patchJSON(`/api/courses/${courseId}`, { action: "deleteLesson", lessonId });
+      refetch();
+      toast({ title: "Lección eliminada" });
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
+  if (loading || !course) {
+    return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-[#003366]" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header con botón volver */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <X className="mr-1.5 h-4 w-4" /> Volver
+        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white">
+            <DynamicIcon name={course.icon} className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">{course.title}</h2>
+            <p className="text-xs text-muted-foreground">
+              {course.units.length} unidad{course.units.length !== 1 ? "s" : ""} · {course.units.reduce((a, u) => a + u.lessons.length, 0)} leccione{course.units.reduce((a, u) => a + u.lessons.length, 0) !== 1 ? "s" : ""} · {course.status === "published" ? "Publicado" : "Borrador"}
+            </p>
+          </div>
+        </div>
+        <Button size="sm" onClick={() => setNewUnitOpen(true)} className="ml-auto bg-[#003366] hover:bg-[#004488]">
+          <Plus className="mr-1.5 h-4 w-4" /> Nueva Unidad
+        </Button>
+      </div>
+
+      {/* Lista de unidades */}
+      {course.units.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
+              <BookOpen className="h-5 w-5 text-[#003366]" />
+            </div>
+            <p className="text-sm font-medium">Sin unidades</p>
+            <p className="text-xs text-muted-foreground">Crea unidades para organizar las lecciones del curso</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {course.units.map((unit, ui) => (
+            <Card key={unit.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#003366]/10 text-xs font-bold text-[#003366]">{ui + 1}</span>
+                    <CardTitle className="text-base">{unit.title}</CardTitle>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setNewLessonFor(unit.id)}>
+                      <Plus className="mr-1 h-3 w-3" /> Lección
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-600" onClick={() => handleDeleteUnit(unit.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                {unit.summary && <CardDescription>{unit.summary}</CardDescription>}
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {unit.lessons.length === 0 ? (
+                  <p className="py-2 text-center text-xs text-muted-foreground">Sin lecciones en esta unidad</p>
+                ) : (
+                  unit.lessons.map((lesson, li) => (
+                    <div key={lesson.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium">{li + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{lesson.title}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {lesson.durationMin} min · {lesson.questionCount} pregunta{lesson.questionCount !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+                          setEditLesson({
+                            id: lesson.id,
+                            title: lesson.title,
+                            description: lesson.description,
+                            content: lesson.content,
+                            durationMin: lesson.durationMin,
+                          });
+                        }}>
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-600" onClick={() => handleDeleteLesson(lesson.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Formulario nueva lección inline */}
+                {newLessonFor === unit.id && (
+                  <div className="rounded-lg border-2 border-dashed border-[#003366]/20 p-3 space-y-2">
+                    <Input
+                      value={lessonForm.title}
+                      onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
+                      placeholder="Título de la lección"
+                      className="text-sm"
+                    />
+                    <Input
+                      value={lessonForm.description}
+                      onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
+                      placeholder="Descripción breve"
+                      className="text-sm"
+                    />
+                    <Textarea
+                      value={lessonForm.content}
+                      onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
+                      placeholder="Contenido Markdown de la lección..."
+                      className="min-h-[100px] text-sm font-mono"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs">Duración (min):</Label>
+                      <Input
+                        type="number"
+                        value={lessonForm.durationMin}
+                        onChange={(e) => setLessonForm({ ...lessonForm, durationMin: Number(e.target.value) })}
+                        className="w-20 text-sm"
+                      />
+                      <Button size="sm" onClick={() => handleCreateLesson(unit.id)} className="bg-[#003366] hover:bg-[#004488]">
+                        <Save className="mr-1 h-3.5 w-3.5" /> Crear
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setNewLessonFor(null)}>Cancelar</Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Dialog nueva unidad */}
+      <Dialog open={newUnitOpen} onOpenChange={setNewUnitOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nueva unidad</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs font-semibold">Título</Label>
+              <Input value={unitForm.title} onChange={(e) => setUnitForm({ ...unitForm, title: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Resumen</Label>
+              <Input value={unitForm.summary} onChange={(e) => setUnitForm({ ...unitForm, summary: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Descripción</Label>
+              <Textarea value={unitForm.description} onChange={(e) => setUnitForm({ ...unitForm, description: e.target.value })} className="mt-1 min-h-[60px]" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setNewUnitOpen(false)}>Cancelar</Button>
+            <Button size="sm" onClick={handleCreateUnit} className="bg-[#003366] hover:bg-[#004488]">
+              <Save className="mr-1.5 h-3.5 w-3.5" /> Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog editar lección */}
+      <Dialog open={editLesson !== null} onOpenChange={(o) => { if (!o) setEditLesson(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar lección</DialogTitle>
+          </DialogHeader>
+          {editLesson && (
+            <div className="space-y-3 py-2">
+              <div>
+                <Label className="text-xs font-semibold">Título</Label>
+                <Input value={editLesson.title} onChange={(e) => setEditLesson({ ...editLesson, title: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Descripción</Label>
+                <Input value={editLesson.description} onChange={(e) => setEditLesson({ ...editLesson, description: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Contenido (Markdown)</Label>
+                <Textarea
+                  value={editLesson.content}
+                  onChange={(e) => setEditLesson({ ...editLesson, content: e.target.value })}
+                  className="mt-1 min-h-[200px] font-mono text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Duración (minutos)</Label>
+                <Input type="number" value={editLesson.durationMin} onChange={(e) => setEditLesson({ ...editLesson, durationMin: Number(e.target.value) })} className="mt-1 w-24" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setEditLesson(null)}>Cancelar</Button>
+            <Button size="sm" onClick={handleSaveLesson} className="bg-[#003366] hover:bg-[#004488]">
+              <Save className="mr-1.5 h-3.5 w-3.5" /> Guardar
             </Button>
           </DialogFooter>
         </DialogContent>

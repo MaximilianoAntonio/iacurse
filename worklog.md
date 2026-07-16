@@ -1825,3 +1825,75 @@ El usuario solicitó que como profesor se pueda crear cursos de forma sandbox, t
 - Sin errores de runtime
 - 4 API routes con 16 endpoints CRUD funcionando
 - La plataforma ahora permite al docente crear contenido editable de forma sandbox
+
+---
+Task ID: course-builder-complete
+Agent: Z.ai Code (orchestrator)
+Task: Completar sistema de creación docente — editor de curso con unidades, lecciones y preguntas
+
+## Current project status description/assessment
+El sistema base (schema + API CRUD + vista Course Builder con 3 tabs) fue creado en la ronda anterior. Esta ronda completó la funcionalidad faltante: el editor de curso que permite al docente crear unidades, lecciones y preguntas dentro de un curso sandbox.
+
+## Current goals/completed modifications/verification results
+
+### API: `/api/courses/[id]` (GET, POST, PATCH, DELETE)
+Creada una API completa para gestionar el contenido de un curso:
+
+- **GET**: Retorna el curso con todas sus unidades, lecciones (con conteo de preguntas)
+- **POST**: Crea una nueva unidad dentro del curso (title, summary, description, icon, color)
+- **PATCH** (multi-acción basada en `action`):
+  - `createLesson`: Crea lección dentro de una unidad (title, description, content Markdown, durationMin)
+  - `updateLesson`: Actualiza lección existente
+  - `deleteLesson`: Elimina lección
+  - `deleteUnit`: Elimina unidad (cascade)
+  - `addQuestion`: Vincula pregunta existente del banco a una lección
+  - `removeQuestion`: Desvincula pregunta de una lección
+  - `createQuestionInLesson`: Crea pregunta nueva directamente en una lección
+  - Default: Actualiza metadatos del curso (title, description, color, icon, status, order)
+- **DELETE**: Elimina curso completo
+
+### Vista: CourseEditor (componente nuevo)
+Editor de curso completo que se abre al hacer clic en "Editar contenido":
+
+- **Header**: Botón "Volver", título del curso, conteo de unidades/lecciones, estado
+- **Lista de unidades**: Cards con número, título, resumen, botón "Lección" (crear inline), botón eliminar
+- **Lecciones inline**: Cada unidad muestra sus lecciones con título, duración, conteo de preguntas, botones editar/eliminar
+- **Formulario inline de lección**: Aparece al hacer clic en "Lección" — campos: título, descripción, contenido Markdown, duración
+- **Dialog nueva unidad**: Formulario con título, resumen, descripción
+- **Dialog editar lección**: Editor completo con título, descripción, contenido Markdown, duración
+
+### Integración
+- Botón "Editar contenido" en cada tarjeta de curso de la tab Cursos
+- Al hacer clic, reemplaza la lista de cursos por el CourseEditor
+- Botón "Volver" regresa a la lista y refresca
+
+### Verificación
+- **APIs verificadas**:
+  - Crear unidad: ✅ `POST /api/courses/[id]` retorna unit con ID
+  - Crear lección: ✅ `PATCH /api/courses/[id]` con `action: createLesson` retorna lesson con ID
+  - Crear pregunta en lección: ✅ `PATCH /api/courses/[id]` con `action: createQuestionInLesson` retorna question con ID
+- **UI verificada**:
+  - Course Builder carga con 3 tabs ✅
+  - Botón "Editar contenido" visible en cursos ✅
+  - CourseEditor muestra título del curso, estado, botón Nueva Unidad ✅
+  - Unidad creada aparece en la lista ✅
+  - Formulario inline de lección aparece al hacer clic en "Lección" ✅
+  - VLM confirmó: "Volver" button, course title, "Nueva Unidad" button, empty state visible ✅
+- Lint: 0 errores, 0 warnings
+- Sin errores de runtime
+
+## Flujo completo del docente
+1. Entra a "Gestión de Contenidos" desde el sidebar
+2. Crea un curso sandbox (título, descripción, color, icono)
+3. Hace clic en "Editar contenido" → abre el editor del curso
+4. Crea unidades dentro del curso
+5. Crea lecciones dentro de cada unidad (con contenido Markdown)
+6. Crea preguntas directamente en las lecciones o las importa del Banco de Preguntas
+7. Publica el curso (cambia estado de draft a published)
+8. En la tab "Banco de Preguntas" crea preguntas reutilizables por categoría
+9. En la tab "Recursos de Datos" crea glosarios, fórmulas, referencias y datasets
+
+## Unresolved issues or risks
+- Los cursos sandbox aún no se muestran mezclados con los cursos existentes en la vista de Unidades de los estudiantes (requiere integración en `/api/units` y `units-view.tsx`)
+- La importación de preguntas del banco a lecciones necesita UI (la API existe pero no hay botón en el CourseEditor)
+- El editor de contenido Markdown podría beneficiarse de un preview en vivo
