@@ -730,7 +730,7 @@ function MultipleChoiceActivity({
                 className="text-amber-700 dark:text-amber-300"
               >
                 <Lightbulb className="mr-1.5 h-4 w-4" /> Ver pista
-                <span className="ml-1 text-[10px] text-muted-foreground">(0/{MAX_HINTS})</span>
+                <span className="ml-1 text-xs text-muted-foreground">(0/{MAX_HINTS})</span>
               </Button>
             ) : (
               hintIndex < hints.length - 1 && hintIndex < MAX_HINTS - 1 ? (
@@ -741,10 +741,10 @@ function MultipleChoiceActivity({
                   onClick={() => { setHintIndex((i) => i + 1); onHintUsed?.(); }}
                 >
                   <Lightbulb className="mr-1.5 h-4 w-4" /> Otra pista
-                  <span className="ml-1 text-[10px] text-muted-foreground">({hintIndex + 1}/{MAX_HINTS})</span>
+                  <span className="ml-1 text-xs text-muted-foreground">({hintIndex + 1}/{MAX_HINTS})</span>
                 </Button>
               ) : (
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   Sin más pistas ({Math.min(hintIndex + 1, MAX_HINTS)}/{MAX_HINTS} usadas)
                 </span>
               )
@@ -898,7 +898,7 @@ function GuidedProblemActivity({
                       )}
                     </Button>
                     {hintsLeft <= 0 && !revealedHints.has(i) && (
-                      <span className="text-[10px] text-muted-foreground">({hintsUsedCount}/{GP_MAX_HINTS} usadas)</span>
+                      <span className="text-xs text-muted-foreground">({hintsUsedCount}/{GP_MAX_HINTS} usadas)</span>
                     )}
                     {revealedHints.has(i) && (
                       <p className="rounded-md bg-amber-50 px-2.5 py-1 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
@@ -1489,7 +1489,7 @@ function ResultPanel({
               <button
                 onClick={() => onSetReportOpen(true)}
                 disabled={reported}
-                className="flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-rose-500 disabled:cursor-default disabled:opacity-100"
+                className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-rose-500 disabled:cursor-default disabled:opacity-100"
                 title="Reportar esta retroalimentación"
               >
                 {reported ? (
@@ -1557,12 +1557,12 @@ function ResultPanel({
               </span>
             </div>
             {!correct && attemptsLeft > 0 && (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {attemptsLeft} intento{attemptsLeft !== 1 ? "s" : ""} restante{attemptsLeft !== 1 ? "s" : ""}
               </span>
             )}
             {!correct && maxReached && (
-              <span className="text-[11px] font-medium text-rose-500">
+              <span className="text-xs font-medium text-rose-500">
                 Sin intentos restantes
               </span>
             )}

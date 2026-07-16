@@ -265,7 +265,7 @@ export function DashboardView() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => setGoalDialogOpen(true)}
               >
                 <Settings2 className="h-3 w-3" />
@@ -332,7 +332,7 @@ export function DashboardView() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold">¡Nuevo badge desbloqueado!</span>
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{badge.tier}</span>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">{badge.tier}</span>
                   </div>
                   <p className="text-sm font-medium">{badge.name}</p>
                   <p className="text-xs text-muted-foreground">{badge.description}</p>
@@ -390,11 +390,11 @@ export function DashboardView() {
                   <h3 className="mt-3 font-semibold leading-tight">{u.title}</h3>
                   <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.summary}</p>
                   <div className="mt-3 space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{completed}/{total} actividades</span>
                       <span>{u.lessonCount} lecciones</span>
                     </div>
-                    <Progress value={pct} className="h-1.5" />
+                    <Progress value={pct} className="h-2 bg-muted/50" />
                   </div>
                 </button>
               );
@@ -413,7 +413,7 @@ export function DashboardView() {
                 <div className="mb-2 flex items-center gap-2">
                   <BookmarkCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   <h3 className="text-sm font-semibold">Actividades guardadas</h3>
-                  <Badge variant="secondary" className="ml-auto text-[10px]">{bookmarksData.bookmarks.length}</Badge>
+                  <Badge variant="secondary" className="ml-auto text-xs">{bookmarksData.bookmarks.length}</Badge>
                 </div>
                 <div className="space-y-1.5">
                   {bookmarksData.bookmarks.slice(0, 4).map((b) => {
@@ -432,7 +432,7 @@ export function DashboardView() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-medium">{b.activity.title}</p>
-                          <p className="truncate text-[10px] text-muted-foreground">{b.activity.lesson.unit.title}</p>
+                          <p className="truncate text-xs text-muted-foreground">{b.activity.lesson.unit.title}</p>
                         </div>
                         <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                       </button>
@@ -469,7 +469,7 @@ export function DashboardView() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-medium">{a.activity.title}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">
+                        <p className="truncate text-xs text-muted-foreground">
                           {a.activity.lesson.unit.title}
                         </p>
                       </div>
@@ -495,7 +495,7 @@ export function DashboardView() {
                 </div>
                 <div>
                   <div className="text-sm font-semibold">Logros</div>
-                  <div className="text-[11px] text-muted-foreground">Desbloquea insignias</div>
+                  <div className="text-xs text-muted-foreground">Desbloquea insignias</div>
                 </div>
               </div>
               <Button
@@ -534,7 +534,7 @@ export function DashboardView() {
                 onChange={(e) => setGoalInput(e.target.value)}
                 className="mt-1.5"
               />
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 Equivalente a ~{Math.round(parseInt(goalInput || "0", 10) / 7)} min/día
               </p>
             </div>
@@ -569,7 +569,7 @@ function StatChip({ icon, value, label }: { icon: React.ReactNode; value: string
     <div className="rounded-2xl border border-white/20 bg-white/10 p-3 text-center backdrop-blur">
       <div className="flex items-center justify-center text-white/90">{icon}</div>
       <div className="mt-1 text-xl font-bold leading-none">{value}</div>
-      <div className="mt-0.5 text-[10px] uppercase tracking-wide text-white/70">{label}</div>
+      <div className="mt-0.5 text-xs uppercase tracking-wide text-white/70">{label}</div>
     </div>
   );
 }
@@ -602,7 +602,7 @@ function KpiCard({
         </div>
         <div className="mt-3 text-2xl font-bold tracking-tight tabular-nums">{value}</div>
         <div className="text-xs font-medium text-muted-foreground">{label}</div>
-        <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{sub}</div>
       </CardContent>
     </Card>
   );
@@ -644,7 +644,7 @@ function ContinueCard({ recommendation, onOpenActivity, onOpenUnit }: ContinueCa
           <div className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${color.gradient} text-white shadow-lg`}>
             <DynamicIcon name={unit.icon} className="h-7 w-7" />
             {isContinue && (
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 shadow">
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-amber-900 shadow">
                 !
               </span>
             )}
@@ -674,13 +674,13 @@ function ContinueCard({ recommendation, onOpenActivity, onOpenUnit }: ContinueCa
             </p>
             <div className="mt-2 flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <Progress value={pct} className={`h-1.5 w-24 ${color.bg}`} />
-                <span className="text-[11px] font-medium text-muted-foreground">
+                <Progress value={pct} className="h-2 w-24 bg-muted/50" />
+                <span className="text-xs font-medium text-muted-foreground">
                   {unitProgress.completed}/{unitProgress.total} actividades
                 </span>
               </div>
-              <span className="text-[11px] text-muted-foreground">·</span>
-              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">·</span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Sparkles className="h-3 w-3" /> {activity.points} pts
               </span>
             </div>

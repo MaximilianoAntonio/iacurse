@@ -388,18 +388,18 @@ export function ProgressView() {
 
       {/* Charts tabs */}
       <Tabs defaultValue="activity" className="space-y-4">
-        <TabsList className="flex w-fit flex-wrap">
-          <TabsTrigger value="activity" className="gap-1.5">
-            <Activity className="h-3.5 w-3.5" /> Actividad
+        <TabsList className="flex w-fit flex-wrap h-10 p-1">
+          <TabsTrigger value="activity" className="gap-1.5 text-sm">
+            <Activity className="h-4 w-4" /> Actividad
           </TabsTrigger>
-          <TabsTrigger value="units" className="gap-1.5">
-            <BarChart3 className="h-3.5 w-3.5" /> Por unidad
+          <TabsTrigger value="units" className="gap-1.5 text-sm">
+            <BarChart3 className="h-4 w-4" /> Por unidad
           </TabsTrigger>
-          <TabsTrigger value="types" className="gap-1.5">
-            <Target className="h-3.5 w-3.5" /> Por tipo
+          <TabsTrigger value="types" className="gap-1.5 text-sm">
+            <Target className="h-4 w-4" /> Por tipo
           </TabsTrigger>
-          <TabsTrigger value="reflection" className="gap-1.5">
-            <Brain className="h-3.5 w-3.5" /> Reflexión
+          <TabsTrigger value="reflection" className="gap-1.5 text-sm">
+            <Brain className="h-4 w-4" /> Reflexión
           </TabsTrigger>
         </TabsList>
 
@@ -570,7 +570,7 @@ export function ProgressView() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{p.unit.title}</p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {p.completed}/{p.total} actividades · {p.mastery}% dominio
                       </p>
                     </div>
@@ -583,7 +583,7 @@ export function ProgressView() {
                     )}
                   </div>
                   <div className="mt-3">
-                    <Progress value={p.mastery} className="h-1.5" />
+                    <Progress value={p.mastery} className="h-2 bg-muted/50" />
                   </div>
                   {p.lastVisited && (
                     <p className="mt-2 text-xs text-muted-foreground">
@@ -715,7 +715,7 @@ export function ProgressView() {
                         </td>
                         <td className="py-2.5 pr-4 font-medium">{row.rate}%</td>
                         <td className="py-2.5">
-                          <Progress value={row.rate} className="h-1.5" />
+                          <Progress value={row.rate} className="h-2 bg-muted/50" />
                         </td>
                       </tr>
                     ))}
@@ -837,7 +837,7 @@ export function ProgressView() {
                       <div key={s.id} className="rounded-lg border border-border p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <Stars value={s.confidence} />
-                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             {unit && (
                               <Badge variant="outline" className="gap-1">
                                 <span
@@ -901,7 +901,7 @@ export function ProgressView() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{a.activity.title}</p>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <span className={cn("h-1.5 w-1.5 rounded-full", color.dot)} />
                           {a.activity.lesson.unit.title}
@@ -918,7 +918,7 @@ export function ProgressView() {
                         )}
                       </div>
                     </div>
-                    <div className="shrink-0 text-right text-[11px]">
+                    <div className="shrink-0 text-right text-xs">
                       <div
                         className={cn(
                           "font-semibold",
@@ -967,7 +967,7 @@ function KpiCard({
         </div>
         <div className="mt-3 text-3xl font-bold tracking-tight tabular-nums">{value}</div>
         <div className="text-xs font-medium text-muted-foreground">{label}</div>
-        <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{sub}</div>
       </CardContent>
     </Card>
   );
@@ -986,7 +986,7 @@ function MiniStat({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         {icon}
         <span>{label}</span>
       </div>
@@ -1025,7 +1025,7 @@ function HeatCell({
 }) {
   if (total === 0) {
     return (
-      <div className="mx-auto flex h-9 w-full max-w-[110px] items-center justify-center rounded-md bg-muted text-[11px] text-muted-foreground">
+      <div className="mx-auto flex h-9 w-full max-w-[110px] items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
         —
       </div>
     );
@@ -1038,7 +1038,7 @@ function HeatCell({
     .padStart(2, "0");
   return (
     <div
-      className="mx-auto flex h-9 w-full max-w-[110px] items-center justify-center rounded-md text-[11px] font-medium text-white"
+      className="mx-auto flex h-9 w-full max-w-[110px] items-center justify-center rounded-md text-xs font-medium text-white"
       style={{ background: `${hex}${alpha}` }}
       title={`${correct} de ${total} correctos`}
     >

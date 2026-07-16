@@ -84,39 +84,34 @@ export function LessonToc({ content, className }: LessonTocProps) {
   };
 
   return (
-    <nav className={cn("rounded-xl border-2 border-[#003366]/10 bg-[#003366]/5 p-3", className)}>
+    <nav className={cn("rounded-xl border-2 border-[#003366]/15 bg-[#003366]/5 p-3.5", className)}>
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="flex w-full items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+        className="flex w-full items-center justify-between gap-2 text-sm font-bold uppercase tracking-wide text-[#003366] dark:text-amber-400 transition-colors hover:text-[#004488] dark:hover:text-amber-300"
       >
         <span className="flex items-center gap-1.5">
-          <List className="h-3.5 w-3.5" />
+          <List className="h-4 w-4" />
           Contenido
         </span>
-        <span className="text-xs font-bold normal-case tracking-normal text-muted-foreground">
+        <span className="text-xs font-semibold normal-case tracking-normal text-muted-foreground bg-muted/50 rounded-full px-2 py-0.5">
           {tocItems.length} secciones
         </span>
       </button>
       {!collapsed && (
-        <ul className="mt-2 space-y-0.5 border-l border-border pl-2">
+        <ul className="mt-3 space-y-1 border-l-2 border-[#003366]/10 pl-3">
           {tocItems.map((item) => (
             <li key={item.id}>
               <button
                 onClick={() => handleClick(item.id)}
                 className={cn(
-                  "block w-full py-1 text-left text-xs transition-colors",
-                  item.level === 3 ? "pl-3" : "pl-0 font-medium",
+                  "block w-full py-1.5 text-left text-sm transition-colors rounded-md px-2",
+                  item.level === 3 ? "pl-4" : "pl-2 font-medium",
                   activeId === item.id
-                    ? "text-[#003366] dark:text-amber-400"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-[#003366]/10 text-[#003366] dark:bg-amber-400/10 dark:text-amber-400 font-semibold"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 )}
               >
-                <span
-                  className={cn(
-                    "block truncate",
-                    activeId === item.id && "border-l-2 border-[#003366] pl-2 -ml-2"
-                  )}
-                >
+                <span className="block truncate">
                   {item.text}
                 </span>
               </button>

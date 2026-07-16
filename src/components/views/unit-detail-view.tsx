@@ -146,7 +146,7 @@ export function UnitDetailView() {
                   <span className="text-white/80">Progreso</span>
                   <span className="font-bold">{completed}/{total}</span>
                 </div>
-                <Progress value={pct} className="mt-1.5 h-2 bg-white/20" />
+                <Progress value={pct} className="mt-2 h-2.5 bg-white/20" />
               </div>
               <Separator className="bg-white/20" />
               <div className="flex items-center justify-between text-xs">
@@ -209,7 +209,7 @@ export function UnitDetailView() {
                         </span>
                       </div>
                       {lessonActivities.length > 0 && (
-                        <Progress value={lessonPct} className="mt-2.5 h-1.5" />
+                        <Progress value={lessonPct} className="mt-2.5 h-2 bg-muted/50" />
                       )}
                     </div>
                     <div className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-full ${color.bgSoft} ${color.text} sm:flex`}>

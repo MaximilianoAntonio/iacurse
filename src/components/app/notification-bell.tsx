@@ -66,7 +66,7 @@ export function NotificationBell() {
             <Bell className="h-4 w-4" />
           )}
           {hasUnread && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-xs font-bold text-white">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -88,7 +88,7 @@ export function NotificationBell() {
               <Bell className="h-4 w-4 text-muted-foreground" />
             </div>
             <p className="text-xs font-medium">Sin notificaciones</p>
-            <p className="text-[11px] text-muted-foreground">Estás al día</p>
+            <p className="text-xs text-muted-foreground">Estás al día</p>
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto">
@@ -113,8 +113,8 @@ export function NotificationBell() {
                       <p className="truncate text-xs font-semibold">{n.title}</p>
                       {isRecent && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />}
                     </div>
-                    <p className="truncate text-[11px] text-muted-foreground">{n.description}</p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{timeAgo(n.createdAt)}</p>
+                    <p className="truncate text-xs text-muted-foreground">{n.description}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(n.createdAt)}</p>
                   </div>
                 </DropdownMenuItem>
               );

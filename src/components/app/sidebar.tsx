@@ -69,7 +69,7 @@ export function Sidebar() {
             </div>
             <div className="leading-tight">
               <div className="text-sm font-bold tracking-tight text-sidebar-primary">ElectroMed IA</div>
-              <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
+              <div className="text-xs uppercase tracking-wider text-sidebar-foreground/60">
                 Universidad de Valparaíso
               </div>
             </div>
@@ -99,7 +99,7 @@ export function Sidebar() {
 
         {/* Navegación */}
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          <div className="px-3 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="px-3 pb-2 pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Navegación
           </div>
           {items.map((item) => {
@@ -130,7 +130,7 @@ export function Sidebar() {
                 </span>
                 <span className="flex-1">
                   <span className="block">{item.label}</span>
-                  <span className="block text-[11px] font-normal text-sidebar-foreground/50">
+                  <span className="block text-xs font-normal text-sidebar-foreground/50">
                     {item.description}
                   </span>
                 </span>
@@ -159,7 +159,7 @@ export function Sidebar() {
               </span>
               <span className="flex-1">
                 <span className="block text-sm font-semibold text-sidebar-foreground">Tutor IA</span>
-                <span className="block text-[11px] text-sidebar-foreground/50">
+                <span className="block text-xs text-sidebar-foreground/50">
                   {chatOpen ? "Cerrar panel" : "Abrir asistente"}
                 </span>
               </span>
@@ -173,7 +173,7 @@ export function Sidebar() {
                 Piloto UVA24991
               </span>
             </div>
-            <p className="text-[11px] leading-relaxed text-sidebar-foreground/60">
+            <p className="text-xs leading-relaxed text-sidebar-foreground/60">
               Facultad de Ingeniería · Universidad de Valparaíso
             </p>
           </div>

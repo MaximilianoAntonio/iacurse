@@ -182,7 +182,7 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
           >
             {tab.label}
             <span className={cn(
-              "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+              "rounded-full px-1.5 py-0.5 text-xs font-semibold",
               activeTab === tab.key ? "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400" : "bg-muted text-muted-foreground"
             )}>
               {tab.count}
@@ -212,23 +212,23 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
                           </span>
                           <p className="truncate text-sm font-medium">{a.activity.title}</p>
                         </div>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {a.activity.lesson.unit.title} · {a.activity.lesson.title}
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">
                         {a.correct ? (
-                          <Badge variant="outline" className="border-[#003366]/20 bg-[#003366]/5 text-[10px] text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20">
+                          <Badge variant="outline" className="border-[#003366]/20 bg-[#003366]/5 text-xs text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20">
                             <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" /> OK
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] text-amber-600 dark:border-amber-900 dark:bg-amber-950">
+                          <Badge variant="outline" className="border-amber-200 bg-amber-50 text-xs text-amber-600 dark:border-amber-900 dark:bg-amber-950">
                             <XCircle className="mr-0.5 h-2.5 w-2.5" /> Intento
                           </Badge>
                         )}
                       </div>
                     </div>
-                    <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{a.totalAttempts} intento{a.totalAttempts !== 1 ? "s" : ""}</span>
                       <span>·</span>
                       <span>Mejor: {a.bestScore} pts</span>
@@ -263,9 +263,9 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
                     </span>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{p.unit.title}</p>
-                      <p className="text-[11px] text-muted-foreground">{p.completed}/{p.total} actividades · {p.mastery}% dominio</p>
+                      <p className="text-xs text-muted-foreground">{p.completed}/{p.total} actividades · {p.mastery}% dominio</p>
                     </div>
-                    <Badge variant="secondary" className={cn("text-[10px]", pct === 100 && "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400")}>
+                    <Badge variant="secondary" className={cn("text-xs", pct === 100 && "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400")}>
                       {pct === 100 ? "Completa" : `${pct}%`}
                     </Badge>
                   </div>
@@ -293,7 +293,7 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
                       <DynamicIcon name={b.icon} className="h-5 w-5" />
                     </div>
                     <p className="text-xs font-medium">{b.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{timeAgo(b.awardedAt)}</p>
+                    <p className="text-xs text-muted-foreground">{timeAgo(b.awardedAt)}</p>
                   </div>
                 );
               })
@@ -310,7 +310,7 @@ function StatCell({ icon, label, value }: { icon: React.ReactNode; label: string
     <div className="bg-background p-2.5 text-center">
       <div className="flex items-center justify-center text-muted-foreground">{icon}</div>
       <div className="mt-0.5 text-sm font-bold tabular-nums">{value}</div>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }

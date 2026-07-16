@@ -136,7 +136,7 @@ export function UnitsView() {
               }`}
             >
               {opt.label}
-              <span className={`rounded-full px-1.5 text-[11px] ${filter === opt.key ? "bg-amber-200 text-[#003366] dark:bg-amber-900 dark:text-amber-200" : "bg-muted"}`}>
+              <span className={`rounded-full px-1.5 text-xs ${filter === opt.key ? "bg-amber-200 text-[#003366] dark:bg-amber-900 dark:text-amber-200" : "bg-muted"}`}>
                 {opt.count}
               </span>
             </button>
@@ -186,7 +186,7 @@ export function UnitsView() {
               <div className={`relative h-24 bg-gradient-to-br ${color.gradient} p-4`}>
                 <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/15 blur-xl" />
                 <div className="absolute right-3 top-3 flex items-center gap-1.5">
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold text-white backdrop-blur">
                     UNIDAD {idx + 1}
                   </span>
                 </div>
@@ -225,12 +225,12 @@ export function UnitsView() {
 
                 {/* Progress */}
                 <div className="mt-4 space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Progreso</span>
                     <span className="font-semibold">{completed}/{total}</span>
                   </div>
                   <Progress value={pct} className="h-2.5 bg-muted/60" />
-                  <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground">
+                  <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
                     <span>Dominio: <span className="font-semibold text-foreground">{mastery}%</span></span>
                   </div>
                 </div>

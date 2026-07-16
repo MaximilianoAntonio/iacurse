@@ -46,7 +46,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-border pt-4 text-[11px] text-muted-foreground sm:flex-row">
+        <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted-foreground sm:flex-row">
           <p>© {new Date().getFullYear()} Universidad de Valparaíso · Piloto de innovación docente</p>
           <p className="flex items-center gap-1.5">
             <DynamicIcon name="Sparkles" className="h-3 w-3 text-amber-500" />

@@ -307,7 +307,7 @@ function KpiCard({
         <div className="min-w-0">
           <div className="text-3xl font-bold tabular-nums">{value}</div>
           <div className="text-xs font-medium text-muted-foreground">{label}</div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
         </div>
       </CardContent>
     </Card>
@@ -406,7 +406,7 @@ function BadgeCard({
 
           <Separator className="my-auto" />
 
-          <div className="flex items-center justify-between text-[11px]">
+          <div className="flex items-center justify-between text-xs">
             {badge.earned ? (
               <>
                 <span className="inline-flex items-center gap-1 font-medium text-[#003366] dark:text-amber-400">
@@ -441,7 +441,7 @@ function BadgeCard({
                 </span>
                 <Badge
                   variant="secondary"
-                  className="text-[10px] text-muted-foreground"
+                  className="text-xs text-muted-foreground"
                 >
                   Por desbloquear
                 </Badge>
@@ -508,7 +508,7 @@ function LeaderboardRow({
             <Badge className="bg-[#003366] text-white">Tú</Badge>
           )}
         </div>
-        <p className="truncate text-[11px] text-muted-foreground">
+        <p className="truncate text-xs text-muted-foreground">
           {entry.completedActivities} actividades completadas
         </p>
       </div>
@@ -532,7 +532,7 @@ function LeaderboardRow({
         >
           {entry.points.toLocaleString("es-CL")}
         </span>
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">
           pts
         </span>
       </div>

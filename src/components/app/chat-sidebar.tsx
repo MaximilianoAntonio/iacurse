@@ -54,7 +54,7 @@ const markdownComponents: Components = {
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   code: ({ children }) => (
-    <code className="rounded bg-amber-100 px-1 py-0.5 text-[11px] font-mono text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+    <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono text-amber-700 dark:bg-amber-950 dark:text-amber-300">
       {children}
     </code>
   ),
@@ -254,7 +254,7 @@ export function ChatSidebar() {
                     Tutor IA
                     <Sparkles className="h-3 w-3 text-amber-200" />
                   </div>
-                  <div className="text-[10px] text-white/80">Método socrático · Electromedicina II</div>
+                  <div className="text-xs text-white/80">Método socrático · Electromedicina II</div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -282,7 +282,7 @@ export function ChatSidebar() {
             {/* Contexto actual */}
             {tutorContextUnit && (
               <div className="shrink-0 border-b border-border bg-amber-50/50 px-4 py-2 dark:bg-amber-950/20">
-                <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+                <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300">
                   <Lightbulb className="h-3 w-3" />
                   <span className="font-medium">Contexto:</span>
                   <span className="truncate">{tutorContextUnit}</span>
@@ -308,7 +308,7 @@ export function ChatSidebar() {
                     Te guío con preguntas para que construyas tu propio conocimiento. No te daré la respuesta directa.
                   </p>
                   <div className="w-full space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Sugerencias
                     </p>
                     {SUGGESTED_PROMPTS.slice(0, 4).map((p) => (
@@ -377,9 +377,9 @@ export function ChatSidebar() {
                   <Send className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-                <kbd className="rounded bg-muted px-1 py-0.5 text-[9px]">Enter</kbd> enviar ·{" "}
-                <kbd className="rounded bg-muted px-1 py-0.5 text-[9px]">Shift+Enter</kbd> salto
+              <p className="mt-1.5 text-center text-xs text-muted-foreground">
+                <kbd className="rounded bg-muted px-1 py-0.5 text-xs">Enter</kbd> enviar ·{" "}
+                <kbd className="rounded bg-muted px-1 py-0.5 text-xs">Shift+Enter</kbd> salto
               </p>
             </div>
           </motion.aside>
@@ -436,7 +436,7 @@ function ChatBubble({
         }`}
       >
         {isUser ? (
-          <span className="text-[9px] font-bold">{initials(userName)}</span>
+          <span className="text-xs font-bold">{initials(userName)}</span>
         ) : (
           <Bot className="h-4 w-4" />
         )}
@@ -458,7 +458,7 @@ function ChatBubble({
           )}
         </div>
         <div
-          className={`mt-1 flex items-center gap-2 px-1 text-[10px] text-muted-foreground ${
+          className={`mt-1 flex items-center gap-2 px-1 text-xs text-muted-foreground ${
             isUser ? "justify-end" : "justify-start"
           }`}
         >

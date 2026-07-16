@@ -192,7 +192,7 @@ export function AboutView() {
                     <item.icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
-                    <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                       {item.label}
                     </dt>
                     <dd className="text-sm font-medium leading-snug">
@@ -233,11 +233,13 @@ export function AboutView() {
         </CardContent>
       </Card>
 
+      <Separator className="my-4" />
+
       {/* ---------- Módulos del MVP ---------- */}
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-[#003366] dark:text-amber-400" />
-          <h2 className="text-lg font-semibold">Módulos del MVP</h2>
+          <h2 className="text-xl font-bold">Módulos del MVP</h2>
         </div>
         <p className="text-sm text-muted-foreground">
           La plataforma piloto se organiza en seis módulos funcionales
@@ -279,6 +281,8 @@ export function AboutView() {
           ))}
         </div>
       </section>
+
+      <Separator className="my-4" />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* ---------- Enfoque pedagógico ---------- */}

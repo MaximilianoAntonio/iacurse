@@ -187,7 +187,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
             <div className="py-6">
               {recentSearches.length > 0 ? (
                 <div>
-                  <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Búsquedas recientes
                   </p>
                   <div className="flex flex-wrap gap-1.5 px-3 pb-2">
@@ -207,7 +207,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                       setRecentSearches([]);
                       localStorage.removeItem("electromed-search-history");
                     }}
-                    className="px-3 text-[11px] text-muted-foreground hover:text-foreground"
+                    className="px-3 text-xs text-muted-foreground hover:text-foreground"
                   >
                     Limpiar historial
                   </button>
@@ -239,7 +239,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Units */}
               {results.units.length > 0 && (
                 <div>
-                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Unidades ({results.units.length})
                   </p>
                   {results.units.map((u) => {
@@ -267,7 +267,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Lessons */}
               {results.lessons.length > 0 && (
                 <div>
-                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Lecciones ({results.lessons.length})
                   </p>
                   {results.lessons.map((l) => {
@@ -287,7 +287,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                             {l.unit.title} · {l.durationMin} min
                           </p>
                           {l.snippet && (
-                            <p className="mt-0.5 line-clamp-1 text-[11px] italic text-muted-foreground/70">
+                            <p className="mt-0.5 line-clamp-1 text-xs italic text-muted-foreground/70">
                               <Highlight text={l.snippet} query={query} />
                             </p>
                           )}
@@ -302,7 +302,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Activities */}
               {results.activities.length > 0 && (
                 <div>
-                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Actividades ({results.activities.length})
                   </p>
                   {results.activities.map((a) => {
@@ -323,18 +323,18 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                             {a.lesson.unit.title} · {a.lesson.title}
                           </p>
                           {a.snippet && (
-                            <p className="mt-0.5 line-clamp-1 text-[11px] italic text-muted-foreground/70">
+                            <p className="mt-0.5 line-clamp-1 text-xs italic text-muted-foreground/70">
                               <Highlight text={a.snippet} query={query} />
                             </p>
                           )}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           {a.completed && (
-                            <Badge variant="outline" className="border-[#003366]/20 bg-[#003366]/5 text-[9px] text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20">
+                            <Badge variant="outline" className="border-[#003366]/20 bg-[#003366]/5 text-xs text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20">
                               ✓
                             </Badge>
                           )}
-                          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-medium", diff.bg, diff.color)}>
+                          <span className={cn("rounded-full px-1.5 py-0.5 text-xs font-medium", diff.bg, diff.color)}>
                             {diff.label}
                           </span>
                         </div>

@@ -144,7 +144,7 @@ function ComparisonContent({ a, b }: { a: CompareStudent; b: CompareStudent }) {
               <div className={cn("text-right text-sm font-medium tabular-nums", aWins && "text-[#003366] dark:text-amber-400")}>
                 {row.valueA}
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 {row.icon}
                 <span className="hidden sm:inline">{row.label}</span>
               </div>
@@ -172,7 +172,7 @@ function ComparisonContent({ a, b }: { a: CompareStudent; b: CompareStudent }) {
                   <span className="text-xs font-medium tabular-nums">{unitA.mastery}%</span>
                   <Progress value={unitA.mastery} className={cn("h-1.5 w-16", color.bg)} />
                 </div>
-                <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{unitA.unitTitle}</span>
+                <span className="text-xs text-muted-foreground truncate max-w-[100px]">{unitA.unitTitle}</span>
                 <div className="flex items-center gap-2">
                   <Progress value={unitB.mastery} className={cn("h-1.5 w-16", color.bg)} />
                   <span className="text-xs font-medium tabular-nums">{unitB.mastery}%</span>
@@ -194,13 +194,13 @@ function StudentHeader({ student, color }: { student: CompareStudent; color: "em
   return (
     <div className="flex items-center gap-2">
       <Avatar className="h-8 w-8">
-        <AvatarFallback className={cn("bg-gradient-to-br text-[10px] font-bold text-white", colorMap[color])}>
+        <AvatarFallback className={cn("bg-gradient-to-br text-xs font-bold text-white", colorMap[color])}>
           {initials(student.name)}
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold">{student.name}</p>
-        <p className="truncate text-[10px] text-muted-foreground">{student.email}</p>
+        <p className="truncate text-xs text-muted-foreground">{student.email}</p>
       </div>
     </div>
   );

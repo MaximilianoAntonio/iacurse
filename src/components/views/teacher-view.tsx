@@ -698,20 +698,20 @@ function ErrorReportsSection() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-7 w-7">
-                        <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-[9px] font-bold text-white">
+                        <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-xs font-bold text-white">
                           {initials(r.user.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="leading-tight">
                         <p className="text-xs font-semibold">{r.user.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{timeAgo(r.createdAt)}</p>
+                        <p className="text-xs text-muted-foreground">{timeAgo(r.createdAt)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${reason.color}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${reason.color}`}>
                         {reason.label}
                       </span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${status.color}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.color}`}>
                         {status.label}
                       </span>
                     </div>
@@ -725,7 +725,7 @@ function ErrorReportsSection() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 px-2 text-[11px]"
+                      className="h-7 px-2 text-xs"
                       onClick={() => handleStatus(r.id, "reviewed")}
                     >
                       Marcar revisado
@@ -733,7 +733,7 @@ function ErrorReportsSection() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 px-2 text-[11px] text-[#003366] hover:bg-[#003366]/5 hover:text-[#003366]"
+                      className="h-7 px-2 text-xs text-[#003366] hover:bg-[#003366]/5 hover:text-[#003366]"
                       onClick={() => handleStatus(r.id, "resolved")}
                     >
                       <CheckCircle2 className="mr-1 h-3 w-3" /> Resolver
@@ -825,7 +825,7 @@ function AggregateKpi({
         <div>
           <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
           <div className="text-xs font-medium text-muted-foreground">{label}</div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
         </div>
       </CardContent>
     </Card>
@@ -865,13 +865,13 @@ function StudentRow({
       <TableCell className="pl-4">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8 border">
-            <AvatarFallback className="bg-muted text-[11px] font-medium text-muted-foreground">
+            <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">
               {initials(student.name)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{student.name}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{student.email}</p>
+            <p className="truncate text-xs text-muted-foreground">{student.email}</p>
           </div>
         </div>
       </TableCell>
@@ -896,7 +896,7 @@ function StudentRow({
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <Progress value={mastery} className="h-1.5 w-20" />
+          <Progress value={mastery} className="h-2 w-20 bg-muted/50" />
           <span className={cn("text-xs font-semibold tabular-nums", aciertoClass(mastery))}>
             {mastery}%
           </span>

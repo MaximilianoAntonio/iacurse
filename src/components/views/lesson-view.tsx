@@ -243,14 +243,14 @@ export function LessonView() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium leading-tight">{a.title}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <span className={`inline-flex items-center gap-1 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium ${meta?.color ?? ""} border border-border`}>
+                        <span className={`inline-flex items-center gap-1 rounded-full bg-background px-1.5 py-0.5 text-xs font-medium ${meta?.color ?? ""} border border-border`}>
                           <DynamicIcon name={meta?.icon ?? "Circle"} className="h-2.5 w-2.5" />
                           {meta?.label ?? a.type}
                         </span>
-                        <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium ${diff.bg} ${diff.color}`}>
+                        <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${diff.bg} ${diff.color}`}>
                           {diff.label}
                         </span>
-                        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                        <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
                           <Sparkles className="h-2.5 w-2.5" /> {a.points}
                         </span>
                       </div>
@@ -271,7 +271,7 @@ export function LessonView() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">¿Dudas sobre la lección?</p>
-                  <p className="text-[11px] text-muted-foreground">Pregunta al tutor IA</p>
+                  <p className="text-xs text-muted-foreground">Pregunta al tutor IA</p>
                 </div>
               </div>
               <Button size="sm" variant="outline" className="mt-3 w-full border-amber-200 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:text-amber-300" onClick={askTutor}>

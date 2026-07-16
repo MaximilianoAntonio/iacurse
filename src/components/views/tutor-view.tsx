@@ -177,7 +177,7 @@ function StarRating({
         );
       })}
       {value > 0 && (
-        <span className="ml-1 text-[10px] font-medium text-muted-foreground">
+        <span className="ml-1 text-xs font-medium text-muted-foreground">
           {value}/5
         </span>
       )}
@@ -275,7 +275,7 @@ function MessageBubble({
         {/* Meta: timestamp, contexto, rating */}
         <div
           className={cn(
-            "flex items-center gap-2 text-[11px] text-muted-foreground",
+            "flex items-center gap-2 text-xs text-muted-foreground",
             isUser ? "flex-row-reverse" : "flex-row"
           )}
         >
@@ -286,7 +286,7 @@ function MessageBubble({
           {isUser && message.context && (
             <Badge
               variant="secondary"
-              className="gap-1 px-1.5 py-0 text-[10px] font-normal"
+              className="gap-1 px-1.5 py-0 text-xs font-normal"
             >
               <BookOpen className="h-2.5 w-2.5" />
               {message.context}
@@ -661,7 +661,7 @@ export function TutorView() {
                 </Badge>
               )}
             </CardTitle>
-            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="h-3 w-3" />
               {messages.length} mensaje{messages.length === 1 ? "" : "s"}
             </span>
@@ -751,17 +751,17 @@ export function TutorView() {
             <Send className="h-4 w-4" />
           </Button>
         </div>
-        <p className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+        <p className="flex items-center justify-between px-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Sparkles className="h-3 w-3 text-amber-400" />
             El tutor responde con el método socrático.
           </span>
           <span className="hidden sm:inline">
-            <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">
+            <kbd className="rounded border bg-muted px-1 py-0.5 text-xs font-mono">
               Enter
             </kbd>{" "}
             enviar ·{" "}
-            <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">
+            <kbd className="rounded border bg-muted px-1 py-0.5 text-xs font-mono">
               Shift+Enter
             </kbd>{" "}
             salto
