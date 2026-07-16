@@ -214,39 +214,7 @@ export function DashboardView() {
         />
       )}
 
-      {/* KPIs */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          icon={<Target className="h-5 w-5" />}
-          label="Dominio global"
-          value={`${globalMastery}%`}
-          sub={`${totalCompleted}/${totalActivities} actividades`}
-          color="emerald"
-        />
-        <KpiCard
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          label="Tasa de acierto"
-          value={`${stats?.correctRate ?? 0}%`}
-          sub={`${stats?.totalAttempts ?? 0} intentos`}
-          color="sky"
-        />
-        <KpiCard
-          icon={<Clock className="h-5 w-5" />}
-          label="Tiempo de estudio"
-          value={`${hoursStudied}h ${Math.max(0, (stats?.totalTimeMin ?? 0) - hoursStudied * 60)}m`}
-          sub="total invertido"
-          color="amber"
-        />
-        <KpiCard
-          icon={<MessageSquare className="h-5 w-5" />}
-          label="Consultas al tutor"
-          value={`${progressData?.chatCount ?? 0}`}
-          sub="preguntas IA"
-          color="violet"
-        />
-      </section>
-
-      {/* Meta semanal + Resumen rápido */}
+      {/* Meta semanal + Stats rápidas */}
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
@@ -297,12 +265,27 @@ export function DashboardView() {
                   return (
                     <span
                       key={i}
-                      className={`h-1.5 flex-1 rounded-full transition-colors ${
+                      className={`h-2 flex-1 rounded-full transition-colors ${
                         active ? "bg-gradient-to-r from-amber-400 to-orange-500" : "bg-muted-foreground/15"
                       }`}
                     />
                   );
                 })}
+              </div>
+            </div>
+            {/* Mini stats consolidadas */}
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-amber-200/50 pt-3 dark:border-amber-800/30">
+              <div className="text-center">
+                <div className="text-lg font-bold tabular-nums text-[#003366] dark:text-amber-400">{stats?.correctRate ?? 0}%</div>
+                <div className="text-xs text-muted-foreground">Acierto</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold tabular-nums text-[#003366] dark:text-amber-400">{hoursStudied}h</div>
+                <div className="text-xs text-muted-foreground">Estudio</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold tabular-nums text-[#003366] dark:text-amber-400">{progressData?.chatCount ?? 0}</div>
+                <div className="text-xs text-muted-foreground">Consultas</div>
               </div>
             </div>
           </CardContent>

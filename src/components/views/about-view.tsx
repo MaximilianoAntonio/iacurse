@@ -255,7 +255,7 @@ export function AboutView() {
               whileHover={{ y: -3 }}
             >
               <Card className="h-full">
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-3.5">
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(

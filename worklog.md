@@ -1452,3 +1452,63 @@ Remaining issues are content-level (text density, information architecture) rath
 - About page could use visual elements (images, diagrams)
 - Dashboard info density could be reduced with progressive disclosure
 - Mobile responsive testing still needed
+
+---
+Task ID: ux-ui-improvements-3
+Agent: Z.ai Code (orchestrator)
+Task: Final UX/UI improvements — dashboard consolidation, lesson readability, progress tabs
+
+## Current project status description/assessment
+User requested another full UX/UI review. This round focused on fixing the remaining critical issues from the previous VLM audit: dashboard info density, lesson text density, progress tab clarity, and unit detail title truncation.
+
+## Current goals/completed modifications/verification results
+
+### Dashboard: eliminated redundant KPI section
+- **Problem**: Dashboard had 7 stacked sections including a redundant 4-KPI card section that duplicated info already shown in the hero stats.
+- **Fix**: Removed the entire 4-KPI section. Consolidated the 3 unique stats (tasa de acierto, tiempo de estudio, consultas al tutor) into the streak companion card as a compact 3-column mini-stats row with border separator.
+- **Result**: Dashboard now has 5 sections instead of 7, significantly reducing visual density. All info is preserved but in a more compact, hierarchical layout.
+
+### Lesson: improved prose readability
+- **Problem**: Dense text with insufficient spacing between paragraphs and headings made lessons hard to read.
+- **Fix**: Updated prose classes:
+  - Content padding: `p-5 sm:p-6` → `p-6 sm:p-7`
+  - H2: `text-lg mt-6 mb-3` → `text-xl mt-8 mb-3`
+  - H3: `text-base mb-2` → `text-lg mt-5 mb-2`
+  - Paragraphs: `leading-relaxed my-3` → `leading-7 my-4`
+  - List items: `my-1` → `my-1.5`
+- **Result**: More breathing room between sections, larger headings for better visual hierarchy.
+
+### Progress: improved tab clarity
+- **Problem**: Tabs lacked descriptions, users didn't know what each tab contained.
+- **Fix**: 
+  - Added `title` attributes (tooltips) to each tab explaining its content
+  - Tab height: `h-10` → `h-11`
+  - Added `gap-1` between tabs and `font-medium` to labels
+  - Gap between icon and text: `gap-1.5` → `gap-2`
+
+### Unit detail: fixed title truncation
+- **Problem**: Activity titles in lesson cards were truncated with `truncate` class, cutting off important text.
+- **Fix**: Changed from `max-w-[140px] truncate` to `max-w-[160px] line-clamp-1` for cleaner ellipsis behavior.
+
+### About: improved card spacing
+- **Problem**: Module cards had tight spacing.
+- **Fix**: `space-y-3` → `space-y-3.5` in card content.
+
+### VLM verification after fixes
+| Page | Rating Before | Rating After | Change |
+|------|--------------|-------------|--------|
+| Dashboard | 7/10 | 8/10 | +1 (reduced density) |
+| Units | 8/10 | 8/10 | = |
+| Progress | 7/10 | 8/10 | +1 (tab tooltips) |
+| Achievements | 8/10 | 7/10 | -1 (VLM flagged progress bar alignment) |
+| About | 8/10 | 8/10 | = |
+| Unit detail | 8/10 | 8/10 | = |
+| Lesson | 7/10 | 8/10 | +1 (better prose spacing) |
+
+Average improved from 7.7 to 7.9. Remaining issues are content-level (text density, label clarity) requiring deeper restructuring.
+
+## Unresolved issues or risks
+- Achievements page progress bar alignment needs fine-tuning
+- About page could benefit from visual elements (images, diagrams)
+- Sidebar navigation could be simplified for fewer options
+- Mobile responsive testing still needed

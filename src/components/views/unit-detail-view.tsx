@@ -245,7 +245,7 @@ export function UnitDetailView() {
                             ) : (
                               <Circle className="h-3 w-3" />
                             )}
-                            <span className="max-w-[140px] truncate">{a.title}</span>
+                            <span className="max-w-[160px] line-clamp-1">{a.title}</span>
                           </button>
                         );
                       })}

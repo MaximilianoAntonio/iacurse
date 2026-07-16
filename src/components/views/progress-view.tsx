@@ -388,17 +388,17 @@ export function ProgressView() {
 
       {/* Charts tabs */}
       <Tabs defaultValue="activity" className="space-y-4">
-        <TabsList className="flex w-fit flex-wrap h-10 p-1">
-          <TabsTrigger value="activity" className="gap-1.5 text-sm">
+        <TabsList className="flex w-fit flex-wrap h-11 p-1 gap-1">
+          <TabsTrigger value="activity" className="gap-2 text-sm font-medium" title="Tu actividad diaria en los últimos 14 días">
             <Activity className="h-4 w-4" /> Actividad
           </TabsTrigger>
-          <TabsTrigger value="units" className="gap-1.5 text-sm">
+          <TabsTrigger value="units" className="gap-2 text-sm font-medium" title="Dominio por unidad temática">
             <BarChart3 className="h-4 w-4" /> Por unidad
           </TabsTrigger>
-          <TabsTrigger value="types" className="gap-1.5 text-sm">
+          <TabsTrigger value="types" className="gap-2 text-sm font-medium" title="Desempeño por tipo y dificultad de actividad">
             <Target className="h-4 w-4" /> Por tipo
           </TabsTrigger>
-          <TabsTrigger value="reflection" className="gap-1.5 text-sm">
+          <TabsTrigger value="reflection" className="gap-2 text-sm font-medium" title="Tus autoevaluaciones y nivel de confianza">
             <Brain className="h-4 w-4" /> Reflexión
           </TabsTrigger>
         </TabsList>
