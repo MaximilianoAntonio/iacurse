@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 // Obtiene el usuario actual según el userId pasado por query.
 // Si no existe, retorna el primer estudiante como default.
 export async function GET(req: NextRequest) {
+  try {
   const userId = req.nextUrl.searchParams.get("userId");
 
   const selectFields = {
@@ -39,4 +40,8 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ user });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }

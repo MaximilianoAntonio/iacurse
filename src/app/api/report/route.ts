@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // POST: registrar un reporte de error de la IA
 export async function POST(req: NextRequest) {
+  try {
   const body = await req.json();
   const { userId, source, sourceId, reason, comment } = body as {
     userId: string;
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ id: report.id, ok: true });
+  } catch (error) {
+    console.error("Report POST API error:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }
 
 // GET: listar reportes (para el panel docente)
@@ -67,7 +72,8 @@ export async function GET(req: NextRequest) {
 
 // PATCH: actualizar estado del reporte
 export async function PATCH(req: NextRequest) {
-  const body = await req.json();
+  try {
+    const body = await req.json();
   const { reportId, status } = body as { reportId: string; status: string };
   if (!reportId || !["open", "reviewed", "resolved"].includes(status)) {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
@@ -77,4 +83,8 @@ export async function PATCH(req: NextRequest) {
     data: { status },
   });
   return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }

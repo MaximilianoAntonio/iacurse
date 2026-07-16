@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Ranking de estudiantes
 export async function GET() {
+  try {
   const students = await db.user.findMany({
     where: { role: "student" },
     orderBy: { points: "desc" },
@@ -33,4 +34,8 @@ export async function GET() {
   );
 
   return NextResponse.json({ leaderboard: ranked });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }

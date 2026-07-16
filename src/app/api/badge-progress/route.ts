@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Progreso del usuario hacia cada badge (para mostrar indicadores de progreso)
 export async function GET(req: NextRequest) {
+  try {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "Falta userId" }, { status: 400 });
@@ -100,4 +101,8 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ badges: badgeProgress });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }

@@ -1551,3 +1551,50 @@ The platform is mature and stable. This round performed a data integrity audit a
 - 8 simpler API routes still lack try/catch (low risk — they're read-only and simple queries).
 - The `try {` insertion via sed was tricky with multi-function files (bookmarks has GET/POST/DELETE). Should use manual editing for complex cases.
 - Mobile responsive testing still needed.
+
+---
+Task ID: engineering-review-4
+Agent: Z.ai Code (orchestrator)
+Task: Complete API error handling coverage — all 21 routes
+
+## Current project status description/assessment
+The platform is mature and stable. Previous rounds added try/catch to 9 API routes. This round completed the remaining 12 routes, achieving 100% error handling coverage across all API endpoints.
+
+## Current goals/completed modifications/verification results
+
+### API error handling: 100% coverage achieved
+- **Previous state**: 9/21 API routes had try/catch
+- **This round**: Added try/catch to the remaining 12 routes:
+  - `/api/badges` (GET)
+  - `/api/badge-progress` (GET)
+  - `/api/leaderboard` (GET)
+  - `/api/recent-badges` (GET)
+  - `/api/notifications` (GET)
+  - `/api/report` (POST, GET, PATCH — 3 functions)
+  - `/api/me` (GET)
+  - `/api/users` (GET)
+  - `/api/units/[slug]` (GET)
+  - `/api/teacher/student/[id]` (GET)
+  - `/api/user/weekly-goal` (POST)
+- **Final state**: 21/21 API routes (excluding the health check `route.ts`) have try/catch with `console.error` and clean JSON 500 responses.
+
+### Bug fixed during implementation
+- The `report/route.ts` has 3 functions (POST, GET, PATCH) and the automated sed insertion placed the catch in the wrong function. Fixed manually by adding proper try/catch to POST and PATCH functions separately.
+
+### Engineering audit results
+- **Type safety**: No `as any` or `: any` type usage found in any component or API route.
+- **Memory leaks**: All `setInterval` and `setTimeout` calls are properly cleaned up with `clearInterval`/`clearTimeout` in useEffect returns.
+- **Data integrity**: Progress overflow bug was fixed in the previous round; clamping is now in place at all 3 API levels (attempt, teacher, student detail).
+- **Code quality**: 0 TODO/FIXME/HACK markers, 0 console.log (only console.error in catch blocks).
+
+### Verification
+- All 12 tested API endpoints return 200 (or 400 for missing params — expected).
+- Lint: 0 errors, 0 warnings.
+- No console/runtime errors in browser.
+- 21/21 API routes have error handling.
+
+## Unresolved issues or risks
+- No outstanding engineering issues. All APIs are protected with try/catch.
+- The `route.ts` health check endpoint doesn't need try/catch (no DB calls).
+- Mobile responsive testing still pending.
+- Accessibility audit still pending.

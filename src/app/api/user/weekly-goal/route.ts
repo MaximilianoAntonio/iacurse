@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // POST: actualizar la meta semanal de estudio del usuario
 export async function POST(req: NextRequest) {
+  try {
   const body = await req.json();
   const { userId, weeklyGoalMin } = body as {
     userId: string;
@@ -23,4 +24,8 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ ok: true, weeklyGoalMin: user.weeklyGoalMin });
+  } catch (error) {
+    console.error("Weekly goal API error:", error);
+    return NextResponse.json({ error: "Error al actualizar la meta" }, { status: 500 });
+  }
 }

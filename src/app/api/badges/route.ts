@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Badges del usuario + todas las insignias disponibles
 export async function GET(req: NextRequest) {
+  try {
   const userId = req.nextUrl.searchParams.get("userId");
 
   const allBadges = await db.badge.findMany({
@@ -25,4 +26,8 @@ export async function GET(req: NextRequest) {
       awardedAt: earned[b.id] ?? null,
     })),
   });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }

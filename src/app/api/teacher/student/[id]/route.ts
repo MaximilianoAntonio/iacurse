@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Detalle de un estudiante: desglose por actividad con intentos, puntajes y tiempos
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const { id: studentId } = await params;
 
   const student = await db.user.findUnique({
@@ -172,4 +173,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       totalHintsUsed: attempts.reduce((a, x) => a + (x.hintsUsed ?? 0), 0),
     },
   });
+  } catch (error) {
+    console.error("Student detail API error:", error);
+    return NextResponse.json({ error: "Error al cargar el estudiante" }, { status: 500 });
+  }
 }

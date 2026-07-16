@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Detalle de una unidad por slug, con lecciones y actividades
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  try {
   const { slug } = await params;
   const userId = req.nextUrl.searchParams.get("userId");
 
@@ -103,4 +104,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
       : null,
     attemptsByActivity,
   });
+  } catch (error) {
+    console.error("Units slug API error:", error);
+    return NextResponse.json({ error: "Error al cargar la unidad" }, { status: 500 });
+  }
 }

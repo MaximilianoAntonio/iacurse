@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Notificaciones del usuario: badges recientes + (para docentes) reportes pendientes
 export async function GET(req: NextRequest) {
+  try {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ notifications: [], unreadCount: 0 });
@@ -85,4 +86,8 @@ export async function GET(req: NextRequest) {
     ),
     unreadCount,
   });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }

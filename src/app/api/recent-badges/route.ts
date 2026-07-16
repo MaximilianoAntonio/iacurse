@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Badges recientes del usuario (últimos 7 días) para mostrar como notificación
 export async function GET(req: NextRequest) {
+  try {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ badges: [] });
@@ -33,4 +34,8 @@ export async function GET(req: NextRequest) {
       awardedAt: ub.awardedAt.toISOString(),
     })),
   });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }
