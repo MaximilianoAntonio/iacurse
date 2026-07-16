@@ -1897,3 +1897,130 @@ Editor de curso completo que se abre al hacer clic en "Editar contenido":
 - Los cursos sandbox aún no se muestran mezclados con los cursos existentes en la vista de Unidades de los estudiantes (requiere integración en `/api/units` y `units-view.tsx`)
 - La importación de preguntas del banco a lecciones necesita UI (la API existe pero no hay botón en el CourseEditor)
 - El editor de contenido Markdown podría beneficiarse de un preview en vivo
+
+---
+Task ID: course-builder-complete-v2
+Agent: Z.ai Code (orchestrator)
+Task: Permitir crear cursos completos (con unidades, lecciones Y actividades) y editar el currículo existente
+
+## Current project status description/assessment
+El usuario pidió que los docentes puedan "crear cursos de forma completa con todo lo necesario para que estos funcionen y editar lo que ya están". Antes de esta ronda existía:
+- Sistema de cursos sandbox (Course/CourseUnit/CourseLesson/Question) — pero las lecciones sandbox solo podían tener "Questions" en el banco, no actividades reales para estudiantes.
+- Editor de curso sandbox (CourseEditor) — permitía crear unidades y lecciones, pero NO actividades dentro de las lecciones.
+- NO existía forma de editar el currículo existente (Unit/Lesson/Activity reales que ven los estudiantes).
+- Los cursos sandbox publicados no aparecían mezclados con las unidades que ven los estudiantes.
+
+## Current goals/completed modifications/verification results
+
+### 1. APIs de administración para editar el currículo existente (4 archivos nuevos)
+- **`/api/admin/units/route.ts`** — GET (lista unidades con conteo de lecciones/actividades), POST (crea nueva unidad), PATCH (actualiza metadatos), DELETE (elimina con cascade)
+- **`/api/admin/units/[id]/route.ts`** — GET devuelve unidad completa con lecciones y actividades para el editor
+- **`/api/admin/lessons/route.ts`** — POST (crea lección en unidad), PATCH (actualiza), DELETE (elimina con cascade). Mantiene sincronizado el `total` del progreso de los estudiantes al cambiar actividades.
+- **`/api/admin/activities/route.ts`** — POST (crea actividad en lección), PATCH (actualiza), DELETE. Mantiene sincronizado el `total` del progreso.
+
+### 2. Extensión de la API de cursos sandbox (`/api/courses/[id]/route.ts`)
+Nuevas acciones PATCH:
+- `updateQuestion` — actualiza pregunta existente en lección sandbox
+- `deleteQuestion` — elimina pregunta de lección sandbox
+- `importQuestionToLesson` — copia una pregunta del banco a una lección sandbox (preserva el original)
+- **`publishToCurriculum`** — copia todo el curso sandbox a `Unit`/`Lesson`/`Activity` reales. Las unidades publicadas usan el slug `sc-{courseId}-{i}` para identificarlas. Si el curso ya estaba publicado, elimina las unidades anteriores y las recrea. Marca el curso como `published`.
+
+También se modificó el GET para incluir las `questions` completas (no solo conteo) en cada lección sandbox, necesario para el editor de actividades.
+
+### 3. Nuevos componentes de UI (4 archivos en `src/components/course-builder/`)
+- **`markdown-preview.tsx`** — Renderizador ligero de Markdown a HTML (sin dependencias externas). Soporta: encabezados, negrita/cursiva, listas, código en línea y bloque, citas, enlaces, tablas, HR.
+- **`activity-editor-dialog.tsx`** — Editor visual de actividad/pregunta con 3 pestañas:
+  - **General**: tipo, título, enunciado, puntos, dificultad, tags
+  - **Contenido**: editor visual según el tipo (multiple_choice con radio buttons para opción correcta, guided_problem con pasos, case_analysis con preguntas, progressive_exercise con niveles, self_assessment con rúbrica)
+  - **JSON**: editor directo del JSON para usuarios avanzados
+- **`lesson-editor-dialog.tsx`** — Editor de lección con título, descripción, duración y editor de contenido Markdown con vista previa en vivo (pestañas Editor/Vista previa)
+- **`question-bank-import-dialog.tsx`** — Diálogo para importar preguntas del banco a una lección sandbox, con búsqueda y feedback visual de preguntas ya importadas
+
+### 4. Nuevos componentes principales
+- **`course-editor.tsx`** (reemplaza al CourseEditor inline anterior) — Editor de curso sandbox completo con:
+  - Header con título, estado, conteo de unidades/lecciones/actividades
+  - **Botón "Publicar al currículo"** (color dorado) que ejecuta la acción `publishToCurriculum`
+  - Lista de unidades con edición de metadatos (título, resumen, descripción, icono, color)
+  - Lecciones expandibles que muestran actividades con badges de tipo/dificultad/puntos
+  - Botones "Nueva actividad" e "Importar del banco" en cada lección
+  - Editor de lección con vista previa Markdown
+  - Editor de actividad visual por tipo
+- **`curriculum-tab.tsx`** — Nueva pestaña "Currículo Existente":
+  - Lista de las 6+ unidades reales con badge "Sandbox" si provienen de un curso sandbox publicado
+  - Botón "Nueva Unidad" para crear unidades en el currículo
+  - Aviso amarillo de "Zona de edición directa del currículo"
+  - Editor de unidad (CurriculumUnitEditor) con:
+    - Edición de metadatos de la unidad
+    - Lista de lecciones expandibles
+    - Editor de lección con vista previa Markdown
+    - Lista de actividades con badges de tipo/dificultad/puntos
+    - Editor de actividad visual (mismo ActivityEditorDialog)
+    - Botones crear/editar/eliminar en cada nivel
+
+### 5. Rewrite de `course-builder-view.tsx`
+- 4 pestañas: **Cursos Sandbox**, **Currículo Existente** (nueva), **Banco de Preguntas**, **Recursos de Datos**
+- Importa los nuevos componentes CourseEditor y CurriculumTab desde `@/components/course-builder/`
+- Mantiene toda la funcionalidad existente de Banco de Preguntas y Recursos de Datos
+
+### Verificación con agent-browser (todo OK)
+1. **Login como docente** (Prof. Hermes Mora) ✅
+2. **Navegación a "Gestión de Contenidos"** ✅ — Se ven las 4 pestañas
+3. **Tab "Currículo Existente"** ✅ — Muestra las 6 unidades originales con botones Editar/Eliminar
+4. **Click en Editar unidad** ✅ — Abre CurriculumUnitEditor con 3 lecciones expandibles
+5. **Expandir lección** ✅ — Muestra actividades existentes con badges
+6. **Tab "Cursos Sandbox"** → **"Editar contenido"** ✅ — Abre CourseEditor con botón "Publicar al currículo"
+7. **Expandir lección sandbox** ✅ — Muestra botones "Nueva actividad" e "Importar del banco"
+8. **Click "Nueva actividad"** ✅ — Abre ActivityEditorDialog con 3 pestañas (General/Contenido/JSON)
+9. **Editor visual de multiple_choice** ✅ — Muestra 4 opciones con radio buttons para seleccionar la correcta, "Agregar" para más opciones, "Agregar pista", explicación
+10. **Crear actividad** ✅ — Toast "Actividad creada", actividad aparece en la lección
+11. **Click "Publicar al currículo"** + **Aceptar confirmación** ✅ — Curso publicado
+12. **Verificación API**: `/api/admin/units` ahora devuelve 8 unidades (6 originales + 2 publicadas del sandbox con `sourceCourseId` set)
+13. **Verificación API**: `/api/units?userId=...` devuelve 8 unidades para los estudiantes
+14. **Vista de Unidades** ✅ — Muestra las 8 unidades, incluyendo "Fundamentos de Electrónica Digital" y "Unidad de Prueba API" publicadas desde el sandbox
+15. **Volver a "Currículo Existente"** ✅ — Las 2 unidades publicadas ahora aparecen con badge "Sandbox"
+
+### Verificación de APIs (curl)
+- `GET /api/admin/units` — 200, devuelve 8 unidades con conteos
+- `GET /api/admin/units/{id}` — 200, devuelve unidad completa con lecciones y actividades
+- `PATCH /api/admin/units` — 200, actualiza título de unidad
+- `POST /api/admin/activities` — 200, crea actividad en lección existente
+- `DELETE /api/admin/activities` — 200, elimina actividad
+- `PATCH /api/courses/{id}` con `action: publishToCurriculum` — 200, publica curso al currículo
+
+### Estado
+- Lint: 0 errores, 0 warnings
+- Sin errores de runtime en dev.log
+- Todas las APIs CRUD funcionando
+- Flujo end-to-end verificado: crear curso sandbox → agregar unidades → agregar lecciones → agregar actividades → publicar al currículo → estudiantes ven el contenido
+
+## Flujo completo del docente (mejorado)
+1. Entra a "Gestión de Contenidos" desde el sidebar
+2. **Pestaña "Cursos Sandbox"**: Crea un curso sandbox y hace clic en "Editar contenido"
+3. En el editor del curso:
+   - Crea unidades (con título, resumen, descripción, icono, color)
+   - Crea lecciones dentro de cada unidad (con editor Markdown + vista previa)
+   - Crea **actividades** dentro de cada lección (editor visual por tipo: MC, guiado, caso, progresivo, autoevaluación)
+   - O **importa actividades del banco de preguntas** (botón "Importar del banco")
+4. Hace clic en **"Publicar al currículo"** → el curso se copia a Unit/Lesson/Activity reales
+5. **Pestaña "Currículo Existente"**: Puede editar el currículo publicado (o el original) directamente:
+   - Edita unidades (título, descripción, icono, color)
+   - Edita lecciones (con vista previa Markdown)
+   - Crea/edita/elimina actividades (con editor visual)
+6. Los estudiantes ven inmediatamente los cambios en su vista de "Unidades"
+
+## Unresolved issues or risks
+- El botón "Publicar al currículo" elimina y recrea las unidades publicadas previamente del mismo curso sandbox. Si un estudiante ya tenía progreso en esas unidades, se perderá. Considerar usar UPSERT en lugar de delete+create en una futura iteración.
+- La importación de preguntas del banco crea una COPIA (no una referencia). Si se edita la pregunta original del banco, la copia en la lección no se actualiza.
+- El editor de Markdown preview no soporta imágenes ni MathJax (matemáticas). Para contenido científico avanzado podría ser necesario añadir soporte KaTeX.
+- Las unidades publicadas desde sandbox se identifican por el prefijo `sc-` en el slug. Si se elimina el curso sandbox, las unidades publicadas quedan huérfanas (aún funcionales pero sin forma de re-publicar).
+- No hay forma de "despublicar" un curso (eliminar las unidades creadas desde un sandbox). Sería útil añadir un botón "Despublicar del currículo".
+- El editor visual de actividades no soporta todos los tipos en su forma más completa (ej: progressive_exercise podría tener más campos). El JSON editor sigue disponible como respaldo.
+
+## Recomendaciones para la próxima fase
+1. **Despublicar cursos**: Añadir acción `unpublishFromCurriculum` que elimine las unidades con slug `sc-{courseId}-*`
+2. **Reordenar unidades/lecciones/actividades**: Añadir drag-and-drop o botones subir/bajar
+3. **Duplicar curso sandbox**: Útil para crear variantes
+4. **Vista previa como estudiante**: Un botón "Ver como estudiante" en el editor
+5. **Plantillas de curso**: Cursos pre-armados que el docente puede clonar
+6. **Soporte matemático (KaTeX)** en el editor Markdown para fórmulas
+7. **Importar/exportar JSON**: Para compartir cursos entre instancias

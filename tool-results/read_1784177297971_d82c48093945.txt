@@ -1,0 +1,1113 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { useAppStore } from "@/store/app-store";
+     5→import { useFetch, postJSON, patchJSON } from "@/hooks/use-fetch";
+     6→import { useToast } from "@/hooks/use-toast";
+     7→import { PageHeader } from "@/components/app/page-header";
+     8→import { DynamicIcon } from "@/components/app/dynamic-icon";
+     9→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+    10→import { Button } from "@/components/ui/button";
+    11→import { Badge } from "@/components/ui/badge";
+    12→import { Input } from "@/components/ui/input";
+    13→import { Textarea } from "@/components/ui/textarea";
+    14→import { Label } from "@/components/ui/label";
+    15→import {
+    16→  Dialog,
+    17→  DialogContent,
+    18→  DialogDescription,
+    19→  DialogFooter,
+    20→  DialogHeader,
+    21→  DialogTitle,
+    22→} from "@/components/ui/dialog";
+    23→import {
+    24→  Tabs,
+    25→  TabsList,
+    26→  TabsTrigger,
+    27→  TabsContent,
+    28→} from "@/components/ui/tabs";
+    29→import {
+    30→  BookOpen,
+    31→  Plus,
+    32→  Trash2,
+    33→  Edit2,
+    34→  Database,
+    35→  ListChecks,
+    36→  FileText,
+    37→  Calculator,
+    38→  Save,
+    39→  X,
+    40→} from "lucide-react";
+    41→import type { User } from "@/lib/types";
+    42→import { cn } from "@/lib/utils";
+    43→
+    44→// Types
+    45→interface Course {
+    46→  id: string;
+    47→  title: string;
+    48→  description: string;
+    49→  color: string;
+    50→  icon: string;
+    51→  status: string;
+    52→  order: number;
+    53→  unitCount: number;
+    54→}
+    55→
+    56→interface QuestionBank {
+    57→  id: string;
+    58→  name: string;
+    59→  description: string | null;
+    60→  category: string;
+    61→  questionCount: number;
+    62→}
+    63→
+    64→interface Question {
+    65→  id: string;
+    66→  type: string;
+    67→  title: string;
+    68→  prompt: string;
+    69→  data: string;
+    70→  points: number;
+    71→  difficulty: string;
+    72→  tags: string | null;
+    73→}
+    74→
+    75→interface DataResource {
+    76→  id: string;
+    77→  name: string;
+    78→  type: string;
+    79→  content: string;
+    80→  tags: string | null;
+    81→}
+    82→
+    83→const typeLabels: Record<string, string> = {
+    84→  multiple_choice: "Selección múltiple",
+    85→  guided_problem: "Problema guiado",
+    86→  case_analysis: "Análisis de caso",
+    87→  progressive_exercise: "Ejercicio progresivo",
+    88→  self_assessment: "Autoevaluación",
+    89→};
+    90→
+    91→const resourceTypes: { value: string; label: string }[] = [
+    92→  { value: "glossary", label: "Glosario" },
+    93→  { value: "formula", label: "Fórmula" },
+    94→  { value: "reference", label: "Referencia" },
+    95→  { value: "dataset", label: "Dataset" },
+    96→];
+    97→
+    98→export function CourseBuilderView() {
+    99→  const currentUser = useAppStore((s) => s.currentUser) as User | null;
+   100→  const authorId = currentUser?.id ?? "";
+   101→  const { toast } = useToast();
+   102→
+   103→  return (
+   104→    <div className="mx-auto max-w-6xl space-y-6 p-4 lg:p-8">
+   105→      <PageHeader
+   106→        title="Gestión de Contenidos"
+   107→        description="Crea y administra cursos sandbox, bancos de preguntas y recursos de datos para alimentar la plataforma."
+   108→        icon="BookOpen"
+   109→        iconGradient="from-[#003366] to-[#0066AA]"
+   110→      />
+   111→
+   112→      <Tabs defaultValue="courses" className="space-y-4">
+   113→        <TabsList className="flex w-fit flex-wrap h-11 p-1 gap-1">
+   114→          <TabsTrigger value="courses" className="gap-2 text-sm font-medium">
+   115→            <BookOpen className="h-4 w-4" /> Cursos
+   116→          </TabsTrigger>
+   117→          <TabsTrigger value="questions" className="gap-2 text-sm font-medium">
+   118→            <ListChecks className="h-4 w-4" /> Banco de Preguntas
+   119→          </TabsTrigger>
+   120→          <TabsTrigger value="data" className="gap-2 text-sm font-medium">
+   121→            <Database className="h-4 w-4" /> Recursos de Datos
+   122→          </TabsTrigger>
+   123→        </TabsList>
+   124→
+   125→        <TabsContent value="courses">
+   126→          <CoursesTab authorId={authorId} />
+   127→        </TabsContent>
+   128→        <TabsContent value="questions">
+   129→          <QuestionsTab authorId={authorId} />
+   130→        </TabsContent>
+   131→        <TabsContent value="data">
+   132→          <DataTab authorId={authorId} />
+   133→        </TabsContent>
+   134→      </Tabs>
+   135→    </div>
+   136→  );
+   137→}
+   138→
+   139→// ============ COURSES TAB ============
+   140→
+   141→function CoursesTab({ authorId }: { authorId: string }) {
+   142→  const { data, loading, refetch } = useFetch<{ courses: Course[] }>(
+   143→    authorId ? `/api/courses?authorId=${authorId}` : null,
+   144→    [authorId]
+   145→  );
+   146→  const { toast } = useToast();
+   147→  const [createOpen, setCreateOpen] = React.useState(false);
+   148→  const [editCourse, setEditCourse] = React.useState<Course | null>(null);
+   149→  const [editingCourseId, setEditingCourseId] = React.useState<string | null>(null);
+   150→  const [form, setForm] = React.useState({ title: "", description: "", color: "sky", icon: "BookOpen" });
+   151→
+   152→  const handleCreate = async () => {
+   153→    if (!form.title.trim()) {
+   154→      toast({ title: "Error", description: "El título es obligatorio", variant: "destructive" });
+   155→      return;
+   156→    }
+   157→    try {
+   158→      await postJSON("/api/courses", { authorId, ...form });
+   159→      setCreateOpen(false);
+   160→      setForm({ title: "", description: "", color: "sky", icon: "BookOpen" });
+   161→      refetch();
+   162→      toast({ title: "Curso creado", description: "El curso sandbox se creó correctamente." });
+   163→    } catch {
+   164→      toast({ title: "Error", description: "No se pudo crear el curso", variant: "destructive" });
+   165→    }
+   166→  };
+   167→
+   168→  const handleDelete = async (courseId: string) => {
+   169→    try {
+   170→      await fetch(`/api/courses?courseId=${courseId}`, { method: "DELETE" });
+   171→      refetch();
+   172→      toast({ title: "Curso eliminado" });
+   173→    } catch {
+   174→      toast({ title: "Error", description: "No se pudo eliminar", variant: "destructive" });
+   175→    }
+   176→  };
+   177→
+   178→  const handlePublish = async (course: Course) => {
+   179→    try {
+   180→      await patchJSON("/api/courses", {
+   181→        courseId: course.id,
+   182→        status: course.status === "draft" ? "published" : "draft",
+   183→      });
+   184→      refetch();
+   185→      toast({ title: course.status === "draft" ? "Curso publicado" : "Curso en borrador" });
+   186→    } catch {
+   187→      toast({ title: "Error", description: "No se pudo cambiar el estado", variant: "destructive" });
+   188→    }
+   189→  };
+   190→
+   191→  const courses = data?.courses ?? [];
+   192→
+   193→  if (editingCourseId) {
+   194→    return <CourseEditor courseId={editingCourseId} onBack={() => { setEditingCourseId(null); refetch(); }} />;
+   195→  }
+   196→
+   197→  return (
+   198→    <div className="space-y-4">
+   199→      <div className="flex items-center justify-between">
+   200→        <p className="text-sm text-muted-foreground">
+   201→          {courses.length} curso{courses.length !== 1 ? "s" : ""} sandbox creado{courses.length !== 1 ? "s" : ""}
+   202→        </p>
+   203→        <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-[#003366] hover:bg-[#004488]">
+   204→          <Plus className="mr-1.5 h-4 w-4" /> Nuevo Curso
+   205→        </Button>
+   206→      </div>
+   207→
+   208→      {loading ? (
+   209→        <div className="space-y-2">
+   210→          {[1, 2, 3].map((i) => (
+   211→            <div key={i} className="h-20 animate-pulse rounded-xl bg-muted" />
+   212→          ))}
+   213→        </div>
+   214→      ) : courses.length === 0 ? (
+   215→        <Card className="border-dashed">
+   216→          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+   217→            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
+   218→              <BookOpen className="h-5 w-5 text-[#003366]" />
+   219→            </div>
+   220→            <p className="text-sm font-medium">Sin cursos sandbox</p>
+   221→            <p className="text-xs text-muted-foreground">Crea tu primer curso para empezar a agregar contenido</p>
+   222→          </CardContent>
+   223→        </Card>
+   224→      ) : (
+   225→        <div className="space-y-3">
+   226→          {courses.map((c) => (
+   227→            <Card key={c.id} className="transition-shadow hover:shadow-md">
+   228→              <CardContent className="flex items-center gap-4 p-4">
+   229→                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white shadow-md">
+   230→                  <DynamicIcon name={c.icon} className="h-5 w-5" />
+   231→                </div>
+   232→                <div className="min-w-0 flex-1">
+   233→                  <div className="flex items-center gap-2">
+   234→                    <h3 className="truncate text-sm font-bold">{c.title}</h3>
+   235→                    <Badge
+   236→                      variant="outline"
+   237→                      className={
+   238→                        c.status === "published"
+   239→                          ? "border-[#003366]/30 bg-[#003366]/5 text-[#003366]"
+   240→                          : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
+   241→                      }
+   242→                    >
+   243→                      {c.status === "published" ? "Publicado" : "Borrador"}
+   244→                    </Badge>
+   245→                  </div>
+   246→                  <p className="truncate text-xs text-muted-foreground">
+   247→                    {c.description || "Sin descripción"} · {c.unitCount} unidad{c.unitCount !== 1 ? "s" : ""}
+   248→                  </p>
+   249→                </div>
+   250→                <div className="flex shrink-0 items-center gap-1.5">
+   251→                  <Button
+   252→                    variant="default"
+   253→                    size="sm"
+   254→                    className="h-8 text-xs bg-[#003366] hover:bg-[#004488]"
+   255→                    onClick={() => setEditingCourseId(c.id)}
+   256→                  >
+   257→                    <BookOpen className="mr-1 h-3.5 w-3.5" /> Editar contenido
+   258→                  </Button>
+   259→                  <Button
+   260→                    variant="ghost"
+   261→                    size="sm"
+   262→                    className="h-8 text-xs"
+   263→                    onClick={() => handlePublish(c)}
+   264→                  >
+   265→                    {c.status === "draft" ? "Publicar" : "Despublicar"}
+   266→                  </Button>
+   267→                  <Button
+   268→                    variant="ghost"
+   269→                    size="sm"
+   270→                    className="h-8 text-xs"
+   271→                    onClick={() => { setEditCourse(c); setForm({ title: c.title, description: c.description, color: c.color, icon: c.icon }); }}
+   272→                  >
+   273→                    <Edit2 className="h-3.5 w-3.5" />
+   274→                  </Button>
+   275→                  <Button
+   276→                    variant="ghost"
+   277→                    size="sm"
+   278→                    className="h-8 text-xs text-rose-600 hover:bg-rose-50"
+   279→                    onClick={() => handleDelete(c.id)}
+   280→                  >
+   281→                    <Trash2 className="h-3.5 w-3.5" />
+   282→                  </Button>
+   283→                </div>
+   284→              </CardContent>
+   285→            </Card>
+   286→          ))}
+   287→        </div>
+   288→      )}
+   289→
+   290→      {/* Dialog crear/editar */}
+   291→      <Dialog open={createOpen || editCourse !== null} onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditCourse(null); } }}>
+   292→        <DialogContent className="max-w-md">
+   293→          <DialogHeader>
+   294→            <DialogTitle>{editCourse ? "Editar curso" : "Crear curso sandbox"}</DialogTitle>
+   295→            <DialogDescription>
+   296→              Los cursos sandbox son editables y pueden mezclarse con los cursos existentes.
+   297→            </DialogDescription>
+   298→          </DialogHeader>
+   299→          <div className="space-y-3 py-2">
+   300→            <div>
+   301→              <Label className="text-xs font-semibold">Título</Label>
+   302→              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ej: Introducción a la Electrónica Médica" className="mt-1" />
+   303→            </div>
+   304→            <div>
+   305→              <Label className="text-xs font-semibold">Descripción</Label>
+   306→              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Breve descripción del curso" className="mt-1 min-h-[70px]" />
+   307→            </div>
+   308→            <div className="grid grid-cols-2 gap-3">
+   309→              <div>
+   310→                <Label className="text-xs font-semibold">Color</Label>
+   311→                <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="sky, amber, rose..." className="mt-1" />
+   312→              </div>
+   313→              <div>
+   314→                <Label className="text-xs font-semibold">Icono</Label>
+   315→                <Input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} placeholder="BookOpen, HeartPulse..." className="mt-1" />
+   316→              </div>
+   317→            </div>
+   318→          </div>
+   319→          <DialogFooter>
+   320→            <Button variant="outline" size="sm" onClick={() => { setCreateOpen(false); setEditCourse(null); }}>Cancelar</Button>
+   321→            <Button
+   322→              size="sm"
+   323→              onClick={async () => {
+   324→                if (editCourse) {
+   325→                  try {
+   326→                    await patchJSON("/api/courses", { courseId: editCourse.id, ...form });
+   327→                    refetch();
+   328→                    setEditCourse(null);
+   329→                    toast({ title: "Curso actualizado" });
+   330→                  } catch {
+   331→                    toast({ title: "Error", variant: "destructive" });
+   332→                  }
+   333→                } else {
+   334→                  handleCreate();
+   335→                }
+   336→              }}
+   337→              className="bg-[#003366] hover:bg-[#004488]"
+   338→            >
+   339→              <Save className="mr-1.5 h-3.5 w-3.5" />
+   340→              {editCourse ? "Guardar" : "Crear"}
+   341→            </Button>
+   342→          </DialogFooter>
+   343→        </DialogContent>
+   344→      </Dialog>
+   345→    </div>
+   346→  );
+   347→}
+   348→
+   349→// ============ QUESTIONS TAB ============
+   350→
+   351→function QuestionsTab({ authorId }: { authorId: string }) {
+   352→  const { data: banksData, refetch: refetchBanks } = useFetch<{ banks: QuestionBank[] }>(
+   353→    authorId ? `/api/question-banks?authorId=${authorId}` : null,
+   354→    [authorId]
+   355→  );
+   356→  const { data: questionsData, refetch: refetchQuestions } = useFetch<{ questions: Question[] }>(
+   357→    authorId ? `/api/question-banks/questions?authorId=${authorId}` : null,
+   358→    [authorId]
+   359→  );
+   360→  const { toast } = useToast();
+   361→  const [createOpen, setCreateOpen] = React.useState(false);
+   362→  const [editQ, setEditQ] = React.useState<Question | null>(null);
+   363→  const [form, setForm] = React.useState({
+   364→    bankId: "",
+   365→    type: "multiple_choice",
+   366→    title: "",
+   367→    prompt: "",
+   368→    data: '{"question":"","options":["A)","B)","C)","D)"],"correctIndex":0,"explanation":"","hints":[]}',
+   369→    points: 10,
+   370→    difficulty: "medium",
+   371→    tags: "",
+   372→  });
+   373→
+   374→  const banks = banksData?.banks ?? [];
+   375→  const questions = questionsData?.questions ?? [];
+   376→
+   377→  const handleSave = async () => {
+   378→    if (!form.title.trim() || !form.prompt.trim()) {
+   379→      toast({ title: "Error", description: "Título y enunciado son obligatorios", variant: "destructive" });
+   380→      return;
+   381→    }
+   382→    try {
+   383→      if (editQ) {
+   384→        await patchJSON("/api/question-banks/questions", {
+   385→          questionId: editQ.id,
+   386→          type: form.type,
+   387→          title: form.title,
+   388→          prompt: form.prompt,
+   389→          data: form.data,
+   390→          points: Number(form.points),
+   391→          difficulty: form.difficulty,
+   392→          tags: form.tags,
+   393→        });
+   394→        toast({ title: "Pregunta actualizada" });
+   395→      } else {
+   396→        await postJSON("/api/question-banks/questions", {
+   397→          bankId: form.bankId || undefined,
+   398→          type: form.type,
+   399→          title: form.title,
+   400→          prompt: form.prompt,
+   401→          data: form.data,
+   402→          points: Number(form.points),
+   403→          difficulty: form.difficulty,
+   404→          tags: form.tags,
+   405→        });
+   406→        toast({ title: "Pregunta creada" });
+   407→      }
+   408→      setCreateOpen(false);
+   409→      setEditQ(null);
+   410→      setForm({
+   411→        bankId: "",
+   412→        type: "multiple_choice",
+   413→        title: "",
+   414→        prompt: "",
+   415→        data: '{"question":"","options":["A)","B)","C)","D)"],"correctIndex":0,"explanation":"","hints":[]}',
+   416→        points: 10,
+   417→        difficulty: "medium",
+   418→        tags: "",
+   419→      });
+   420→      refetchQuestions();
+   421→    } catch {
+   422→      toast({ title: "Error", description: "No se pudo guardar", variant: "destructive" });
+   423→    }
+   424→  };
+   425→
+   426→  const handleDelete = async (questionId: string) => {
+   427→    try {
+   428→      await fetch(`/api/question-banks/questions?questionId=${questionId}`, { method: "DELETE" });
+   429→      refetchQuestions();
+   430→      toast({ title: "Pregunta eliminada" });
+   431→    } catch {
+   432→      toast({ title: "Error", variant: "destructive" });
+   433→    }
+   434→  };
+   435→
+   436→  const handleCreateBank = async () => {
+   437→    const name = prompt("Nombre del banco de preguntas:");
+   438→    if (!name) return;
+   439→    try {
+   440→      await postJSON("/api/question-banks", { authorId, name, description: "", category: "general" });
+   441→      refetchBanks();
+   442→      toast({ title: "Banco creado" });
+   443→    } catch {
+   444→      toast({ title: "Error", variant: "destructive" });
+   445→    }
+   446→  };
+   447→
+   448→  return (
+   449→    <div className="space-y-4">
+   450→      {/* Bancos de preguntas */}
+   451→      <div className="flex items-center justify-between">
+   452→        <div>
+   453→          <h3 className="text-sm font-bold">Bancos de Preguntas</h3>
+   454→          <p className="text-xs text-muted-foreground">{banks.length} banco{banks.length !== 1 ? "s" : ""} · {questions.length} pregunta{questions.length !== 1 ? "s" : ""} total</p>
+   455→        </div>
+   456→        <Button size="sm" variant="outline" onClick={handleCreateBank}>
+   457→          <Plus className="mr-1.5 h-4 w-4" /> Nuevo Banco
+   458→        </Button>
+   459→      </div>
+   460→
+   461→      {banks.length > 0 && (
+   462→        <div className="flex flex-wrap gap-2">
+   463→          {banks.map((b) => (
+   464→            <Badge key={b.id} variant="secondary" className="gap-1.5 py-1.5">
+   465→              <FileText className="h-3 w-3" />
+   466→              {b.name}
+   467→              <span className="ml-1 rounded-full bg-muted px-1.5 text-xs">{b.questionCount}</span>
+   468→            </Badge>
+   469→          ))}
+   470→        </div>
+   471→      )}
+   472→
+   473→      {/* Botón crear pregunta */}
+   474→      <div className="flex justify-end">
+   475→        <Button size="sm" onClick={() => { setEditQ(null); setCreateOpen(true); }} className="bg-[#003366] hover:bg-[#004488]">
+   476→          <Plus className="mr-1.5 h-4 w-4" /> Nueva Pregunta
+   477→        </Button>
+   478→      </div>
+   479→
+   480→      {/* Lista de preguntas */}
+   481→      {questions.length === 0 ? (
+   482→        <Card className="border-dashed">
+   483→          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+   484→            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
+   485→              <ListChecks className="h-5 w-5 text-[#003366]" />
+   486→            </div>
+   487→            <p className="text-sm font-medium">Sin preguntas</p>
+   488→            <p className="text-xs text-muted-foreground">Crea preguntas para reutilizarlas en tus cursos</p>
+   489→          </CardContent>
+   490→        </Card>
+   491→      ) : (
+   492→        <div className="space-y-2 max-h-[500px] overflow-y-auto">
+   493→          {questions.map((q) => (
+   494→            <Card key={q.id} className="transition-shadow hover:shadow-sm">
+   495→              <CardContent className="flex items-start gap-3 p-3.5">
+   496→                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#003366]/5 text-[#003366]">
+   497→                  <DynamicIcon name="ListChecks" className="h-4 w-4" />
+   498→                </div>
+   499→                <div className="min-w-0 flex-1">
+   500→                  <div className="flex items-center gap-2">
+   501→                    <p className="truncate text-sm font-medium">{q.title}</p>
+   502→                    <Badge variant="outline" className="text-xs">{typeLabels[q.type] ?? q.type}</Badge>
+   503→                    <Badge variant="secondary" className="text-xs">{q.difficulty}</Badge>
+   504→                  </div>
+   505→                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{q.prompt}</p>
+   506→                  <p className="mt-0.5 text-xs text-muted-foreground">{q.points} pts · {q.tags || "sin tags"}</p>
+   507→                </div>
+   508→                <div className="flex shrink-0 gap-1">
+   509→                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+   510→                    setEditQ(q);
+   511→                    setForm({
+   512→                      bankId: q.bankId || "",
+   513→                      type: q.type,
+   514→                      title: q.title,
+   515→                      prompt: q.prompt,
+   516→                      data: q.data,
+   517→                      points: q.points,
+   518→                      difficulty: q.difficulty,
+   519→                      tags: q.tags || "",
+   520→                    });
+   521→                    setCreateOpen(true);
+   522→                  }}>
+   523→                    <Edit2 className="h-3.5 w-3.5" />
+   524→                  </Button>
+   525→                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-600" onClick={() => handleDelete(q.id)}>
+   526→                    <Trash2 className="h-3.5 w-3.5" />
+   527→                  </Button>
+   528→                </div>
+   529→              </CardContent>
+   530→            </Card>
+   531→          ))}
+   532→        </div>
+   533→      )}
+   534→
+   535→      {/* Dialog crear/editar pregunta */}
+   536→      <Dialog open={createOpen} onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditQ(null); } }}>
+   537→        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+   538→          <DialogHeader>
+   539→            <DialogTitle>{editQ ? "Editar pregunta" : "Crear pregunta"}</DialogTitle>
+   540→            <DialogDescription>
+   541→              Define el tipo, enunciado y datos de la pregunta. El campo "data" es JSON con la estructura según el tipo.
+   542→            </DialogDescription>
+   543→          </DialogHeader>
+   544→          <div className="space-y-3 py-2">
+   545→            <div className="grid grid-cols-2 gap-3">
+   546→              <div>
+   547→                <Label className="text-xs font-semibold">Tipo</Label>
+   548→                <select
+   549→                  value={form.type}
+   550→                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+   551→                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+   552→                >
+   553→                  {Object.entries(typeLabels).map(([v, l]) => (
+   554→                    <option key={v} value={v}>{l}</option>
+   555→                  ))}
+   556→                </select>
+   557→              </div>
+   558→              <div>
+   559→                <Label className="text-xs font-semibold">Banco (opcional)</Label>
+   560→                <select
+   561→                  value={form.bankId}
+   562→                  onChange={(e) => setForm({ ...form, bankId: e.target.value })}
+   563→                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+   564→                >
+   565→                  <option value="">Sin banco</option>
+   566→                  {banks.map((b) => (
+   567→                    <option key={b.id} value={b.id}>{b.name}</option>
+   568→                  ))}
+   569→                </select>
+   570→              </div>
+   571→            </div>
+   572→            <div>
+   573→              <Label className="text-xs font-semibold">Título</Label>
+   574→              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ej: Cálculo de impedancia de electrodo" className="mt-1" />
+   575→            </div>
+   576→            <div>
+   577→              <Label className="text-xs font-semibold">Enunciado / Prompt</Label>
+   578→              <Textarea value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} placeholder="Enunciado de la pregunta..." className="mt-1 min-h-[60px]" />
+   579→            </div>
+   580→            <div>
+   581→              <Label className="text-xs font-semibold">Datos (JSON)</Label>
+   582→              <Textarea
+   583→                value={form.data}
+   584→                onChange={(e) => setForm({ ...form, data: e.target.value })}
+   585→                className="mt-1 min-h-[120px] font-mono text-xs"
+   586→                placeholder='{"question":"","options":["A)","B)","C)","D)"],"correctIndex":0,"explanation":"","hints":[]}'
+   587→              />
+   588→              <p className="mt-1 text-xs text-muted-foreground">
+   589→                Estructura según tipo: MC=options/correctIndex, Guiado=steps/answer, Caso=case/questions, etc.
+   590→              </p>
+   591→            </div>
+   592→            <div className="grid grid-cols-3 gap-3">
+   593→              <div>
+   594→                <Label className="text-xs font-semibold">Puntos</Label>
+   595→                <Input type="number" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} className="mt-1" />
+   596→              </div>
+   597→              <div>
+   598→                <Label className="text-xs font-semibold">Dificultad</Label>
+   599→                <select
+   600→                  value={form.difficulty}
+   601→                  onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
+   602→                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+   603→                >
+   604→                  <option value="easy">Básico</option>
+   605→                  <option value="medium">Intermedio</option>
+   606→                  <option value="hard">Avanzado</option>
+   607→                </select>
+   608→              </div>
+   609→              <div>
+   610→                <Label className="text-xs font-semibold">Tags</Label>
+   611→                <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="ecg, electrodos" className="mt-1" />
+   612→              </div>
+   613→            </div>
+   614→          </div>
+   615→          <DialogFooter>
+   616→            <Button variant="outline" size="sm" onClick={() => { setCreateOpen(false); setEditQ(null); }}>Cancelar</Button>
+   617→            <Button size="sm" onClick={handleSave} className="bg-[#003366] hover:bg-[#004488]">
+   618→              <Save className="mr-1.5 h-3.5 w-3.5" /> {editQ ? "Guardar" : "Crear"}
+   619→            </Button>
+   620→          </DialogFooter>
+   621→        </DialogContent>
+   622→      </Dialog>
+   623→    </div>
+   624→  );
+   625→}
+   626→
+   627→// ============ DATA RESOURCES TAB ============
+   628→
+   629→function DataTab({ authorId }: { authorId: string }) {
+   630→  const { data, loading, refetch } = useFetch<{ resources: DataResource[] }>(
+   631→    authorId ? `/api/data-resources?authorId=${authorId}` : null,
+   632→    [authorId]
+   633→  );
+   634→  const { toast } = useToast();
+   635→  const [createOpen, setCreateOpen] = React.useState(false);
+   636→  const [editR, setEditR] = React.useState<DataResource | null>(null);
+   637→  const [form, setForm] = React.useState({ name: "", type: "glossary", content: "", tags: "" });
+   638→
+   639→  const resources = data?.resources ?? [];
+   640→
+   641→  const handleSave = async () => {
+   642→    if (!form.name.trim() || !form.content.trim()) {
+   643→      toast({ title: "Error", description: "Nombre y contenido son obligatorios", variant: "destructive" });
+   644→      return;
+   645→    }
+   646→    try {
+   647→      if (editR) {
+   648→        await patchJSON("/api/data-resources", { resourceId: editR.id, ...form });
+   649→        toast({ title: "Recurso actualizado" });
+   650→      } else {
+   651→        await postJSON("/api/data-resources", { authorId, ...form });
+   652→        toast({ title: "Recurso creado" });
+   653→      }
+   654→      setCreateOpen(false);
+   655→      setEditR(null);
+   656→      setForm({ name: "", type: "glossary", content: "", tags: "" });
+   657→      refetch();
+   658→    } catch {
+   659→      toast({ title: "Error", variant: "destructive" });
+   660→    }
+   661→  };
+   662→
+   663→  const handleDelete = async (resourceId: string) => {
+   664→    try {
+   665→      await fetch(`/api/data-resources?resourceId=${resourceId}`, { method: "DELETE" });
+   666→      refetch();
+   667→      toast({ title: "Recurso eliminado" });
+   668→    } catch {
+   669→      toast({ title: "Error", variant: "destructive" });
+   670→    }
+   671→  };
+   672→
+   673→  const resourceIcons: Record<string, string> = {
+   674→    glossary: "BookOpen",
+   675→    formula: "Calculator",
+   676→    reference: "FileText",
+   677→    dataset: "Database",
+   678→  };
+   679→
+   680→  return (
+   681→    <div className="space-y-4">
+   682→      <div className="flex items-center justify-between">
+   683→        <p className="text-sm text-muted-foreground">
+   684→          {resources.length} recurso{resources.length !== 1 ? "s" : ""} de datos
+   685→        </p>
+   686→        <Button size="sm" onClick={() => { setEditR(null); setCreateOpen(true); }} className="bg-[#003366] hover:bg-[#004488]">
+   687→          <Plus className="mr-1.5 h-4 w-4" /> Nuevo Recurso
+   688→        </Button>
+   689→      </div>
+   690→
+   691→      {loading ? (
+   692→        <div className="space-y-2">
+   693→          {[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}
+   694→        </div>
+   695→      ) : resources.length === 0 ? (
+   696→        <Card className="border-dashed">
+   697→          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+   698→            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
+   699→              <Database className="h-5 w-5 text-[#003366]" />
+   700→            </div>
+   701→            <p className="text-sm font-medium">Sin recursos de datos</p>
+   702→            <p className="text-xs text-muted-foreground">Crea glosarios, fórmulas, referencias o datasets</p>
+   703→          </CardContent>
+   704→        </Card>
+   705→      ) : (
+   706→        <div className="grid gap-3 sm:grid-cols-2">
+   707→          {resources.map((r) => (
+   708→            <Card key={r.id} className="transition-shadow hover:shadow-md">
+   709→              <CardContent className="p-4">
+   710→                <div className="flex items-start justify-between gap-2">
+   711→                  <div className="flex items-center gap-2">
+   712→                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#003366]/5 text-[#003366]">
+   713→                      <DynamicIcon name={resourceIcons[r.type] || "FileText"} className="h-4 w-4" />
+   714→                    </div>
+   715→                    <div>
+   716→                      <p className="text-sm font-medium">{r.name}</p>
+   717→                      <Badge variant="outline" className="text-xs capitalize">{r.type}</Badge>
+   718→                    </div>
+   719→                  </div>
+   720→                  <div className="flex gap-1">
+   721→                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+   722→                      setEditR(r);
+   723→                      setForm({ name: r.name, type: r.type, content: r.content, tags: r.tags || "" });
+   724→                      setCreateOpen(true);
+   725→                    }}>
+   726→                      <Edit2 className="h-3.5 w-3.5" />
+   727→                    </Button>
+   728→                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-600" onClick={() => handleDelete(r.id)}>
+   729→                      <Trash2 className="h-3.5 w-3.5" />
+   730→                    </Button>
+   731→                  </div>
+   732→                </div>
+   733→                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{r.content}</p>
+   734→                {r.tags && <p className="mt-1 text-xs text-muted-foreground">Tags: {r.tags}</p>}
+   735→              </CardContent>
+   736→            </Card>
+   737→          ))}
+   738→        </div>
+   739→      )}
+   740→
+   741→      {/* Dialog crear/editar recurso */}
+   742→      <Dialog open={createOpen} onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditR(null); } }}>
+   743→        <DialogContent className="max-w-lg">
+   744→          <DialogHeader>
+   745→            <DialogTitle>{editR ? "Editar recurso" : "Crear recurso de datos"}</DialogTitle>
+   746→            <DialogDescription>
+   747→              Glosarios, fórmulas, referencias o datasets para alimentar el contenido del curso.
+   748→            </DialogDescription>
+   749→          </DialogHeader>
+   750→          <div className="space-y-3 py-2">
+   751→            <div className="grid grid-cols-2 gap-3">
+   752→              <div>
+   753→                <Label className="text-xs font-semibold">Nombre</Label>
+   754→                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej: Glosario de ECG" className="mt-1" />
+   755→              </div>
+   756→              <div>
+   757→                <Label className="text-xs font-semibold">Tipo</Label>
+   758→                <select
+   759→                  value={form.type}
+   760→                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+   761→                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+   762→                >
+   763→                  {resourceTypes.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+   764→                </select>
+   765→              </div>
+   766→            </div>
+   767→            <div>
+   768→              <Label className="text-xs font-semibold">Contenido (Markdown o JSON)</Label>
+   769→              <Textarea
+   770→                value={form.content}
+   771→                onChange={(e) => setForm({ ...form, content: e.target.value })}
+   772→                className="mt-1 min-h-[150px] font-mono text-xs"
+   773→                placeholder="## Glosario&#10;&#10;**ECG**: Electrocardiograma..."
+   774→              />
+   775→            </div>
+   776→            <div>
+   777→              <Label className="text-xs font-semibold">Tags</Label>
+   778→              <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="ecg, glosario, cardio" className="mt-1" />
+   779→            </div>
+   780→          </div>
+   781→          <DialogFooter>
+   782→            <Button variant="outline" size="sm" onClick={() => { setCreateOpen(false); setEditR(null); }}>Cancelar</Button>
+   783→            <Button size="sm" onClick={handleSave} className="bg-[#003366] hover:bg-[#004488]">
+   784→              <Save className="mr-1.5 h-3.5 w-3.5" /> {editR ? "Guardar" : "Crear"}
+   785→            </Button>
+   786→          </DialogFooter>
+   787→        </DialogContent>
+   788→      </Dialog>
+   789→    </div>
+   790→  );
+   791→}
+   792→
+   793→// ============ COURSE EDITOR (unidades, lecciones, preguntas) ============
+   794→
+   795→interface CourseUnitDetail {
+   796→  id: string;
+   797→  title: string;
+   798→  summary: string;
+   799→  description: string;
+   800→  icon: string;
+   801→  color: string;
+   802→  order: number;
+   803→  lessons: {
+   804→    id: string;
+   805→    title: string;
+   806→    description: string;
+   807→    content: string;
+   808→    durationMin: number;
+   809→    order: number;
+   810→    questionCount: number;
+   811→  }[];
+   812→}
+   813→
+   814→interface CourseDetail {
+   815→  id: string;
+   816→  title: string;
+   817→  description: string;
+   818→  color: string;
+   819→  icon: string;
+   820→  status: string;
+   821→  units: CourseUnitDetail[];
+   822→}
+   823→
+   824→function CourseEditor({ courseId, onBack }: { courseId: string; onBack: () => void }) {
+   825→  const { data, loading, refetch } = useFetch<{ course: CourseDetail }>(
+   826→    `/api/courses/${courseId}`,
+   827→    [courseId]
+   828→  );
+   829→  const { toast } = useToast();
+   830→  const [newUnitOpen, setNewUnitOpen] = React.useState(false);
+   831→  const [newLessonFor, setNewLessonFor] = React.useState<string | null>(null);
+   832→  const [editLesson, setEditLesson] = React.useState<{ id: string; title: string; description: string; content: string; durationMin: number } | null>(null);
+   833→  const [unitForm, setUnitForm] = React.useState({ title: "", summary: "", description: "" });
+   834→  const [lessonForm, setLessonForm] = React.useState({ title: "", description: "", content: "", durationMin: 15 });
+   835→
+   836→  const course = data?.course;
+   837→
+   838→  const handleCreateUnit = async () => {
+   839→    if (!unitForm.title.trim()) return;
+   840→    try {
+   841→      await postJSON(`/api/courses/${courseId}`, unitForm);
+   842→      setUnitForm({ title: "", summary: "", description: "" });
+   843→      setNewUnitOpen(false);
+   844→      refetch();
+   845→      toast({ title: "Unidad creada" });
+   846→    } catch {
+   847→      toast({ title: "Error", variant: "destructive" });
+   848→    }
+   849→  };
+   850→
+   851→  const handleCreateLesson = async (unitId: string) => {
+   852→    if (!lessonForm.title.trim()) return;
+   853→    try {
+   854→      await patchJSON(`/api/courses/${courseId}`, {
+   855→        action: "createLesson",
+   856→        unitId,
+   857→        ...lessonForm,
+   858→      });
+   859→      setLessonForm({ title: "", description: "", content: "", durationMin: 15 });
+   860→      setNewLessonFor(null);
+   861→      refetch();
+   862→      toast({ title: "Lección creada" });
+   863→    } catch {
+   864→      toast({ title: "Error", variant: "destructive" });
+   865→    }
+   866→  };
+   867→
+   868→  const handleSaveLesson = async () => {
+   869→    if (!editLesson) return;
+   870→    try {
+   871→      await patchJSON(`/api/courses/${courseId}`, {
+   872→        action: "updateLesson",
+   873→        lessonId: editLesson.id,
+   874→        title: editLesson.title,
+   875→        description: editLesson.description,
+   876→        content: editLesson.content,
+   877→        durationMin: editLesson.durationMin,
+   878→      });
+   879→      setEditLesson(null);
+   880→      refetch();
+   881→      toast({ title: "Lección actualizada" });
+   882→    } catch {
+   883→      toast({ title: "Error", variant: "destructive" });
+   884→    }
+   885→  };
+   886→
+   887→  const handleDeleteUnit = async (unitId: string) => {
+   888→    if (!confirm("¿Eliminar esta unidad y todas sus lecciones?")) return;
+   889→    try {
+   890→      await patchJSON(`/api/courses/${courseId}`, { action: "deleteUnit", unitId });
+   891→      refetch();
+   892→      toast({ title: "Unidad eliminada" });
+   893→    } catch {
+   894→      toast({ title: "Error", variant: "destructive" });
+   895→    }
+   896→  };
+   897→
+   898→  const handleDeleteLesson = async (lessonId: string) => {
+   899→    if (!confirm("¿Eliminar esta lección?")) return;
+   900→    try {
+   901→      await patchJSON(`/api/courses/${courseId}`, { action: "deleteLesson", lessonId });
+   902→      refetch();
+   903→      toast({ title: "Lección eliminada" });
+   904→    } catch {
+   905→      toast({ title: "Error", variant: "destructive" });
+   906→    }
+   907→  };
+   908→
+   909→  if (loading || !course) {
+   910→    return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-[#003366]" /></div>;
+   911→  }
+   912→
+   913→  return (
+   914→    <div className="space-y-6">
+   915→      {/* Header con botón volver */}
+   916→      <div className="flex items-center gap-4">
+   917→        <Button variant="ghost" size="sm" onClick={onBack}>
+   918→          <X className="mr-1.5 h-4 w-4" /> Volver
+   919→        </Button>
+   920→        <div className="flex items-center gap-3">
+   921→          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white">
+   922→            <DynamicIcon name={course.icon} className="h-5 w-5" />
+   923→          </div>
+   924→          <div>
+   925→            <h2 className="text-lg font-bold">{course.title}</h2>
+   926→            <p className="text-xs text-muted-foreground">
+   927→              {course.units.length} unidad{course.units.length !== 1 ? "s" : ""} · {course.units.reduce((a, u) => a + u.lessons.length, 0)} leccione{course.units.reduce((a, u) => a + u.lessons.length, 0) !== 1 ? "s" : ""} · {course.status === "published" ? "Publicado" : "Borrador"}
+   928→            </p>
+   929→          </div>
+   930→        </div>
+   931→        <Button size="sm" onClick={() => setNewUnitOpen(true)} className="ml-auto bg-[#003366] hover:bg-[#004488]">
+   932→          <Plus className="mr-1.5 h-4 w-4" /> Nueva Unidad
+   933→        </Button>
+   934→      </div>
+   935→
+   936→      {/* Lista de unidades */}
+   937→      {course.units.length === 0 ? (
+   938→        <Card className="border-dashed">
+   939→          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+   940→            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
+   941→              <BookOpen className="h-5 w-5 text-[#003366]" />
+   942→            </div>
+   943→            <p className="text-sm font-medium">Sin unidades</p>
+   944→            <p className="text-xs text-muted-foreground">Crea unidades para organizar las lecciones del curso</p>
+   945→          </CardContent>
+   946→        </Card>
+   947→      ) : (
+   948→        <div className="space-y-4">
+   949→          {course.units.map((unit, ui) => (
+   950→            <Card key={unit.id}>
+   951→              <CardHeader className="pb-3">
+   952→                <div className="flex items-center justify-between">
+   953→                  <div className="flex items-center gap-2">
+   954→                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#003366]/10 text-xs font-bold text-[#003366]">{ui + 1}</span>
+   955→                    <CardTitle className="text-base">{unit.title}</CardTitle>
+   956→                  </div>
+   957→                  <div className="flex gap-1">
+   958→                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setNewLessonFor(unit.id)}>
+   959→                      <Plus className="mr-1 h-3 w-3" /> Lección
+   960→                    </Button>
+   961→                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-600" onClick={() => handleDeleteUnit(unit.id)}>
+   962→                      <Trash2 className="h-3.5 w-3.5" />
+   963→                    </Button>
+   964→                  </div>
+   965→                </div>
+   966→                {unit.summary && <CardDescription>{unit.summary}</CardDescription>}
+   967→              </CardHeader>
+   968→              <CardContent className="space-y-2">
+   969→                {unit.lessons.length === 0 ? (
+   970→                  <p className="py-2 text-center text-xs text-muted-foreground">Sin lecciones en esta unidad</p>
+   971→                ) : (
+   972→                  unit.lessons.map((lesson, li) => (
+   973→                    <div key={lesson.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+   974→                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium">{li + 1}</span>
+   975→                      <div className="min-w-0 flex-1">
+   976→                        <p className="truncate text-sm font-medium">{lesson.title}</p>
+   977→                        <p className="truncate text-xs text-muted-foreground">
+   978→                          {lesson.durationMin} min · {lesson.questionCount} pregunta{lesson.questionCount !== 1 ? "s" : ""}
+   979→                        </p>
+   980→                      </div>
+   981→                      <div className="flex gap-1">
+   982→                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+   983→                          setEditLesson({
+   984→                            id: lesson.id,
+   985→                            title: lesson.title,
+   986→                            description: lesson.description,
+   987→                            content: lesson.content,
+   988→                            durationMin: lesson.durationMin,
+   989→                          });
+   990→                        }}>
+   991→                          <Edit2 className="h-3.5 w-3.5" />
+   992→                        </Button>
+   993→                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-600" onClick={() => handleDeleteLesson(lesson.id)}>
+   994→                          <Trash2 className="h-3.5 w-3.5" />
+   995→                        </Button>
+   996→                      </div>
+   997→                    </div>
+   998→                  ))
+   999→                )}
+  1000→
+  1001→                {/* Formulario nueva lección inline */}
+  1002→                {newLessonFor === unit.id && (
+  1003→                  <div className="rounded-lg border-2 border-dashed border-[#003366]/20 p-3 space-y-2">
+  1004→                    <Input
+  1005→                      value={lessonForm.title}
+  1006→                      onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
+  1007→                      placeholder="Título de la lección"
+  1008→                      className="text-sm"
+  1009→                    />
+  1010→                    <Input
+  1011→                      value={lessonForm.description}
+  1012→                      onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
+  1013→                      placeholder="Descripción breve"
+  1014→                      className="text-sm"
+  1015→                    />
+  1016→                    <Textarea
+  1017→                      value={lessonForm.content}
+  1018→                      onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
+  1019→                      placeholder="Contenido Markdown de la lección..."
+  1020→                      className="min-h-[100px] text-sm font-mono"
+  1021→                    />
+  1022→                    <div className="flex items-center gap-2">
+  1023→                      <Label className="text-xs">Duración (min):</Label>
+  1024→                      <Input
+  1025→                        type="number"
+  1026→                        value={lessonForm.durationMin}
+  1027→                        onChange={(e) => setLessonForm({ ...lessonForm, durationMin: Number(e.target.value) })}
+  1028→                        className="w-20 text-sm"
+  1029→                      />
+  1030→                      <Button size="sm" onClick={() => handleCreateLesson(unit.id)} className="bg-[#003366] hover:bg-[#004488]">
+  1031→                        <Save className="mr-1 h-3.5 w-3.5" /> Crear
+  1032→                      </Button>
+  1033→                      <Button variant="ghost" size="sm" onClick={() => setNewLessonFor(null)}>Cancelar</Button>
+  1034→                    </div>
+  1035→                  </div>
+  1036→                )}
+  1037→              </CardContent>
+  1038→            </Card>
+  1039→          ))}
+  1040→        </div>
+  1041→      )}
+  1042→
+  1043→      {/* Dialog nueva unidad */}
+  1044→      <Dialog open={newUnitOpen} onOpenChange={setNewUnitOpen}>
+  1045→        <DialogContent className="max-w-md">
+  1046→          <DialogHeader>
+  1047→            <DialogTitle>Nueva unidad</DialogTitle>
+  1048→          </DialogHeader>
+  1049→          <div className="space-y-3 py-2">
+  1050→            <div>
+  1051→              <Label className="text-xs font-semibold">Título</Label>
+  1052→              <Input value={unitForm.title} onChange={(e) => setUnitForm({ ...unitForm, title: e.target.value })} className="mt-1" />
+  1053→            </div>
+  1054→            <div>
+  1055→              <Label className="text-xs font-semibold">Resumen</Label>
+  1056→              <Input value={unitForm.summary} onChange={(e) => setUnitForm({ ...unitForm, summary: e.target.value })} className="mt-1" />
+  1057→            </div>
+  1058→            <div>
+  1059→              <Label className="text-xs font-semibold">Descripción</Label>
+  1060→              <Textarea value={unitForm.description} onChange={(e) => setUnitForm({ ...unitForm, description: e.target.value })} className="mt-1 min-h-[60px]" />
+  1061→            </div>
+  1062→          </div>
+  1063→          <DialogFooter>
+  1064→            <Button variant="outline" size="sm" onClick={() => setNewUnitOpen(false)}>Cancelar</Button>
+  1065→            <Button size="sm" onClick={handleCreateUnit} className="bg-[#003366] hover:bg-[#004488]">
+  1066→              <Save className="mr-1.5 h-3.5 w-3.5" /> Crear
+  1067→            </Button>
+  1068→          </DialogFooter>
+  1069→        </DialogContent>
+  1070→      </Dialog>
+  1071→
+  1072→      {/* Dialog editar lección */}
+  1073→      <Dialog open={editLesson !== null} onOpenChange={(o) => { if (!o) setEditLesson(null); }}>
+  1074→        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+  1075→          <DialogHeader>
+  1076→            <DialogTitle>Editar lección</DialogTitle>
+  1077→          </DialogHeader>
+  1078→          {editLesson && (
+  1079→            <div className="space-y-3 py-2">
+  1080→              <div>
+  1081→                <Label className="text-xs font-semibold">Título</Label>
+  1082→                <Input value={editLesson.title} onChange={(e) => setEditLesson({ ...editLesson, title: e.target.value })} className="mt-1" />
+  1083→              </div>
+  1084→              <div>
+  1085→                <Label className="text-xs font-semibold">Descripción</Label>
+  1086→                <Input value={editLesson.description} onChange={(e) => setEditLesson({ ...editLesson, description: e.target.value })} className="mt-1" />
+  1087→              </div>
+  1088→              <div>
+  1089→                <Label className="text-xs font-semibold">Contenido (Markdown)</Label>
+  1090→                <Textarea
+  1091→                  value={editLesson.content}
+  1092→                  onChange={(e) => setEditLesson({ ...editLesson, content: e.target.value })}
+  1093→                  className="mt-1 min-h-[200px] font-mono text-sm"
+  1094→                />
+  1095→              </div>
+  1096→              <div>
+  1097→                <Label className="text-xs font-semibold">Duración (minutos)</Label>
+  1098→                <Input type="number" value={editLesson.durationMin} onChange={(e) => setEditLesson({ ...editLesson, durationMin: Number(e.target.value) })} className="mt-1 w-24" />
+  1099→              </div>
+  1100→            </div>
+  1101→          )}
+  1102→          <DialogFooter>
+  1103→            <Button variant="outline" size="sm" onClick={() => setEditLesson(null)}>Cancelar</Button>
+  1104→            <Button size="sm" onClick={handleSaveLesson} className="bg-[#003366] hover:bg-[#004488]">
+  1105→              <Save className="mr-1.5 h-3.5 w-3.5" /> Guardar
+  1106→            </Button>
+  1107→          </DialogFooter>
+  1108→        </DialogContent>
+  1109→      </Dialog>
+  1110→    </div>
+  1111→  );
+  1112→}
+  1113→
