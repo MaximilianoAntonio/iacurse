@@ -2024,3 +2024,163 @@ También se modificó el GET para incluir las `questions` completas (no solo con
 5. **Plantillas de curso**: Cursos pre-armados que el docente puede clonar
 6. **Soporte matemático (KaTeX)** en el editor Markdown para fórmulas
 7. **Importar/exportar JSON**: Para compartir cursos entre instancias
+
+---
+Task ID: evaluation-redesign
+Agent: Z.ai Code (orchestrator)
+Task: Rediseñar el método de creación de cursos y formas de evaluación (pedagógicamente completo)
+
+## Current project status description/assessment
+El usuario criticó el enfoque anterior ("no imbecil, piensa en el metodo en como el profesor crea clases y las sube, las forma de evaluar y todo, hazlo mejor"). El sistema anterior era:
+- Fragmentado en 4 pestañas confusas (Sandbox vs Currículo era un concepto técnico filtrado al UX)
+- Las actividades solo tenían tipo, puntos y dificultad — sin metadatos pedagógicos
+- La evaluación era superficial: MC verificaba índice, autoevaluación solo contaba palabras clave
+- No había objetivos de aprendizaje, ni taxonomía de Bloom, ni rúbricas, ni umbrales de dominio
+- Crear curso era un diálogo simple de un solo campo
+
+## Current goals/completed modifications/verification results
+
+### 1. Schema Prisma: 6 campos de evaluación + 3 modelos nuevos
+Añadido a `Activity`:
+- `assessmentType` (diagnostic | formative | summative | self_reflection)
+- `bloomLevel` (remember | understand | apply | analyze | evaluate | create)
+- `maxAttempts` (0 = ilimitado, default 3)
+- `masteryThreshold` (0-100, default 70)
+- `weight` (peso en la nota, default 1)
+- `timeLimitMin` (null = sin límite)
+- `rubricId` (FK a Rubric, nullable)
+
+Modelos nuevos:
+- `LearningObjective` — vinculado a Unit y/o Lesson, con código, descripción y nivel de Bloom
+- `Rubric` — del docente, con criteria JSON (criterios múltiples con niveles de desempeño)
+- `ActivityObjective` — tabla intermedia Activity ↔ LearningObjective (muchos a muchos)
+
+### 2. APIs nuevas y actualizadas (6 archivos)
+- **`/api/admin/objectives`** — CRUD completo para LearningObjective (GET con filtros unitId/lessonId, POST, PATCH, DELETE)
+- **`/api/admin/rubrics`** — CRUD completo para Rubric (GET, POST, PATCH, DELETE con validación JSON)
+- **`/api/admin/activities`** (actualizado) — POST y PATCH ahora aceptan assessmentType, bloomLevel, maxAttempts, masteryThreshold, weight, timeLimitMin, rubricId, objectiveIds
+- **`/api/admin/units/[id]`** (actualizado) — GET devuelve objectives de unidad y de lección + todos los campos de evaluación de activities
+- **`/api/lessons/[id]`** (actualizado) — GET devuelve campos de evaluación al estudiante
+- **`/api/activities/[id]/attempt`** (actualizado):
+  - **Respeta maxAttempts**: si se alcanza el límite, retorna 429 con `maxAttemptsReached: true`
+  - **Usa rúbrica para autoevaluación**: si la actividad tiene rúbrica, enriquece el score con heuristicas de criterios
+  - **Retorna metadatos de evaluación**: assessmentType, bloomLevel, masteryThreshold, masteryAchieved, maxAttempts, attemptsRemaining, weight
+  - **Feedback IA mejorado**: pasa al LLM el assessmentType, bloomLevel, objectives y rubricCriteria para retroalimentación pedagógicamente adaptada
+
+### 3. IA mejorada (`src/lib/ai.ts`)
+`generateActivityFeedback` ahora acepta y usa:
+- `assessmentType` → adapta el tono (diagnóstica=no juzga, sumativa=rígida, formativa=guía, auto=reflexiva)
+- `bloomLevel` → informa al LLM qué proceso cognitivo evaluar
+- `objectives` → lista los objetivos que la actividad evalúa
+- `rubricCriteria` → incluye los criterios de la rúbrica en el prompt
+
+### 4. Wizard de creación de curso (`course-wizard.tsx`) — NUEVO
+Asistente paso a paso con stepper visual:
+- **Paso 1: Información** — título, descripción, color (5 opciones), icono (10 opciones con preview visual)
+- **Paso 2: Competencias** — define objetivos generales del curso con código, descripción y nivel de Bloom (6 opciones)
+- **Paso 3: Estructura** — define unidades iniciales (título + resumen)
+- **Paso 4: Revisar** — resumen visual con conteos, lista de competencias, y botón "Crear curso"
+- Al crear, genera el curso + las unidades sandbox y abre el editor automáticamente
+
+### 5. Pestaña Rúbricas (`rubrics-tab.tsx`) — NUEVO
+Editor visual completo de rúbricas:
+- Vista previa en tabla (criterios × niveles)
+- Criterios múltiples con peso configurable
+- Niveles de desempeño con score, etiqueta y descripción
+- Plantilla por defecto: "Comprensión del concepto" + "Aplicación práctica" con 4 niveles (Insuficiente/En desarrollo/Logrado/Destacado)
+- Contador de actividades que usan cada rúbrica
+
+### 6. ActivityEditorDialog rediseñado (4 pestañas)
+- **General**: tipo, título, enunciado, puntos, dificultad, tags
+- **Contenido**: editor visual según tipo (MC con radio, guiado con pasos, caso con preguntas, progresivo con niveles, auto con rúbrica)
+- **Evaluación** (NUEVA):
+  - Tipo de evaluación: 4 tarjetas seleccionables (Diagnóstica/Formativa/Sumativa/Auto-reflexión) con auto-configuración de políticas
+  - Nivel de Bloom: 6 chips de colores seleccionables
+  - Intentos máximos, Umbral de dominio, Peso, Tiempo límite
+  - Selector de rúbrica (dropdown con las rúbricas del docente)
+  - Checklist de objetivos de la unidad (con código, Bloom y descripción)
+  - Resumen de la política de evaluación al final
+- **JSON**: editor directo
+
+### 7. Editor de unidad con panel de Objetivos
+- Nueva sección "Objetivos de aprendizaje" con badge de conteo
+- Botón "Nuevo objetivo" → diálogo con código, Bloom, descripción
+- Cada objetivo muestra código, descripción, Bloom y botón eliminar
+- Aviso pedagógico: "Define qué debe poder hacer el estudiante. Las actividades se vinculan a estos objetivos."
+
+### 8. Actividades con badges de evaluación
+Cada tarjeta de actividad ahora muestra:
+- Badge de tipo de evaluación (con color según tipo: azul=diagnóstica, verde=formativa, ámbar=sumativa, violeta=auto)
+- Badge de nivel de Bloom
+- Badges existentes: tipo, dificultad, puntos
+- Línea de metadata: "Intentos: X · Umbral: Y% · Peso: Zx"
+
+### 9. Vista de estudiante mejorada (`activity-view.tsx`)
+La cabecera de cada actividad ahora muestra:
+- Badge de tipo de evaluación (Diagnóstica/Formativa/Sumativa/Auto-reflexión) con color
+- Badge de nivel de Bloom (Recordar/Comprender/Aplicar/Analizar/Evaluar/Crear)
+- Badge de intentos: "X/Y intentos" (si maxAttempts > 0)
+- Badge de umbral: "Aprobar: Z%" (si masteryThreshold < 100)
+- El backend respeta el límite de intentos (retorna 429 si se excede)
+
+### 10. Navegación unificada (5 pestañas con nombres claros)
+Renombrado para claridad pedagógica:
+- ~~"Cursos Sandbox"~~ → **"Mis Cursos"**
+- ~~"Currículo Existente"~~ → **"Currículo Institucional"**
+- **"Rúbricas"** (nueva pestaña)
+- "Banco de Preguntas" (sin cambios)
+- "Recursos de Datos" (sin cambios)
+
+### Verificación con agent-browser (TODO OK)
+1. **Login como docente** → "Gestión de Contenidos" ✅
+2. **5 pestañas visibles**: Mis Cursos, Currículo Institucional, Rúbricas, Banco de Preguntas, Recursos de Datos ✅
+3. **Wizard "Nuevo Curso"**: 4 pasos con stepper visual ✅
+   - Paso 1: Info con selector de color e icono visual ✅
+   - Paso 2: Competencias con niveles de Bloom ✅
+   - Paso 3: Estructura con unidades ✅
+   - Paso 4: Revisar con resumen ✅
+   - Crear curso → abre editor automáticamente ✅
+4. **Currículo Institucional**: editar unidad → panel "Objetivos de aprendizaje" visible ✅
+5. **Crear objetivo**: diálogo con código, Bloom, descripción → aparece en lista ✅
+6. **Editor de actividad**: 4 pestañas (General/Contenido/Evaluación/JSON) ✅
+7. **Pestaña Evaluación**: 
+   - 4 tipos de evaluación seleccionables ✅
+   - 6 niveles de Bloom ✅
+   - Campos de intentos/umbral/peso/tiempo ✅
+   - Selector de rúbrica ✅
+   - Checklist de objetivos (muestra el objetivo recién creado) ✅
+   - Resumen de política ✅
+8. **Pestaña Rúbricas**: editor con criterios y niveles, vista previa en tabla ✅
+9. Lint: 0 errores, 0 warnings
+10. Sin errores de runtime
+
+## Flujo completo del docente (rediseñado)
+1. Entra a "Gestión de Contenidos" → pestaña "Mis Cursos"
+2. Clic en "Nuevo Curso" → **wizard de 4 pasos**:
+   - Define info básica, competencias con Bloom, estructura inicial, revisa y crea
+3. El editor del curso se abre automáticamente
+4. Crea lecciones con editor Markdown + vista previa
+5. Crea actividades con el **editor de 4 pestañas**:
+   - En "Evaluación" define: tipo (diagnóstica/formativa/sumativa/auto), Bloom, intentos, umbral, peso, rúbrica, objetivos
+6. **Publica al currículo** → los estudiantes lo ven
+7. En "Currículo Institucional" puede editar el currículo original (6 unidades semilla + publicados):
+   - Define objetivos de aprendizaje por unidad
+   - Vincula actividades a objetivos
+8. En "Rúbricas" crea rúbricas reutilizables con criterios y niveles de desempeño
+9. Los estudiantes ven las políticas de evaluación (badges) y el sistema respeta los límites
+
+## Unresolved issues or risks
+- El wizard guarda objetivos a nivel de curso pero no los persiste individualmente (se documentan en el resumen). Para persistencia real, habría que añadir un modelo `CourseObjective` o crearlos al publicar al currículo.
+- La heurística de rúbrica en el backend es simple (coincidencia de términos). Podría mejorarse con el LLM para evaluar respuestas abiertas con la rúbrica de forma más precisa.
+- No hay drag-and-drop para reordenar unidades/lecciones/actividades (sería una mejora UX futura).
+- El tiempo límite (timeLimitMin) se almacena pero no se enforce en el frontend (faltaría un countdown timer).
+- Los objetivos a nivel de lección (lessonId) se soportan en el schema pero la UI solo crea objetivos a nivel de unidad.
+
+## Recomendaciones para la próxima fase
+1. **Enforcement de tiempo límite**: añadir countdown timer en activity-view cuando timeLimitMin esté seteado
+2. **Evaluación con LLM + rúbrica**: en lugar de heurística simple, enviar la respuesta + rúbrica al LLM para que evalúe con criterios
+3. **Drag-and-drop**: reordenar unidades/lecciones/actividades con @dnd-kit (ya instalado)
+4. **Objetivos por lección**: permitir crear objetivos vinculados a lecciones específicas, no solo unidades
+5. **Dashboard de cobertura**: mostrar qué objetivos están cubiertos por actividades y cuáles no
+6. **Gradebook**: calcular nota ponderada por unidad usando el campo `weight` de las actividades
+7. **Plantillas de curso**: cursos pre-armados por área (ECG, seguridad, etc.) que el docente puede clonar

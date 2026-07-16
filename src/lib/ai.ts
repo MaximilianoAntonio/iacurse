@@ -40,14 +40,44 @@ export async function generateActivityFeedback(opts: {
   studentAnswer: string;
   isCorrect: boolean;
   context?: string;
+  assessmentType?: string;
+  bloomLevel?: string;
+  objectives?: string[];
+  rubricCriteria?: string | null;
 }): Promise<string> {
   const zai = await getZAI();
-  const { activityType, activityTitle, prompt, correctAnswer, studentAnswer, isCorrect, context } = opts;
+  const {
+    activityType, activityTitle, prompt, correctAnswer, studentAnswer, isCorrect, context,
+    assessmentType, bloomLevel, objectives, rubricCriteria,
+  } = opts;
 
   const systemPrompt = `Eres un asistente pedagógico que genera retroalimentación formativa breve para un estudiante de Electromedicina II. Responde SIEMPRE en español chileno, en 2-4 oraciones. No uses markdown complejo. Sé específico y motivador.`;
 
+  // Adaptar el tono según el tipo de evaluación
+  const assessmentContext = assessmentType
+    ? `\nTipo de evaluación: ${assessmentType === "diagnostic" ? "Diagnóstica (detectar conocimientos previos)" : assessmentType === "formative" ? "Formativa (práctica con retroalimentación)" : assessmentType === "summative" ? "Sumativa (evaluación calificada)" : "Auto-reflexión"}`
+    : "";
+
+  const bloomContext = bloomLevel
+    ? `\nNivel cognitivo esperado (Bloom): ${bloomLevel}`
+    : "";
+
+  const objectivesContext = objectives && objectives.length > 0
+    ? `\nObjetivos de aprendizaje que evalúa esta actividad:\n${objectives.map((o) => `- ${o}`).join("\n")}`
+    : "";
+
+  let rubricContext = "";
+  if (rubricCriteria) {
+    try {
+      const criteria = JSON.parse(rubricCriteria) as Array<{ name: string; levels: Array<{ score: number; label: string; description: string }> }>;
+      rubricContext = `\nCriterios de la rúbrica de evaluación:\n${criteria.map((c) => `- ${c.name}: ${c.levels.map((l) => `${l.label} (${l.score}pt)`).join(", ")}`).join("\n")}`;
+    } catch {
+      // ignorar
+    }
+  }
+
   const userPrompt = `Actividad: ${activityTitle} (tipo: ${activityType})
-${context ? `Contexto: ${context}` : ""}
+${context ? `Contexto: ${context}` : ""}${assessmentContext}${bloomContext}${objectivesContext}${rubricContext}
 
 Enunciado/pregunta:
 ${prompt}
@@ -63,7 +93,10 @@ ${studentAnswer}
 Genera una retroalimentación formativa que:
 - Si es correcta: valida, refuerza el concepto clave y sugiere una conexión con un equipo médico real.
 - Si es incorrecta o parcial: identifica el error conceptual específico (sin dar la respuesta completa), ofrece una pista concreta y motiva a reintentar.
-Máximo 60 palabras.`;
+- Si es diagnóstica: enfócate en detectar conocimiento previo, sin juzgar.
+- Si es sumativa: sé más riguroso y específico sobre qué faltó.
+- Si es autoevaluación: valora la reflexión y sugiere cómo profundizar.
+Máximo 80 palabras.`;
 
   try {
     const completion = await zai.chat.completions.create({

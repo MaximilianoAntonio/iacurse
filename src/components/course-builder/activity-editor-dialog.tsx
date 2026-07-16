@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MarkdownPreview } from "./markdown-preview";
-import { Save, Plus, Trash2, ListChecks, AlertCircle } from "lucide-react";
+import { Save, Plus, Trash2, ListChecks, AlertCircle, Target, Award, GraduationCap } from "lucide-react";
+import { useFetch } from "@/hooks/use-fetch";
 
 export interface ActivityFormData {
   id?: string;
@@ -27,7 +28,33 @@ export interface ActivityFormData {
   points: number;
   difficulty: string;
   tags?: string;
+  // Metadatos de evaluación
+  assessmentType?: string;
+  bloomLevel?: string;
+  maxAttempts?: number;
+  masteryThreshold?: number;
+  weight?: number;
+  timeLimitMin?: number | null;
+  rubricId?: string | null;
+  objectiveIds?: string[];
 }
+
+// Metadatos de tipos de evaluación
+const assessmentTypes: { value: string; label: string; description: string; color: string }[] = [
+  { value: "diagnostic", label: "Diagnóstica", description: "Detecta conocimientos previos. No cuenta para la nota.", color: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300" },
+  { value: "formative", label: "Formativa", description: "Práctica con retroalimentación. Intentos ilimitados, pistas activadas.", color: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
+  { value: "summative", label: "Sumativa", description: "Evaluación calificada. Intentos limitados, sin pistas.", color: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300" },
+  { value: "self_reflection", label: "Auto-reflexión", description: "El estudiante reflexiona y se auto-evalúa con rúbrica.", color: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300" },
+];
+
+const bloomLevels: { value: string; label: string; color: string }[] = [
+  { value: "remember", label: "Recordar", color: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300" },
+  { value: "understand", label: "Comprender", color: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300" },
+  { value: "apply", label: "Aplicar", color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
+  { value: "analyze", label: "Analizar", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
+  { value: "evaluate", label: "Evaluar", color: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300" },
+  { value: "create", label: "Crear", color: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300" },
+];
 
 const typeLabels: Record<string, string> = {
   multiple_choice: "Selección múltiple",
@@ -92,16 +119,19 @@ interface ActivityEditorDialogProps {
   onOpenChange: (o: boolean) => void;
   initial: ActivityFormData | null;
   onSave: (data: ActivityFormData) => Promise<void>;
+  unitId?: string;
+  authorId?: string;
 }
 
 /**
  * Editor visual de actividad/pregunta.
- * Tiene tres pestañas:
+ * Tiene CUATRO pestañas:
  *  - "General": tipo, título, enunciado, puntos, dificultad, tags
  *  - "Contenido": editor visual según el tipo (options/steps/case/levels/rubric)
+ *  - "Evaluación": tipo de evaluación, Bloom, intentos, umbral de dominio, peso, rúbrica, objetivos
  *  - "JSON": editor directo del JSON para usuarios avanzados
  */
-export function ActivityEditorDialog({ open, onOpenChange, initial, onSave }: ActivityEditorDialogProps) {
+export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unitId, authorId }: ActivityEditorDialogProps) {
   const [type, setType] = React.useState("multiple_choice");
   const [title, setTitle] = React.useState("");
   const [prompt, setPrompt] = React.useState("");
@@ -111,6 +141,26 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave }: Ac
   const [tags, setTags] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Metadatos de evaluación
+  const [assessmentType, setAssessmentType] = React.useState("formative");
+  const [bloomLevel, setBloomLevel] = React.useState("apply");
+  const [maxAttempts, setMaxAttempts] = React.useState(3);
+  const [masteryThreshold, setMasteryThreshold] = React.useState(70);
+  const [weight, setWeight] = React.useState(1);
+  const [timeLimitMin, setTimeLimitMin] = React.useState<number | null>(null);
+  const [rubricId, setRubricId] = React.useState<string | null>(null);
+  const [objectiveIds, setObjectiveIds] = React.useState<string[]>([]);
+
+  // Cargar objetivos de la unidad (para vincular) y rúbricas del docente
+  const { data: objData } = useFetch<{ objectives: { id: string; code: string; description: string; bloomLevel: string }[] }>(
+    unitId ? `/api/admin/objectives?unitId=${unitId}` : null,
+    [unitId, open]
+  );
+  const { data: rubricData } = useFetch<{ rubrics: { id: string; name: string; description: string | null }[] }>(
+    authorId ? `/api/admin/rubrics?authorId=${authorId}` : null,
+    [authorId, open]
+  );
 
   // Sincronizar el formulario cuando cambia `initial` o se abre
   React.useEffect(() => {
@@ -123,6 +173,14 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave }: Ac
         setPoints(initial.points);
         setDifficulty(initial.difficulty);
         setTags(initial.tags || "");
+        setAssessmentType(initial.assessmentType || "formative");
+        setBloomLevel(initial.bloomLevel || "apply");
+        setMaxAttempts(initial.maxAttempts ?? 3);
+        setMasteryThreshold(initial.masteryThreshold ?? 70);
+        setWeight(initial.weight ?? 1);
+        setTimeLimitMin(initial.timeLimitMin ?? null);
+        setRubricId(initial.rubricId ?? null);
+        setObjectiveIds(initial.objectiveIds || []);
       } else {
         setType("multiple_choice");
         setTitle("");
@@ -131,6 +189,14 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave }: Ac
         setPoints(10);
         setDifficulty("medium");
         setTags("");
+        setAssessmentType("formative");
+        setBloomLevel("apply");
+        setMaxAttempts(3);
+        setMasteryThreshold(70);
+        setWeight(1);
+        setTimeLimitMin(null);
+        setRubricId(null);
+        setObjectiveIds([]);
       }
       setError(null);
     }
@@ -177,6 +243,14 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave }: Ac
         points: Number(points) || 10,
         difficulty,
         tags: tags.trim(),
+        assessmentType,
+        bloomLevel,
+        maxAttempts: Number(maxAttempts) || 0,
+        masteryThreshold: Number(masteryThreshold) || 70,
+        weight: Number(weight) || 1,
+        timeLimitMin: timeLimitMin ? Number(timeLimitMin) : null,
+        rubricId,
+        objectiveIds,
       });
       onOpenChange(false);
     } catch (e) {
@@ -209,9 +283,10 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave }: Ac
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-10">
+          <TabsList className="grid w-full grid-cols-4 h-10">
             <TabsTrigger value="general" className="text-xs">General</TabsTrigger>
             <TabsTrigger value="content" className="text-xs">Contenido</TabsTrigger>
+            <TabsTrigger value="assessment" className="text-xs gap-1"><Award className="h-3 w-3" /> Evaluación</TabsTrigger>
             <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
           </TabsList>
 
@@ -306,6 +381,206 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave }: Ac
             {parsedData && type === "self_assessment" && (
               <SelfAssessmentEditor data={parsedData} onChange={updateData} />
             )}
+          </TabsContent>
+
+          {/* ASSESSMENT — configuración pedagógica de la evaluación */}
+          <TabsContent value="assessment" className="space-y-4 mt-3">
+            {/* Tipo de evaluación */}
+            <div>
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Award className="h-3.5 w-3.5" /> Tipo de evaluación
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Define cómo esta actividad contribuye a la evaluación del estudiante.
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {assessmentTypes.map((at) => (
+                  <button
+                    key={at.value}
+                    type="button"
+                    onClick={() => {
+                      setAssessmentType(at.value);
+                      // Auto-configurar políticas según tipo
+                      if (at.value === "formative") {
+                        setMaxAttempts(0); // ilimitado
+                      } else if (at.value === "summative") {
+                        setMaxAttempts(1);
+                      } else if (at.value === "diagnostic") {
+                        setMaxAttempts(1);
+                      }
+                    }}
+                    className={`rounded-lg border-2 p-2.5 text-left transition-all ${
+                      assessmentType === at.value
+                        ? at.color + " ring-2 ring-offset-1"
+                        : "border-border bg-background hover:bg-accent/40"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{at.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{at.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Nivel de Bloom */}
+            <div>
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <GraduationCap className="h-3.5 w-3.5" /> Nivel cognitivo (Taxonomía de Bloom)
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                ¿Qué proceso cognitivo requiere esta actividad?
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {bloomLevels.map((bl) => (
+                  <button
+                    key={bl.value}
+                    type="button"
+                    onClick={() => setBloomLevel(bl.value)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                      bloomLevel === bl.value
+                        ? bl.color + " ring-2 ring-offset-1"
+                        : "border border-border bg-background hover:bg-accent/40 text-muted-foreground"
+                    }`}
+                  >
+                    {bl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Políticas de intentos y dominio */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-semibold">Intentos máximos</Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">0 = ilimitados</p>
+                <Input
+                  type="number"
+                  min={0}
+                  value={maxAttempts}
+                  onChange={(e) => setMaxAttempts(Number(e.target.value))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Umbral de dominio (%)</Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">% mínimo para aprobar</p>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={masteryThreshold}
+                  onChange={(e) => setMasteryThreshold(Number(e.target.value))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Peso en la nota</Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">Peso relativo en la unidad</p>
+                <Input
+                  type="number"
+                  min={1}
+                  value={weight}
+                  onChange={(e) => setWeight(Number(e.target.value))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Tiempo límite (min)</Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">Vacío = sin límite</p>
+                <Input
+                  type="number"
+                  min={1}
+                  value={timeLimitMin ?? ""}
+                  onChange={(e) => setTimeLimitMin(e.target.value ? Number(e.target.value) : null)}
+                  className="mt-1"
+                  placeholder="—"
+                />
+              </div>
+            </div>
+
+            {/* Rúbrica (para respuestas abiertas) */}
+            <div>
+              <Label className="text-xs font-semibold">Rúbrica de evaluación (opcional)</Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Para respuestas abiertas (casos, autoevaluación). El tutor IA usará la rúbrica para retroalimentar.
+              </p>
+              <select
+                value={rubricId || ""}
+                onChange={(e) => setRubricId(e.target.value || null)}
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Sin rúbrica (evaluación automática)</option>
+                {(rubricData?.rubrics ?? []).map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+              {(rubricData?.rubrics ?? []).length === 0 && (
+                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                  No has creado rúbricas. Créalas en la pestaña "Biblioteca".
+                </p>
+              )}
+            </div>
+
+            {/* Objetivos de aprendizaje */}
+            <div>
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Target className="h-3.5 w-3.5" /> Objetivos de aprendizaje evaluados
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Vincula esta actividad a los objetivos de la unidad para trazabilidad pedagógica.
+              </p>
+              <div className="mt-2 space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                {(objData?.objectives ?? []).length === 0 ? (
+                  <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground text-center">
+                    Esta unidad no tiene objetivos definidos. Créalos en el editor de unidad.
+                  </p>
+                ) : (
+                  (objData?.objectives ?? []).map((o) => (
+                    <label
+                      key={o.id}
+                      className={`flex items-start gap-2 rounded-md border p-2 cursor-pointer transition-all ${
+                        objectiveIds.includes(o.id)
+                          ? "border-[#003366]/40 bg-[#003366]/5"
+                          : "border-border bg-background hover:bg-accent/40"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={objectiveIds.includes(o.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setObjectiveIds([...objectiveIds, o.id]);
+                          } else {
+                            setObjectiveIds(objectiveIds.filter((x) => x !== o.id));
+                          }
+                        }}
+                        className="mt-0.5 h-4 w-4 accent-[#003366]"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs shrink-0">{o.code}</Badge>
+                          <span className="text-xs text-muted-foreground capitalize">{o.bloomLevel}</span>
+                        </div>
+                        <p className="mt-0.5 text-xs">{o.description}</p>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Resumen de política */}
+            <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
+              <p className="font-semibold mb-1">Resumen de la política de evaluación:</p>
+              <ul className="space-y-0.5 text-muted-foreground">
+                <li>• Tipo: <span className="font-medium text-foreground">{assessmentTypes.find((a) => a.value === assessmentType)?.label}</span></li>
+                <li>• Nivel Bloom: <span className="font-medium text-foreground capitalize">{bloomLevel}</span></li>
+                <li>• Intentos: <span className="font-medium text-foreground">{maxAttempts === 0 ? "Ilimitados" : maxAttempts}</span></li>
+                <li>• Umbral aprobación: <span className="font-medium text-foreground">{masteryThreshold}%</span></li>
+                <li>• Peso: <span className="font-medium text-foreground">{weight}x</span>{timeLimitMin ? ` · Límite: ${timeLimitMin}min` : ""}</li>
+                <li>• Objetivos vinculados: <span className="font-medium text-foreground">{objectiveIds.length}</span></li>
+              </ul>
+            </div>
           </TabsContent>
 
           {/* JSON */}

@@ -34,6 +34,7 @@ model User {
   courses       Course[]
   questionBanks QuestionBank[]
   dataResources DataResource[]
+  rubrics       Rubric[]
 }
 
 model Unit {
@@ -47,6 +48,7 @@ model Unit {
   order       Int
   lessons     Lesson[]
   progress    Progress[]
+  objectives  LearningObjective[]
 }
 
 model Lesson {
@@ -60,6 +62,7 @@ model Lesson {
   durationMin Int      @default(15)
   order       Int
   activities  Activity[]
+  objectives  LearningObjective[]
 }
 
 model Activity {
@@ -73,8 +76,23 @@ model Activity {
   points     Int      @default(10)
   difficulty String   @default("medium") // "easy" | "medium" | "hard"
   order      Int
+
+  // === Metadatos de evaluación (pedagógicos) ===
+  assessmentType   String   @default("formative") // "diagnostic" | "formative" | "summative" | "self_reflection"
+  bloomLevel       String   @default("apply") // "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create"
+  maxAttempts      Int      @default(3) // 0 = ilimitados
+  masteryThreshold Int      @default(70) // 0-100, % mínimo para aprobar
+  weight           Int      @default(1) // peso en la nota de la unidad
+  timeLimitMin     Int?     // null = sin límite
+  rubricId         String?  // rúbrica para respuestas abiertas
+  rubric           Rubric?  @relation(fields: [rubricId], references: [id], onDelete: SetNull)
+
   attempts   Attempt[]
   bookmarks  Bookmark[]
+  objectives ActivityObjective[]
+
+  @@index([lessonId])
+  @@index([assessmentType])
 }
 
 model Attempt {
@@ -302,4 +320,50 @@ model DataResource {
 
   @@index([authorId])
   @@index([type])
+}
+
+// === Sistema pedagógico: objetivos, rúbricas y mapeo ===
+
+model LearningObjective {
+  id          String   @id @default(cuid())
+  // Vinculación: unit-level (null lessonId) o lesson-level
+  unitId      String
+  unit        Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  lessonId    String?
+  lesson      Lesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  code        String   // "O1", "O2", "U1-O1"...
+  description String
+  bloomLevel  String   @default("apply") // "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create"
+  createdAt   DateTime @default(now())
+
+  activities  ActivityObjective[]
+
+  @@index([unitId])
+  @@index([lessonId])
+}
+
+model Rubric {
+  id          String   @id @default(cuid())
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  criteria    String   // JSON: [{ name, weight, levels: [{ score, label, description }] }]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  activities  Activity[]
+
+  @@index([authorId])
+}
+
+model ActivityObjective {
+  id          String   @id @default(cuid())
+  activityId  String
+  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  objectiveId String
+  objective   LearningObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, objectiveId])
+  @@index([activityId])
 }

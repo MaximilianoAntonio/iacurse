@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-// GET: detalle completo de una unidad con lecciones y actividades (para editor)
+// GET: detalle completo de una unidad con lecciones, actividades (con metadatos de evaluación) y objetivos
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -15,7 +15,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             activities: {
               orderBy: { order: "asc" },
             },
+            objectives: {
+              orderBy: { createdAt: "asc" },
+            },
           },
+        },
+        objectives: {
+          where: { lessonId: null }, // solo objetivos de unidad
+          orderBy: { createdAt: "asc" },
         },
       },
     });
@@ -34,6 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         icon: unit.icon,
         color: unit.color,
         order: unit.order,
+        objectives: unit.objectives,
         lessons: unit.lessons.map((l) => ({
           id: l.id,
           unitId: l.unitId,
@@ -43,6 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           content: l.content,
           durationMin: l.durationMin,
           order: l.order,
+          objectives: l.objectives,
           activities: l.activities.map((a) => ({
             id: a.id,
             lessonId: a.lessonId,
@@ -53,6 +62,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             points: a.points,
             difficulty: a.difficulty,
             order: a.order,
+            assessmentType: a.assessmentType,
+            bloomLevel: a.bloomLevel,
+            maxAttempts: a.maxAttempts,
+            masteryThreshold: a.masteryThreshold,
+            weight: a.weight,
+            timeLimitMin: a.timeLimitMin,
+            rubricId: a.rubricId,
           })),
         })),
       },

@@ -29,11 +29,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const activity = await db.activity.findUnique({
       where: { id: activityId },
-      include: { lesson: { include: { unit: true } } },
+      include: {
+        lesson: { include: { unit: true } },
+        rubric: true,
+        objectives: { include: { objective: true } },
+      },
     });
 
   if (!activity) {
     return NextResponse.json({ error: "Actividad no encontrada" }, { status: 404 });
+  }
+
+  // === Aplicar política de evaluación ===
+  // maxAttempts = 0 significa ilimitado
+  if (activity.maxAttempts > 0) {
+    const priorAttempts = await db.attempt.count({
+      where: { userId, activityId },
+    });
+    if (priorAttempts >= activity.maxAttempts) {
+      return NextResponse.json({
+        error: "Has alcanzado el número máximo de intentos para esta actividad.",
+        maxAttemptsReached: true,
+        maxAttempts: activity.maxAttempts,
+      }, { status: 429 });
+    }
   }
 
   // Evaluar según el tipo de actividad
@@ -129,7 +148,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // answer es la reflexión del estudiante; auto-califica por palabras clave
       const lower = answer.toLowerCase();
       const matchedKw = data.autoGradeKeywords.filter((k) => lower.includes(k.toLowerCase()));
-      const ratio = data.autoGradeKeywords.length > 0 ? matchedKw.length / data.autoGradeKeywords.length : 0.6;
+      let ratio = data.autoGradeKeywords.length > 0 ? matchedKw.length / data.autoGradeKeywords.length : 0.6;
+      // Si hay rúbrica definida, se usa para enriquecer la evaluación
+      let rubricScore = 0;
+      if (activity.rubricId && activity.rubric) {
+        try {
+          const criteria = JSON.parse(activity.rubric.criteria) as Array<{
+            name: string;
+            weight: number;
+            levels: Array<{ score: number; label: string; description: string }>;
+          }>;
+          // Heurística simple: si la respuesta menciona términos de cada criterio, sube el score
+          let totalWeight = 0;
+          let weightedScore = 0;
+          for (const c of criteria) {
+            const matchRatio = c.levels.some((lvl) => {
+              const words = lvl.description.toLowerCase().split(/\s+/).filter((w) => w.length > 4);
+              return words.some((w) => lower.includes(w));
+            }) ? 1 : (answer.length > 80 ? 0.5 : 0.2);
+            weightedScore += matchRatio * c.weight;
+            totalWeight += c.weight;
+          }
+          rubricScore = totalWeight > 0 ? weightedScore / totalWeight : 0;
+          // Promediar con el ratio de palabras clave
+          ratio = (ratio + rubricScore) / 2;
+        } catch {
+          // si la rúbrica no parsea, usar solo palabras clave
+        }
+      }
       isCorrect = ratio >= 0.4 && answer.length > 40;
       correctAnswer = `Palabras clave esperadas: ${data.autoGradeKeywords.join(", ")}`;
       score = Math.round(activity.points * (isCorrect ? Math.max(ratio, 0.6) : 0.3));
@@ -140,7 +186,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       score = isCorrect ? activity.points : 0;
   }
 
-  // Generar retroalimentación con IA
+  // Generar retroalimentación con IA (incluir objetivos y rúbrica para feedback pedagógico)
+  const objectiveDescriptions = activity.objectives.map((o) => o.objective.description);
   const feedback = await generateActivityFeedback({
     activityType: activity.type,
     activityTitle: activity.title,
@@ -149,6 +196,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     studentAnswer: answer,
     isCorrect,
     context,
+    assessmentType: activity.assessmentType,
+    bloomLevel: activity.bloomLevel,
+    objectives: objectiveDescriptions,
+    rubricCriteria: activity.rubric?.criteria,
   });
 
   // Consultar SI HUBO un intento correcto previo ANTES de guardar el nuevo.
@@ -291,6 +342,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       unitTitle,
       unitColor,
       unitIcon,
+      // Metadatos de evaluación
+      assessmentType: activity.assessmentType,
+      bloomLevel: activity.bloomLevel,
+      masteryThreshold: activity.masteryThreshold,
+      masteryAchieved: isCorrect,
+      maxAttempts: activity.maxAttempts,
+      attemptsRemaining: activity.maxAttempts > 0
+        ? Math.max(0, activity.maxAttempts - 1 - (await db.attempt.count({ where: { userId, activityId } })))
+        : -1, // -1 = ilimitado
+      weight: activity.weight,
     },
   });
   } catch (error) {

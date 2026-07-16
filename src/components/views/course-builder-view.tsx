@@ -36,11 +36,15 @@ import {
   FileText,
   Save,
   Library,
+  Award,
+  Sparkles,
 } from "lucide-react";
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { CourseEditor } from "@/components/course-builder/course-editor";
 import { CurriculumTab } from "@/components/course-builder/curriculum-tab";
+import { CourseWizard } from "@/components/course-builder/course-wizard";
+import { RubricsTab } from "@/components/course-builder/rubrics-tab";
 
 // Types
 interface Course {
@@ -114,10 +118,13 @@ export function CourseBuilderView() {
       <Tabs defaultValue="courses" className="space-y-4">
         <TabsList className="flex w-fit flex-wrap h-11 p-1 gap-1">
           <TabsTrigger value="courses" className="gap-2 text-sm font-medium">
-            <BookOpen className="h-4 w-4" /> Cursos Sandbox
+            <BookOpen className="h-4 w-4" /> Mis Cursos
           </TabsTrigger>
           <TabsTrigger value="curriculum" className="gap-2 text-sm font-medium">
-            <Library className="h-4 w-4" /> Currículo Existente
+            <Library className="h-4 w-4" /> Currículo Institucional
+          </TabsTrigger>
+          <TabsTrigger value="rubrics" className="gap-2 text-sm font-medium">
+            <Award className="h-4 w-4" /> Rúbricas
           </TabsTrigger>
           <TabsTrigger value="questions" className="gap-2 text-sm font-medium">
             <ListChecks className="h-4 w-4" /> Banco de Preguntas
@@ -132,6 +139,9 @@ export function CourseBuilderView() {
         </TabsContent>
         <TabsContent value="curriculum">
           <CurriculumTab />
+        </TabsContent>
+        <TabsContent value="rubrics">
+          <RubricsTab authorId={authorId} />
         </TabsContent>
         <TabsContent value="questions">
           <QuestionsTab authorId={authorId} />
@@ -152,29 +162,13 @@ function CoursesTab({ authorId }: { authorId: string }) {
     [authorId]
   );
   const { toast } = useToast();
-  const [createOpen, setCreateOpen] = React.useState(false);
+  const [wizardOpen, setWizardOpen] = React.useState(false);
   const [editCourse, setEditCourse] = React.useState<Course | null>(null);
   const [editingCourseId, setEditingCourseId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState({ title: "", description: "", color: "sky", icon: "BookOpen" });
 
-  const handleCreate = async () => {
-    if (!form.title.trim()) {
-      toast({ title: "Error", description: "El título es obligatorio", variant: "destructive" });
-      return;
-    }
-    try {
-      await postJSON("/api/courses", { authorId, ...form });
-      setCreateOpen(false);
-      setForm({ title: "", description: "", color: "sky", icon: "BookOpen" });
-      refetch();
-      toast({ title: "Curso creado", description: "El curso sandbox se creó correctamente." });
-    } catch (e) {
-      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
-    }
-  };
-
   const handleDelete = async (courseId: string) => {
-    if (!confirm("¿Eliminar este curso sandbox y todo su contenido?")) return;
+    if (!confirm("¿Eliminar este curso y todo su contenido?")) return;
     try {
       await fetch(`/api/courses?courseId=${courseId}`, { method: "DELETE" });
       refetch();
@@ -208,14 +202,14 @@ function CoursesTab({ authorId }: { authorId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            {courses.length} curso{courses.length !== 1 ? "s" : ""} sandbox
+            {courses.length} curso{courses.length !== 1 ? "s" : ""}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Crea cursos completos con unidades, lecciones y actividades. Publícalos al currículo para que los estudiantes los vean.
+            Crea cursos completos con el asistente. Edita contenido, agrega actividades con evaluación y publica al currículo institucional.
           </p>
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-[#003366] hover:bg-[#004488]">
-          <Plus className="mr-1.5 h-4 w-4" /> Nuevo Curso
+        <Button size="sm" onClick={() => setWizardOpen(true)} className="bg-[#003366] hover:bg-[#004488]">
+          <Sparkles className="mr-1.5 h-4 w-4" /> Nuevo Curso
         </Button>
       </div>
 
@@ -303,13 +297,24 @@ function CoursesTab({ authorId }: { authorId: string }) {
         </div>
       )}
 
-      {/* Dialog crear/editar */}
-      <Dialog open={createOpen || editCourse !== null} onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditCourse(null); } }}>
+      {/* Wizard de creación */}
+      <CourseWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        onCreated={(courseId) => {
+          setWizardOpen(false);
+          setEditingCourseId(courseId);
+          refetch();
+        }}
+      />
+
+      {/* Dialog editar metadatos del curso */}
+      <Dialog open={editCourse !== null} onOpenChange={(o) => { if (!o) setEditCourse(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editCourse ? "Editar curso" : "Crear curso sandbox"}</DialogTitle>
+            <DialogTitle>Editar curso</DialogTitle>
             <DialogDescription>
-              Los cursos sandbox son editables y, al publicarlos, se copian al currículo que ven los estudiantes.
+              Modifica los metadatos del curso. El contenido se edita dentro del curso.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
@@ -343,7 +348,7 @@ function CoursesTab({ authorId }: { authorId: string }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => { setCreateOpen(false); setEditCourse(null); }}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={() => setEditCourse(null)}>Cancelar</Button>
             <Button
               size="sm"
               onClick={async () => {
@@ -356,14 +361,11 @@ function CoursesTab({ authorId }: { authorId: string }) {
                   } catch (e) {
                     toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
                   }
-                } else {
-                  handleCreate();
                 }
               }}
               className="bg-[#003366] hover:bg-[#004488]"
             >
-              <Save className="mr-1.5 h-3.5 w-3.5" />
-              {editCourse ? "Guardar" : "Crear"}
+              <Save className="mr-1.5 h-3.5 w-3.5" /> Guardar
             </Button>
           </DialogFooter>
         </DialogContent>

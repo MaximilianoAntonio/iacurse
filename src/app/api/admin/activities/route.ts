@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-// POST: crear nueva actividad en una lección
+// POST: crear nueva actividad en una lección (con metadatos de evaluación)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { lessonId, type, title, prompt, data, points, difficulty } = body as {
+    const {
+      lessonId, type, title, prompt, data, points, difficulty,
+      assessmentType, bloomLevel, maxAttempts, masteryThreshold, weight, timeLimitMin, rubricId,
+      objectiveIds,
+    } = body as {
       lessonId: string;
       type: string;
       title: string;
@@ -13,6 +17,14 @@ export async function POST(req: NextRequest) {
       data: string;
       points?: number;
       difficulty?: string;
+      assessmentType?: string;
+      bloomLevel?: string;
+      maxAttempts?: number;
+      masteryThreshold?: number;
+      weight?: number;
+      timeLimitMin?: number | null;
+      rubricId?: string | null;
+      objectiveIds?: string[];
     };
 
     if (!lessonId || !type || !title || !prompt) {
@@ -20,6 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     const activityCount = await db.activity.count({ where: { lessonId } });
+
     const activity = await db.activity.create({
       data: {
         lessonId,
@@ -30,8 +43,23 @@ export async function POST(req: NextRequest) {
         points: points ?? 10,
         difficulty: difficulty ?? "medium",
         order: activityCount,
+        assessmentType: assessmentType ?? "formative",
+        bloomLevel: bloomLevel ?? "apply",
+        maxAttempts: maxAttempts ?? 3,
+        masteryThreshold: masteryThreshold ?? 70,
+        weight: weight ?? 1,
+        timeLimitMin: timeLimitMin ?? null,
+        rubricId: rubricId ?? null,
       },
     });
+
+    // Vincular objetivos de aprendizaje
+    if (objectiveIds && objectiveIds.length > 0) {
+      await db.activityObjective.createMany({
+        data: objectiveIds.map((oid) => ({ activityId: activity.id, objectiveId: oid })),
+        skipDuplicates: true,
+      });
+    }
 
     // Actualizar el total del progreso
     const lesson = await db.lesson.findUnique({ where: { id: lessonId }, select: { unitId: true } });
@@ -50,11 +78,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH: actualizar actividad existente
+// PATCH: actualizar actividad existente (incluye metadatos de evaluación + objetivos)
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { activityId, type, title, prompt, data, points, difficulty, order } = body as {
+    const {
+      activityId, type, title, prompt, data, points, difficulty, order,
+      assessmentType, bloomLevel, maxAttempts, masteryThreshold, weight, timeLimitMin, rubricId,
+      objectiveIds,
+    } = body as {
       activityId: string;
       type?: string;
       title?: string;
@@ -63,6 +95,14 @@ export async function PATCH(req: NextRequest) {
       points?: number;
       difficulty?: string;
       order?: number;
+      assessmentType?: string;
+      bloomLevel?: string;
+      maxAttempts?: number;
+      masteryThreshold?: number;
+      weight?: number;
+      timeLimitMin?: number | null;
+      rubricId?: string | null;
+      objectiveIds?: string[];
     };
 
     if (!activityId) {
@@ -77,8 +117,27 @@ export async function PATCH(req: NextRequest) {
     if (points !== undefined) updateData.points = points;
     if (difficulty !== undefined) updateData.difficulty = difficulty;
     if (order !== undefined) updateData.order = order;
+    if (assessmentType !== undefined) updateData.assessmentType = assessmentType;
+    if (bloomLevel !== undefined) updateData.bloomLevel = bloomLevel;
+    if (maxAttempts !== undefined) updateData.maxAttempts = maxAttempts;
+    if (masteryThreshold !== undefined) updateData.masteryThreshold = masteryThreshold;
+    if (weight !== undefined) updateData.weight = weight;
+    if (timeLimitMin !== undefined) updateData.timeLimitMin = timeLimitMin;
+    if (rubricId !== undefined) updateData.rubricId = rubricId || null;
 
     const activity = await db.activity.update({ where: { id: activityId }, data: updateData });
+
+    // Sincronizar objetivos de aprendizaje
+    if (objectiveIds !== undefined) {
+      await db.activityObjective.deleteMany({ where: { activityId } });
+      if (objectiveIds.length > 0) {
+        await db.activityObjective.createMany({
+          data: objectiveIds.map((oid) => ({ activityId, objectiveId: oid })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
     return NextResponse.json({ activity });
   } catch (error) {
     console.error("Admin activities PATCH API error:", error);

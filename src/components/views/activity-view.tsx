@@ -527,6 +527,41 @@ function ActivityInner(props: ActivityInnerProps) {
                 <Sparkles className="h-3 w-3" />
                 {activity.points} pts
               </Badge>
+              {/* Badges de evaluación pedagógica */}
+              {(activity as any).assessmentType && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1 border-transparent capitalize",
+                    (activity as any).assessmentType === "diagnostic" && "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+                    (activity as any).assessmentType === "formative" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+                    (activity as any).assessmentType === "summative" && "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+                    (activity as any).assessmentType === "self_reflection" && "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+                  )}
+                  title="Tipo de evaluación"
+                >
+                  <DynamicIcon name="Award" className="h-3 w-3" />
+                  {{ diagnostic: "Diagnóstica", formative: "Formativa", summative: "Sumativa", self_reflection: "Auto-reflexión" }[(activity as any).assessmentType] ?? (activity as any).assessmentType}
+                </Badge>
+              )}
+              {(activity as any).bloomLevel && (
+                <Badge variant="outline" className="gap-1 border-transparent capitalize text-xs" title="Nivel cognitivo de Bloom">
+                  <DynamicIcon name="GraduationCap" className="h-3 w-3" />
+                  {{ remember: "Recordar", understand: "Comprender", apply: "Aplicar", analyze: "Analizar", evaluate: "Evaluar", create: "Crear" }[(activity as any).bloomLevel] ?? (activity as any).bloomLevel}
+                </Badge>
+              )}
+              {(activity as any).maxAttempts !== undefined && (activity as any).maxAttempts > 0 && (
+                <Badge variant="outline" className="gap-1 border-transparent text-xs" title="Intentos permitidos">
+                  <DynamicIcon name="RotateCcw" className="h-3 w-3" />
+                  {attemptCount}/{(activity as any).maxAttempts} intentos
+                </Badge>
+              )}
+              {(activity as any).masteryThreshold !== undefined && (activity as any).masteryThreshold > 0 && (activity as any).masteryThreshold < 100 && (
+                <Badge variant="outline" className="gap-1 border-transparent text-xs" title="Umbral de aprobación">
+                  <DynamicIcon name="Gauge" className="h-3 w-3" />
+                  Aprobar: {(activity as any).masteryThreshold}%
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <BookmarkButton activityId={activity.id} />

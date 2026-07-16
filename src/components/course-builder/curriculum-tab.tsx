@@ -32,6 +32,7 @@ import {
   Clock,
   AlertTriangle,
   FileText,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LessonEditorDialog, type LessonFormData } from "./lesson-editor-dialog";
@@ -61,6 +62,7 @@ interface CurriculumUnitDetail {
   icon: string;
   color: string;
   order: number;
+  objectives: { id: string; code: string; description: string; bloomLevel: string }[];
   lessons: {
     id: string;
     unitId: string;
@@ -80,6 +82,13 @@ interface CurriculumUnitDetail {
       points: number;
       difficulty: string;
       order: number;
+      assessmentType: string;
+      bloomLevel: string;
+      maxAttempts: number;
+      masteryThreshold: number;
+      weight: number;
+      timeLimitMin: number | null;
+      rubricId: string | null;
     }[];
   }[];
 }
@@ -296,6 +305,8 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
   const [activityDialog, setActivityDialog] = React.useState<{ open: boolean; lessonId: string | null; initial: ActivityFormData | null }>({ open: false, lessonId: null, initial: null });
   const [expandedLessons, setExpandedLessons] = React.useState<Set<string>>(new Set());
   const [unitForm, setUnitForm] = React.useState({ title: "", summary: "", description: "", icon: "BookOpen", color: "sky" });
+  const [newObjOpen, setNewObjOpen] = React.useState(false);
+  const [objForm, setObjForm] = React.useState({ code: "", description: "", bloomLevel: "apply" });
 
   const unit = data?.unit;
 
@@ -387,6 +398,14 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           data: formData.data,
           points: formData.points,
           difficulty: formData.difficulty,
+          assessmentType: formData.assessmentType,
+          bloomLevel: formData.bloomLevel,
+          maxAttempts: formData.maxAttempts,
+          masteryThreshold: formData.masteryThreshold,
+          weight: formData.weight,
+          timeLimitMin: formData.timeLimitMin,
+          rubricId: formData.rubricId,
+          objectiveIds: formData.objectiveIds,
         });
         toast({ title: "Actividad actualizada" });
       } else {
@@ -398,6 +417,14 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           data: formData.data,
           points: formData.points,
           difficulty: formData.difficulty,
+          assessmentType: formData.assessmentType,
+          bloomLevel: formData.bloomLevel,
+          maxAttempts: formData.maxAttempts,
+          masteryThreshold: formData.masteryThreshold,
+          weight: formData.weight,
+          timeLimitMin: formData.timeLimitMin,
+          rubricId: formData.rubricId,
+          objectiveIds: formData.objectiveIds,
         });
         toast({ title: "Actividad creada" });
       }
@@ -413,6 +440,39 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
       await fetch(`/api/admin/activities?activityId=${activityId}`, { method: "DELETE" });
       refetch();
       toast({ title: "Actividad eliminada" });
+    } catch (e) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    }
+  };
+
+  // === Objetivos de aprendizaje ===
+  const handleCreateObjective = async () => {
+    if (!objForm.description.trim()) {
+      toast({ title: "Error", description: "La descripción es obligatoria", variant: "destructive" });
+      return;
+    }
+    try {
+      await postJSON("/api/admin/objectives", {
+        unitId,
+        code: objForm.code || undefined,
+        description: objForm.description,
+        bloomLevel: objForm.bloomLevel,
+      });
+      setObjForm({ code: "", description: "", bloomLevel: "apply" });
+      setNewObjOpen(false);
+      refetch();
+      toast({ title: "Objetivo creado" });
+    } catch (e) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteObjective = async (objectiveId: string) => {
+    if (!confirm("¿Eliminar este objetivo de aprendizaje?")) return;
+    try {
+      await fetch(`/api/admin/objectives?objectiveId=${objectiveId}`, { method: "DELETE" });
+      refetch();
+      toast({ title: "Objetivo eliminado" });
     } catch (e) {
       toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
     }
@@ -452,6 +512,53 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           </Button>
         </div>
       </div>
+
+      {/* Objetivos de aprendizaje de la unidad */}
+      <Card className="border-[#003366]/20 bg-[#003366]/[0.02]">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-[#003366]" />
+              <CardTitle className="text-sm">Objetivos de aprendizaje</CardTitle>
+              <Badge variant="outline" className="text-xs">{unit.objectives.length}</Badge>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setNewObjOpen(true)}>
+              <Plus className="mr-1 h-3 w-3" /> Nuevo objetivo
+            </Button>
+          </div>
+          <CardDescription className="text-xs">
+            Define qué debe poder hacer el estudiante al terminar esta unidad. Las actividades se vinculan a estos objetivos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {unit.objectives.length === 0 ? (
+            <p className="py-3 text-center text-xs text-muted-foreground">
+              Sin objetivos definidos. Crea al menos uno para alinear la evaluación.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {unit.objectives.map((o) => (
+                <div key={o.id} className="flex items-start gap-2 rounded-md border border-border bg-background p-2.5">
+                  <Badge variant="outline" className="text-xs shrink-0 mt-0.5">{o.code}</Badge>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs">{o.description}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground capitalize">Bloom: {o.bloomLevel}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-rose-600 shrink-0"
+                    onClick={() => handleDeleteObjective(o.id)}
+                    aria-label="Eliminar objetivo"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Lista de lecciones */}
       {unit.lessons.length === 0 ? (
@@ -512,6 +619,18 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                       lesson.activities.map((act, ai) => {
                         const meta = activityTypeMeta[act.type as keyof typeof activityTypeMeta];
                         const diff = difficultyMeta[act.difficulty as keyof typeof difficultyMeta];
+                        const assessLabel: Record<string, string> = {
+                          diagnostic: "Diagnóstica",
+                          formative: "Formativa",
+                          summative: "Sumativa",
+                          self_reflection: "Auto-reflexión",
+                        };
+                        const assessColor: Record<string, string> = {
+                          diagnostic: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300",
+                          formative: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+                          summative: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
+                          self_reflection: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300",
+                        };
                         return (
                           <div key={act.id} className="flex items-start gap-3 rounded-md border border-border bg-background p-3">
                             <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-medium", diff.bg, diff.color)}>
@@ -523,12 +642,19 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                                 <Badge variant="outline" className="text-xs">
                                   {meta?.label ?? act.type}
                                 </Badge>
+                                <Badge variant="outline" className={cn("text-xs", assessColor[act.assessmentType] || "")} title="Tipo de evaluación">
+                                  {assessLabel[act.assessmentType] ?? act.assessmentType}
+                                </Badge>
                                 <Badge variant="outline" className={cn("text-xs", diff.bg, diff.color)}>
                                   {diff.label}
                                 </Badge>
                                 <Badge variant="secondary" className="text-xs">{act.points} pts</Badge>
+                                <Badge variant="outline" className="text-xs capitalize" title="Nivel de Bloom">{act.bloomLevel}</Badge>
                               </div>
                               <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{act.prompt}</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                Intentos: {act.maxAttempts === 0 ? "∞" : act.maxAttempts} · Umbral: {act.masteryThreshold}% · Peso: {act.weight}x
+                              </p>
                             </div>
                             <div className="flex shrink-0 gap-1">
                               <Button
@@ -546,6 +672,13 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                                     data: act.data,
                                     points: act.points,
                                     difficulty: act.difficulty,
+                                    assessmentType: act.assessmentType,
+                                    bloomLevel: act.bloomLevel,
+                                    maxAttempts: act.maxAttempts,
+                                    masteryThreshold: act.masteryThreshold,
+                                    weight: act.weight,
+                                    timeLimitMin: act.timeLimitMin,
+                                    rubricId: act.rubricId,
                                   }
                                 })}
                               >
@@ -649,7 +782,58 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
         onOpenChange={(o) => setActivityDialog({ open: o, lessonId: activityDialog.lessonId, initial: activityDialog.initial })}
         initial={activityDialog.initial}
         onSave={handleSaveActivity}
+        unitId={unitId}
       />
+
+      {/* Dialog nuevo objetivo */}
+      <Dialog open={newObjOpen} onOpenChange={setNewObjOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo objetivo de aprendizaje</DialogTitle>
+            <DialogDescription>
+              Define qué debe poder hacer el estudiante. Usa verbos medibles (ej: "calcular", "identificar", "analizar").
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-semibold">Código (opcional)</Label>
+                <Input value={objForm.code} onChange={(e) => setObjForm({ ...objForm, code: e.target.value })} placeholder="O1, U1-O1..." className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Nivel de Bloom</Label>
+                <select
+                  value={objForm.bloomLevel}
+                  onChange={(e) => setObjForm({ ...objForm, bloomLevel: e.target.value })}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="remember">Recordar</option>
+                  <option value="understand">Comprender</option>
+                  <option value="apply">Aplicar</option>
+                  <option value="analyze">Analizar</option>
+                  <option value="evaluate">Evaluar</option>
+                  <option value="create">Crear</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Descripción del objetivo</Label>
+              <Textarea
+                value={objForm.description}
+                onChange={(e) => setObjForm({ ...objForm, description: e.target.value })}
+                placeholder="Ej: Calcular la impedancia de un electrodo Ag/AgCl a partir de su modelo eléctrico equivalente."
+                className="mt-1 min-h-[70px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setNewObjOpen(false)}>Cancelar</Button>
+            <Button size="sm" onClick={handleCreateObjective} className="bg-[#003366] hover:bg-[#004488]">
+              <Save className="mr-1.5 h-3.5 w-3.5" /> Crear objetivo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
