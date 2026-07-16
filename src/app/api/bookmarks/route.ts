@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // GET: listar bookmarks del usuario
 export async function GET(req: NextRequest) {
+  try {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ bookmarks: [] });
@@ -40,6 +41,10 @@ export async function GET(req: NextRequest) {
       activity: b.activity,
     })),
   });
+  } catch (error) {
+    console.error("Bookmarks GET API error:", error);
+    return NextResponse.json({ bookmarks: [] }, { status: 500 });
+  }
 }
 
 // POST: crear bookmark
@@ -68,16 +73,21 @@ export async function POST(req: NextRequest) {
 
 // DELETE: eliminar bookmark
 export async function DELETE(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  const activityId = req.nextUrl.searchParams.get("activityId");
+  try {
+    const userId = req.nextUrl.searchParams.get("userId");
+    const activityId = req.nextUrl.searchParams.get("activityId");
 
-  if (!userId || !activityId) {
-    return NextResponse.json({ error: "Faltan userId o activityId" }, { status: 400 });
+    if (!userId || !activityId) {
+      return NextResponse.json({ error: "Faltan userId o activityId" }, { status: 400 });
+    }
+
+    await db.bookmark.deleteMany({
+      where: { userId, activityId },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Bookmarks DELETE API error:", error);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
-
-  await db.bookmark.deleteMany({
-    where: { userId, activityId },
-  });
-
-  return NextResponse.json({ ok: true });
 }

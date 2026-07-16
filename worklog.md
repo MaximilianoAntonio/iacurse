@@ -1512,3 +1512,42 @@ Average improved from 7.7 to 7.9. Remaining issues are content-level (text densi
 - About page could benefit from visual elements (images, diagrams)
 - Sidebar navigation could be simplified for fewer options
 - Mobile responsive testing still needed
+
+---
+Task ID: engineering-review-3
+Agent: Z.ai Code (orchestrator)
+Task: Engineering audit — data integrity fix, API error handling, progress clamping
+
+## Current project status description/assessment
+The platform is mature and stable. This round performed a data integrity audit and found/fixed a progress overflow bug, added defensive clamping at all API levels, and extended error handling to 5 more API routes.
+
+## Current goals/completed modifications/verification results
+
+### Bug fixed: Progress overflow (completed > total)
+- **Problem**: Camila's progress for Unit 1 showed `completed=8, total=7` — 8 activities completed in a unit with only 7. This happened because the seed data had an extra correct attempt that wasn't properly bounded.
+- **DB fix**: Ran a script to clamp all progress records: `completed = min(completed, actualTotal)`, `mastery = min(100, calculated)`.
+- **API fix (attempt route)**: Added `Math.min(correctActivities.length, totalActivities)` and `Math.min(100, mastery)` at the calculation point in `/api/activities/[id]/attempt`.
+- **API fix (teacher route)**: Added `Math.min(p.completed, p.total)` and `Math.min(100, p.mastery)` in the progress output.
+- **API fix (student detail route)**: Same clamping added.
+- **Verified**: Unit 1 now shows "7/7" and "100%" instead of "8/7" and "92%".
+
+### Improvement: Error handling added to 5 more API routes
+- **Problem**: 13 API routes had no try/catch. Previous round fixed 4; this round fixed 5 more:
+  - `/api/progress` (GET)
+  - `/api/teacher` (GET)
+  - `/api/lessons/[id]` (GET)
+  - `/api/next-activity` (GET)
+  - `/api/bookmarks` (GET, POST, DELETE)
+- Each now has try/catch with `console.error` and clean 500 JSON response.
+- **Remaining**: 8 routes still without try/catch (badges, badge-progress, leaderboard, recent-badges, notifications, report, me, users) — these are simpler and lower-risk.
+
+### Verification
+- All 6 tested API endpoints return 200.
+- Lint: 0 errors, 0 warnings.
+- No console/runtime errors.
+- Progress overflow fixed and verified in browser.
+
+## Unresolved issues or risks
+- 8 simpler API routes still lack try/catch (low risk — they're read-only and simple queries).
+- The `try {` insertion via sed was tricky with multi-function files (bookmarks has GET/POST/DELETE). Should use manual editing for complex cases.
+- Mobile responsive testing still needed.

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Detalle de una lección con contenido completo y actividades
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const { id } = await params;
   const userId = req.nextUrl.searchParams.get("userId");
 
@@ -60,4 +61,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     },
     attemptsByActivity,
   });
+  } catch (error) { console.error("API error:", error); return NextResponse.json({ error: "Error interno" }, { status: 500 }); }
 }

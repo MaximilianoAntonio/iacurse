@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Panel docente: métricas agregadas de todos los estudiantes
 export async function GET(req: NextRequest) {
+  try {
   const unitId = req.nextUrl.searchParams.get("unitId");
 
   const students = await db.user.findMany({
@@ -48,9 +49,9 @@ export async function GET(req: NextRequest) {
           unitId: p.unitId,
           unitTitle: p.unit.title,
           unitColor: p.unit.color,
-          completed: p.completed,
+          completed: Math.min(p.completed, p.total),
           total: p.total,
-          mastery: p.mastery,
+          mastery: Math.min(100, p.mastery),
         })),
         totalAttempts: attempts.length,
         correctAttempts: attempts.filter((a) => a.correct).length,
@@ -87,4 +88,5 @@ export async function GET(req: NextRequest) {
     units,
     aggregate,
   });
+  } catch (error) { console.error("API error:", error); return NextResponse.json({ error: "Error interno" }, { status: 500 }); }
 }

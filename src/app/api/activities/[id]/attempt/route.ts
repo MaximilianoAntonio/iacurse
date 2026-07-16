@@ -186,8 +186,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     select: { activityId: true },
     distinct: ["activityId"],
   });
-  const completed = correctActivities.length;
-  const mastery = totalActivities > 0 ? Math.round((completed / totalActivities) * 100) : 0;
+  const completed = Math.min(correctActivities.length, totalActivities);
+  const mastery = totalActivities > 0 ? Math.min(100, Math.round((completed / totalActivities) * 100)) : 0;
 
   if (existingProgress) {
     await db.progress.update({

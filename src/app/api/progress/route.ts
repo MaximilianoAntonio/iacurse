@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 // Progreso y analítica del usuario
 export async function GET(req: NextRequest) {
+  try {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "Falta userId" }, { status: 400 });
@@ -136,4 +137,5 @@ export async function GET(req: NextRequest) {
       avgScore: attempts.length > 0 ? Math.round(attempts.reduce((acc, a) => acc + (a.score ?? 0), 0) / attempts.length) : 0,
     },
   });
+  } catch (error) { console.error("API error:", error); return NextResponse.json({ error: "Error interno" }, { status: 500 }); }
 }

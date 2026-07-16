@@ -134,9 +134,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     progress: progress.map((p) => ({
       unitId: p.unitId,
       unit: p.unit,
-      completed: p.completed,
+      completed: Math.min(p.completed, p.total),
       total: p.total,
-      mastery: p.mastery,
+      mastery: Math.min(100, p.mastery),
       lastVisited: p.lastVisited?.toISOString() ?? null,
     })),
     activities: Object.values(byActivity).sort((a, b) => {

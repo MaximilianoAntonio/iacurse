@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 // 2. La primera unidad con actividades incompletas, o
 // 3. null si todo está completo
 export async function GET(req: NextRequest) {
+  try {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "Falta userId" }, { status: 400 });
@@ -112,4 +113,5 @@ export async function GET(req: NextRequest) {
 
   // 3. Todo completo
   return NextResponse.json({ recommendation: null });
+  } catch (error) { console.error("API error:", error); return NextResponse.json({ error: "Error interno" }, { status: 500 }); }
 }
