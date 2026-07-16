@@ -101,10 +101,10 @@ export function UnitDetailView() {
 
   const { unit, progress, attemptsByActivity } = data;
   const color = getUnitColor(unit.color);
-  const completed = progress?.completed ?? 0;
   const total = progress?.total ?? unit.lessons.reduce((a, l) => a + l.activities.length, 0);
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const mastery = progress?.mastery ?? 0;
+  const completed = Math.min(progress?.completed ?? 0, total);
+  const pct = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+  const mastery = Math.min(100, progress?.mastery ?? 0);
 
   const askTutor = () => {
     setTutorContext(unit.title);

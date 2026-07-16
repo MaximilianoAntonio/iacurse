@@ -370,7 +370,7 @@ export function DashboardView() {
                 <button
                   key={u.id}
                   onClick={() => openUnit(u.id)}
-                  className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                  className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#003366]/20"
                 >
                   <div className={`absolute right-0 top-0 h-24 w-24 rounded-bl-full bg-gradient-to-br ${color.gradient} opacity-10 transition-opacity group-hover:opacity-20`} />
                   <div className="flex items-start justify-between">

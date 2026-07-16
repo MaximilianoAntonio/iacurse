@@ -149,7 +149,7 @@ const ETHICS_POINTS: string[] = [
 
 export function AboutView() {
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-4 lg:p-8">
+    <div className="mx-auto max-w-4xl space-y-10 p-4 lg:p-8">
       <PageHeader
         title="Acerca del piloto"
         icon="Info"

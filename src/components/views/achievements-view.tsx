@@ -209,6 +209,8 @@ export function AchievementsView() {
         )}
       </section>
 
+      <Separator className="my-2" />
+
       {/* ---------- Section 3: Ranking del curso ---------- */}
       <section className="space-y-4">
         <div className="flex items-end justify-between gap-3">

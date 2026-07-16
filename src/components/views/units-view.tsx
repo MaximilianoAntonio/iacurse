@@ -229,7 +229,7 @@ export function UnitsView() {
                     <span className="text-muted-foreground">Progreso</span>
                     <span className="font-semibold">{completed}/{total}</span>
                   </div>
-                  <Progress value={pct} className={`h-2 bg-muted ${color.bg}`} />
+                  <Progress value={pct} className="h-2.5 bg-muted/60" />
                   <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground">
                     <span>Dominio: <span className="font-semibold text-foreground">{mastery}%</span></span>
                   </div>

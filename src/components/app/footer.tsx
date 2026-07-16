@@ -6,8 +6,8 @@ import { ShieldCheck, HeartPulse, BookOpen } from "lucide-react";
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-border bg-gradient-to-br from-[#003366]/5 via-background to-amber-50/30 dark:from-[#003366]/10 dark:via-background dark:to-amber-950/10">
-      <div className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-        <div className="grid gap-6 md:grid-cols-3">
+      <div className="mx-auto max-w-6xl px-4 py-10 lg:px-8">
+        <div className="grid gap-8 md:grid-cols-3">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#003366] to-[#0066AA] text-amber-400">
