@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAppStore } from "@/store/app-store";
-import { useFetch, postJSON, patchJSON } from "@/hooks/use-fetch";
+import { useFetch, postJSON, patchJSON, deleteURL } from "@/hooks/use-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -135,7 +135,7 @@ export function CurriculumTab() {
   const handleDeleteUnit = async (unitId: string, title: string) => {
     if (!confirm(`¿Eliminar la unidad "${title}" y TODAS sus lecciones y actividades? Esta acción no se puede deshacer.`)) return;
     try {
-      await fetch(`/api/admin/units?unitId=${unitId}`, { method: "DELETE" });
+      await deleteURL(`/api/admin/units?unitId=${unitId}`);
       refetch();
       toast({ title: "Unidad eliminada" });
     } catch (e) {
@@ -156,12 +156,12 @@ export function CurriculumTab() {
             {units.length} unidad{units.length !== 1 ? "es" : ""} · Edita el contenido que ven los estudiantes
           </p>
         </div>
-        <Button size="sm" onClick={() => setCreateUnitOpen(true)} className="bg-[#003366] hover:bg-[#004488]">
+        <Button size="sm" onClick={() => setCreateUnitOpen(true)} className="bg-primary hover:bg-primary">
           <Plus className="mr-1.5 h-4 w-4" /> Nueva Unidad
         </Button>
       </div>
 
-      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      <div className="rounded-md border border-gold/30 bg-gold-soft p-3 text-xs text-gold-foreground">
         <div className="flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
           <div>
@@ -180,8 +180,8 @@ export function CurriculumTab() {
       ) : units.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
-              <BookOpen className="h-5 w-5 text-[#003366]" />
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/5">
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
             <p className="text-sm font-medium">Sin unidades en el currículo</p>
             <p className="text-xs text-muted-foreground">Crea una unidad para empezar</p>
@@ -202,7 +202,7 @@ export function CurriculumTab() {
                       <span className="text-xs font-bold text-muted-foreground">#{u.order + 1}</span>
                       <h3 className="truncate text-sm font-bold">{u.title}</h3>
                       {u.sourceCourseId && (
-                        <Badge variant="outline" className="text-xs border-[#003366]/30 bg-[#003366]/5 text-[#003366]">
+                        <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">
                           Sandbox
                         </Badge>
                       )}
@@ -215,7 +215,7 @@ export function CurriculumTab() {
                     <Button
                       variant="default"
                       size="sm"
-                      className="h-8 text-xs bg-[#003366] hover:bg-[#004488]"
+                      className="h-8 text-xs bg-primary hover:bg-primary"
                       onClick={() => setEditingUnitId(u.id)}
                     >
                       <Edit2 className="mr-1 h-3.5 w-3.5" /> Editar
@@ -282,7 +282,7 @@ export function CurriculumTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setCreateUnitOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleCreateUnit} className="bg-[#003366] hover:bg-[#004488]">
+            <Button size="sm" onClick={handleCreateUnit} className="bg-primary hover:bg-primary">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Crear
             </Button>
           </DialogFooter>
@@ -378,7 +378,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
   const handleDeleteLesson = async (lessonId: string, title: string) => {
     if (!confirm(`¿Eliminar la lección "${title}" y todas sus actividades?`)) return;
     try {
-      await fetch(`/api/admin/lessons?lessonId=${lessonId}`, { method: "DELETE" });
+      await deleteURL(`/api/admin/lessons?lessonId=${lessonId}`);
       refetch();
       toast({ title: "Lección eliminada" });
     } catch (e) {
@@ -437,7 +437,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
   const handleDeleteActivity = async (activityId: string, title: string) => {
     if (!confirm(`¿Eliminar la actividad "${title}"?`)) return;
     try {
-      await fetch(`/api/admin/activities?activityId=${activityId}`, { method: "DELETE" });
+      await deleteURL(`/api/admin/activities?activityId=${activityId}`);
       refetch();
       toast({ title: "Actividad eliminada" });
     } catch (e) {
@@ -470,7 +470,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
   const handleDeleteObjective = async (objectiveId: string) => {
     if (!confirm("¿Eliminar este objetivo de aprendizaje?")) return;
     try {
-      await fetch(`/api/admin/objectives?objectiveId=${objectiveId}`, { method: "DELETE" });
+      await deleteURL(`/api/admin/objectives?objectiveId=${objectiveId}`);
       refetch();
       toast({ title: "Objetivo eliminado" });
     } catch (e) {
@@ -479,7 +479,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
   };
 
   if (loading || !unit) {
-    return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-[#003366]" /></div>;
+    return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" /></div>;
   }
 
   const color = getUnitColor(unit.color);
@@ -507,18 +507,18 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           <Button variant="outline" size="sm" onClick={() => setEditUnitOpen(true)}>
             <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Editar unidad
           </Button>
-          <Button size="sm" onClick={() => setLessonDialog({ open: true, initial: null })} className="bg-[#003366] hover:bg-[#004488]">
+          <Button size="sm" onClick={() => setLessonDialog({ open: true, initial: null })} className="bg-primary hover:bg-primary">
             <Plus className="mr-1.5 h-4 w-4" /> Nueva Lección
           </Button>
         </div>
       </div>
 
       {/* Objetivos de aprendizaje de la unidad */}
-      <Card className="border-[#003366]/20 bg-[#003366]/[0.02]">
+      <Card className="border-primary/20 bg-primary/[0.02]">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-[#003366]" />
+              <Target className="h-4 w-4 text-primary" />
               <CardTitle className="text-sm">Objetivos de aprendizaje</CardTitle>
               <Badge variant="outline" className="text-xs">{unit.objectives.length}</Badge>
             </div>
@@ -564,8 +564,8 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
       {unit.lessons.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
-              <BookOpen className="h-5 w-5 text-[#003366]" />
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/5">
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
             <p className="text-sm font-medium">Sin lecciones</p>
             <p className="text-xs text-muted-foreground">Crea lecciones para organizar el contenido de la unidad</p>
@@ -583,7 +583,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                       onClick={() => toggleLesson(lesson.id)}
                       className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#003366]/10 text-xs font-bold text-[#003366]">{li + 1}</span>
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">{li + 1}</span>
                       <CardTitle className="text-base truncate">{lesson.title}</CardTitle>
                       {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
                     </button>
@@ -628,7 +628,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                         const assessColor: Record<string, string> = {
                           diagnostic: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300",
                           formative: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-                          summative: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
+                          summative: "border-gold/30 bg-gold-soft text-gold-foreground",
                           self_reflection: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300",
                         };
                         return (
@@ -755,7 +755,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setEditUnitOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleUpdateUnit} className="bg-[#003366] hover:bg-[#004488]">
+            <Button size="sm" onClick={handleUpdateUnit} className="bg-primary hover:bg-primary">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Guardar
             </Button>
           </DialogFooter>
@@ -828,7 +828,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setNewObjOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleCreateObjective} className="bg-[#003366] hover:bg-[#004488]">
+            <Button size="sm" onClick={handleCreateObjective} className="bg-primary hover:bg-primary">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Crear objetivo
             </Button>
           </DialogFooter>

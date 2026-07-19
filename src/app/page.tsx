@@ -5,6 +5,7 @@ import { useAppStore } from "@/store/app-store";
 import { AppShell } from "@/components/app/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
+import { LoginView } from "@/components/views/login-view";
 import type { User } from "@/lib/types";
 
 export default function Home() {
@@ -12,13 +13,17 @@ export default function Home() {
   const setUser = useAppStore((s) => s.setUser);
   const switchUser = useAppStore((s) => s.switchUser);
   const [switching, setSwitching] = useState(false);
+  // Modo demo: si true, omite el login y usa el primer estudiante (UX del piloto)
+  const [demoMode, setDemoMode] = useState(false);
 
   // Cargar usuarios
   const { data: usersData } = useFetch<{ users: User[] }>("/api/users", []);
 
-  // Cargar usuario actual
-  const meUrl = currentUserId ? `/api/me?userId=${currentUserId}` : "/api/me";
-  const { data: meData, loading } = useFetch<{ user: User }>(meUrl, [currentUserId]);
+  // Cargar usuario actual.
+  // En modo autenticado, /api/me devuelve el usuario de la sesión.
+  // En modo demo (sin login), devuelve el primer estudiante (parity con Next.js original).
+  const meUrl = demoMode || currentUserId ? `/api/me${currentUserId ? `?userId=${currentUserId}` : ""}` : null;
+  const { data: meData, loading } = useFetch<{ user: User }>(meUrl, [currentUserId, demoMode]);
 
   useEffect(() => {
     if (meData?.user) {
@@ -37,7 +42,17 @@ export default function Home() {
     setTimeout(() => setSwitching(false), 400);
   };
 
-  if (loading || !meData?.user) {
+  const handleLogin = (user: User) => {
+    setUser(user);
+    setDemoMode(true);
+  };
+
+  const handleDemoAccess = () => {
+    setDemoMode(true);
+  };
+
+  // Pantalla de carga
+  if (loading && demoMode) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-4 text-center">
@@ -53,12 +68,18 @@ export default function Home() {
     );
   }
 
-  return (
-    <div className={switching ? "opacity-60 transition-opacity" : "transition-opacity"}>
-      <AppShell
-        users={usersData?.users ?? []}
-        onSwitchUser={handleSwitchUser}
-      />
-    </div>
-  );
+  // Si hay usuario (autenticado o demo), mostrar la app
+  if (meData?.user) {
+    return (
+      <div className={switching ? "opacity-60 transition-opacity" : "transition-opacity"}>
+        <AppShell
+          users={usersData?.users ?? []}
+          onSwitchUser={handleSwitchUser}
+        />
+      </div>
+    );
+  }
+
+  // Sin sesión: mostrar pantalla de login
+  return <LoginView onLogin={handleLogin} onDemoAccess={handleDemoAccess} />;
 }

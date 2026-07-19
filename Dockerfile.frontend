@@ -1,0 +1,23 @@
+# Frontend Next.js — Plataforma Electromedicina II
+# Lineamiento: Frontend JavaScript y React
+FROM node:20-alpine
+
+# Bun para consistencia con el flujo existente (.zscripts)
+RUN npm install -g bun
+
+WORKDIR /app
+
+# Copiar manifests de dependencias
+COPY package.json* bun.lock* bun.lockb* package-lock.json* ./
+
+# Instalar dependencias (bun si hay bun.lock, si no npm)
+RUN if [ -f bun.lock ] || [ -f bun.lockb ]; then bun install; \
+    elif [ -f package.json ]; then npm install; fi
+
+# Copiar el resto del código
+COPY . .
+
+EXPOSE 3000
+
+# Dev server con hot-reload
+CMD ["bun", "run", "dev"]

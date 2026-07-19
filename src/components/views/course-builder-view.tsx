@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAppStore } from "@/store/app-store";
-import { useFetch, postJSON, patchJSON } from "@/hooks/use-fetch";
+import { useFetch, postJSON, patchJSON, deleteURL } from "@/hooks/use-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/app/page-header";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
@@ -112,7 +112,7 @@ export function CourseBuilderView() {
         title="Gestión de Contenidos"
         description="Crea cursos completos, edita el currículo existente, administra el banco de preguntas y los recursos de datos."
         icon="BookOpen"
-        iconGradient="from-[#003366] to-[#0066AA]"
+        iconGradient="from-primary to-primary/70"
       />
 
       <Tabs defaultValue="courses" className="space-y-4">
@@ -170,7 +170,7 @@ function CoursesTab({ authorId }: { authorId: string }) {
   const handleDelete = async (courseId: string) => {
     if (!confirm("¿Eliminar este curso y todo su contenido?")) return;
     try {
-      await fetch(`/api/courses?courseId=${courseId}`, { method: "DELETE" });
+      await deleteURL(`/api/courses?courseId=${courseId}`);
       refetch();
       toast({ title: "Curso eliminado" });
     } catch (e) {
@@ -208,7 +208,7 @@ function CoursesTab({ authorId }: { authorId: string }) {
             Crea cursos completos con el asistente. Edita contenido, agrega actividades con evaluación y publica al currículo institucional.
           </p>
         </div>
-        <Button size="sm" onClick={() => setWizardOpen(true)} className="bg-[#003366] hover:bg-[#004488]">
+        <Button size="sm" onClick={() => setWizardOpen(true)} className="bg-primary hover:bg-primary/90">
           <Sparkles className="mr-1.5 h-4 w-4" /> Nuevo Curso
         </Button>
       </div>
@@ -222,8 +222,8 @@ function CoursesTab({ authorId }: { authorId: string }) {
       ) : courses.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
-              <BookOpen className="h-5 w-5 text-[#003366]" />
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/5">
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
             <p className="text-sm font-medium">Sin cursos sandbox</p>
             <p className="text-xs text-muted-foreground">Crea tu primer curso para empezar a agregar contenido</p>
@@ -234,7 +234,7 @@ function CoursesTab({ authorId }: { authorId: string }) {
           {courses.map((c) => (
             <Card key={c.id} className="transition-shadow hover:shadow-md">
               <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white shadow-md">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-white shadow-md">
                   <DynamicIcon name={c.icon} className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -244,8 +244,8 @@ function CoursesTab({ authorId }: { authorId: string }) {
                       variant="outline"
                       className={
                         c.status === "published"
-                          ? "border-[#003366]/30 bg-[#003366]/5 text-[#003366]"
-                          : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
+                          ? "border-primary/30 bg-primary/5 text-primary"
+                          : "border-gold/30 bg-gold-soft text-gold-foreground"
                       }
                     >
                       {c.status === "published" ? "Publicado" : "Borrador"}
@@ -259,7 +259,7 @@ function CoursesTab({ authorId }: { authorId: string }) {
                   <Button
                     variant="default"
                     size="sm"
-                    className="h-8 text-xs bg-[#003366] hover:bg-[#004488]"
+                    className="h-8 text-xs bg-primary hover:bg-primary/90"
                     onClick={() => setEditingCourseId(c.id)}
                   >
                     <BookOpen className="mr-1 h-3.5 w-3.5" /> Editar contenido
@@ -363,7 +363,7 @@ function CoursesTab({ authorId }: { authorId: string }) {
                   }
                 }
               }}
-              className="bg-[#003366] hover:bg-[#004488]"
+              className="bg-primary hover:bg-primary/90"
             >
               <Save className="mr-1.5 h-3.5 w-3.5" /> Guardar
             </Button>
@@ -456,7 +456,7 @@ function QuestionsTab({ authorId }: { authorId: string }) {
   const handleDelete = async (questionId: string) => {
     if (!confirm("¿Eliminar esta pregunta del banco?")) return;
     try {
-      await fetch(`/api/question-banks/questions?questionId=${questionId}`, { method: "DELETE" });
+      await deleteURL(`/api/question-banks/questions?questionId=${questionId}`);
       refetchQuestions();
       toast({ title: "Pregunta eliminada" });
     } catch (e) {
@@ -507,7 +507,7 @@ function QuestionsTab({ authorId }: { authorId: string }) {
 
       {/* Botón crear pregunta */}
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => { setEditQ(null); setCreateOpen(true); }} className="bg-[#003366] hover:bg-[#004488]">
+        <Button size="sm" onClick={() => { setEditQ(null); setCreateOpen(true); }} className="bg-primary hover:bg-primary/90">
           <Plus className="mr-1.5 h-4 w-4" /> Nueva Pregunta
         </Button>
       </div>
@@ -516,8 +516,8 @@ function QuestionsTab({ authorId }: { authorId: string }) {
       {questions.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
-              <ListChecks className="h-5 w-5 text-[#003366]" />
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/5">
+              <ListChecks className="h-5 w-5 text-primary" />
             </div>
             <p className="text-sm font-medium">Sin preguntas</p>
             <p className="text-xs text-muted-foreground">Crea preguntas para reutilizarlas en tus cursos</p>
@@ -528,7 +528,7 @@ function QuestionsTab({ authorId }: { authorId: string }) {
           {questions.map((q) => (
             <Card key={q.id} className="transition-shadow hover:shadow-sm">
               <CardContent className="flex items-start gap-3 p-3.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#003366]/5 text-[#003366]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/5 text-primary">
                   <DynamicIcon name="ListChecks" className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -601,7 +601,7 @@ function QuestionsTab({ authorId }: { authorId: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setCreateBankOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleCreateBank} className="bg-[#003366] hover:bg-[#004488]">
+            <Button size="sm" onClick={handleCreateBank} className="bg-primary hover:bg-primary/90">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Crear
             </Button>
           </DialogFooter>
@@ -690,7 +690,7 @@ function QuestionsTab({ authorId }: { authorId: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => { setCreateOpen(false); setEditQ(null); }}>Cancelar</Button>
-            <Button size="sm" onClick={handleSave} className="bg-[#003366] hover:bg-[#004488]">
+            <Button size="sm" onClick={handleSave} className="bg-primary hover:bg-primary/90">
               <Save className="mr-1.5 h-3.5 w-3.5" /> {editQ ? "Guardar" : "Crear"}
             </Button>
           </DialogFooter>
@@ -739,7 +739,7 @@ function DataTab({ authorId }: { authorId: string }) {
   const handleDelete = async (resourceId: string) => {
     if (!confirm("¿Eliminar este recurso de datos?")) return;
     try {
-      await fetch(`/api/data-resources?resourceId=${resourceId}`, { method: "DELETE" });
+      await deleteURL(`/api/data-resources?resourceId=${resourceId}`);
       refetch();
       toast({ title: "Recurso eliminado" });
     } catch (e) {
@@ -760,7 +760,7 @@ function DataTab({ authorId }: { authorId: string }) {
         <p className="text-sm text-muted-foreground">
           {resources.length} recurso{resources.length !== 1 ? "s" : ""} de datos
         </p>
-        <Button size="sm" onClick={() => { setEditR(null); setCreateOpen(true); }} className="bg-[#003366] hover:bg-[#004488]">
+        <Button size="sm" onClick={() => { setEditR(null); setCreateOpen(true); }} className="bg-primary hover:bg-primary/90">
           <Plus className="mr-1.5 h-4 w-4" /> Nuevo Recurso
         </Button>
       </div>
@@ -772,8 +772,8 @@ function DataTab({ authorId }: { authorId: string }) {
       ) : resources.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
-              <Database className="h-5 w-5 text-[#003366]" />
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/5">
+              <Database className="h-5 w-5 text-primary" />
             </div>
             <p className="text-sm font-medium">Sin recursos de datos</p>
             <p className="text-xs text-muted-foreground">Crea glosarios, fórmulas, referencias o datasets</p>
@@ -786,7 +786,7 @@ function DataTab({ authorId }: { authorId: string }) {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#003366]/5 text-[#003366]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/5 text-primary">
                       <DynamicIcon name={resourceIcons[r.type] || "FileText"} className="h-4 w-4" />
                     </div>
                     <div>
@@ -857,7 +857,7 @@ function DataTab({ authorId }: { authorId: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => { setCreateOpen(false); setEditR(null); }}>Cancelar</Button>
-            <Button size="sm" onClick={handleSave} className="bg-[#003366] hover:bg-[#004488]">
+            <Button size="sm" onClick={handleSave} className="bg-primary hover:bg-primary/90">
               <Save className="mr-1.5 h-3.5 w-3.5" /> {editR ? "Guardar" : "Crear"}
             </Button>
           </DialogFooter>
