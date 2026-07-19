@@ -31,7 +31,13 @@ export function LoginView({ onLogin, onDemoAccess }: LoginViewProps) {
       const data = await postJSON<{ user: User }>("/api/auth/login", { email, password });
       onLogin(data.user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión");
+      const msg = err instanceof Error ? err.message : "Error al iniciar sesión";
+      // Distinguir errores de red (backend caído) de credenciales inválidas
+      if (/fetch|network|failed to/i.test(msg)) {
+        setError("No se pudo conectar con el servidor. Verifica que el backend esté corriendo.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }

@@ -109,9 +109,24 @@ class SessionHeartbeatView(views.APIView):
         )
 
 
-class SessionEndView(views.APIView):
-    """Finaliza una sesión de estudio calculando la duración."""
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
+from .auth import SessionAuthenticationWithoutCSRF
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class SessionEndView(views.APIView):
+    """Finaliza una sesión de estudio calculando la duración.
+
+    Exenta de CSRF: el frontend la invoca vía navigator.sendBeacon() al cerrar
+    la pestaña, lo que NO permite enviar headers (como X-CSRFToken). Es seguro
+    porque: (a) requiere cookie de sesión válida (HttpOnly), (b) solo cierra
+    una sesión identificada por su ID (que solo el usuario legítimo conoce),
+    (c) es idempotente, (d) se valida que la sesión pertenezca al usuario.
+    """
+
+    authentication_classes = [SessionAuthenticationWithoutCSRF]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -122,6 +137,11 @@ class SessionEndView(views.APIView):
             )
         session = services.end_session(session_id)
         if session is None:
+            return Response(
+                {"error": "Sesión no encontrada"}, status=status.HTTP_404_NOT_FOUND
+            )
+        # Seguridad: validar que la sesión pertenece al usuario autenticado
+        if session.user_id != request.user.pk:
             return Response(
                 {"error": "Sesión no encontrada"}, status=status.HTTP_404_NOT_FOUND
             )

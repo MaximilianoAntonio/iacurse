@@ -28,19 +28,27 @@ function getCsrfToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-// Asegura que la cookie CSRF exista antes del primer POST (fetch GET a /api/auth/csrf)
-let csrfEnsured = false;
+// Asegura que la cookie CSRF exista antes del primer POST (fetch GET a /api/auth/csrf).
+// Re-valida si la cookie caduca (no se cachea indefinidamente).
+// La promesa compartida evita races entre POSTs simultáneos.
+let csrfPromise: Promise<void> | null = null;
 async function ensureCsrf(): Promise<void> {
-  if (csrfEnsured || getCsrfToken()) {
-    csrfEnsured = true;
+  // Si ya hay cookie válida, no hacer nada
+  if (getCsrfToken()) return;
+  // Si hay un ensure en vuelo, esperar a que termine (evita doble fetch)
+  if (csrfPromise) {
+    await csrfPromise;
     return;
   }
-  try {
-    await fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" });
-    csrfEnsured = true;
-  } catch {
-    // silencioso: el backend podría no exigir CSRF en algunos modos
-  }
+  csrfPromise = fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" })
+    .then(() => undefined)
+    .catch(() => {
+      // silencioso: el backend podría no exigir CSRF en algunos modos
+    })
+    .finally(() => {
+      csrfPromise = null;
+    });
+  await csrfPromise;
 }
 
 interface FetchState<T> {

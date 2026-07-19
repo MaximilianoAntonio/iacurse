@@ -111,7 +111,10 @@ def grade_progressive_exercise(activity, answer: str, data: dict) -> GradeResult
 
 
 def grade_case_analysis(activity, answer: str, data: dict) -> GradeResult:
-    """Análisis de caso: requiere len(given) > 3. Umbral 0.7. Floor 0.3 en parcial."""
+    """Análisis de caso: requiere len(given) > 3. Umbral 0.7. Floor 0.3 en parcial.
+
+    Reproduce exactamente case_analysis de attempt/route.ts:119-144.
+    """
     case_answers = _parse_answer_array(answer)
     questions = data.get("questions", []) or []
     matched = 0
@@ -120,7 +123,7 @@ def grade_case_analysis(activity, answer: str, data: dict) -> GradeResult:
         given = _normalize(case_answers[i] if i < len(case_answers) else "")
         # Palabras de expected > 3 caracteres (split por espacio/coma)
         words = [w for w in re.split(r"[ ,]+", expected) if len(w) > 3]
-        ok = expected and len(given) > 3 and (
+        ok = bool(expected) and len(given) > 3 and (
             given in expected or expected in given or any(w in given for w in words)
         )
         if ok:
@@ -128,12 +131,9 @@ def grade_case_analysis(activity, answer: str, data: dict) -> GradeResult:
     ratio = matched / len(questions) if questions else 0
     is_correct = ratio >= 0.7
     correct_answer = "; ".join(q.get("answer", "") for q in questions)
-    # Floor de 0.3 en el score parcial
-    score_ratio = max(ratio, 0.3) if ratio > 0 or questions else 0
-    score = round(activity.points * (1 if is_correct else score_ratio)) if (ratio > 0 or questions) else 0
-    # Parity exacta: si no hay match pero sí questions, floor 0.3 del puntaje
-    if not is_correct and questions:
-        score = round(activity.points * max(ratio, 0.3))
+    # Floor 0.3 en parcial (igual al TS: round(points * (correct ? 1 : max(ratio, 0.3))))
+    score_ratio = 1 if is_correct else max(ratio, 0.3)
+    score = round(activity.points * score_ratio) if questions else 0
     return GradeResult(is_correct=is_correct, score=score, correct_answer=correct_answer)
 
 

@@ -8,29 +8,42 @@ import { useFetch } from "@/hooks/use-fetch";
 import { LoginView } from "@/components/views/login-view";
 import type { User } from "@/lib/types";
 
+type AuthState = "loading" | "authenticated" | "demo" | "anonymous";
+
 export default function Home() {
   const currentUserId = useAppStore((s) => s.currentUserId);
   const setUser = useAppStore((s) => s.setUser);
   const switchUser = useAppStore((s) => s.switchUser);
   const [switching, setSwitching] = useState(false);
-  // Modo demo: si true, omite el login y usa el primer estudiante (UX del piloto)
-  const [demoMode, setDemoMode] = useState(false);
+  // Estado de autenticación: distingue sesión real (Django) de demo (sin login)
+  const [authState, setAuthState] = useState<AuthState>("loading");
 
-  // Cargar usuarios
+  // Cargar lista de usuarios (para el selector del header)
   const { data: usersData } = useFetch<{ users: User[] }>("/api/users", []);
 
-  // Cargar usuario actual.
-  // En modo autenticado, /api/me devuelve el usuario de la sesión.
-  // En modo demo (sin login), devuelve el primer estudiante (parity con Next.js original).
-  const meUrl = demoMode || currentUserId ? `/api/me${currentUserId ? `?userId=${currentUserId}` : ""}` : null;
-  const { data: meData, loading } = useFetch<{ user: User }>(meUrl, [currentUserId, demoMode]);
+  // Cargar usuario actual desde el backend.
+  // - authState="authenticated": /api/me (sin query) — el backend usa la sesión.
+  // - authState="demo": /api/me?demo=1[&userId=...] — primer estudiante o switcher.
+  // - authState="loading"/"anonymous": null (no pide nada).
+  const meUrl =
+    authState === "authenticated"
+      ? "/api/me"
+      : authState === "demo"
+        ? `/api/me?demo=1${currentUserId ? `&userId=${currentUserId}` : ""}`
+        : null;
+  const { data: meData, loading } = useFetch<{ user: User }>(meUrl, [currentUserId, authState]);
+
+  // Al montar: comprobar si hay cookie de sesión (para reanudar sesión real)
+  useEffect(() => {
+    // sessionid es HttpOnly, no accesible. Usamos un flag en localStorage
+    // que se setea tras login exitoso y se borra tras logout.
+    const hasSession = typeof window !== "undefined" && localStorage.getItem("electromed-session") === "1";
+    setAuthState(hasSession ? "authenticated" : "anonymous");
+  }, []);
 
   useEffect(() => {
     if (meData?.user) {
       setUser(meData.user);
-      // Re-aplicar la vista desde la URL después de cargar el usuario,
-      // ya que setUser puede haber cambiado el rol y validado la vista.
-      // Esto asegura que ?view=teacher respete al recargar la página.
       useAppStore.getState().hydrateFromUrl();
     }
   }, [meData, setUser]);
@@ -38,21 +51,24 @@ export default function Home() {
   const handleSwitchUser = (userId: string) => {
     setSwitching(true);
     switchUser(userId);
-    // El useEffect de useFetch se dispara por el cambio de currentUserId
     setTimeout(() => setSwitching(false), 400);
   };
 
   const handleLogin = (user: User) => {
+    // Login real vía backend Django: marcar flag de sesión y recargar usuario.
+    if (typeof window !== "undefined") {
+      localStorage.setItem("electromed-session", "1");
+    }
     setUser(user);
-    setDemoMode(true);
+    setAuthState("authenticated");
   };
 
   const handleDemoAccess = () => {
-    setDemoMode(true);
+    setAuthState("demo");
   };
 
-  // Pantalla de carga
-  if (loading && demoMode) {
+  // Pantalla de carga mientras se resuelve la sesión (autenticada o demo)
+  if ((authState === "loading" || authState === "authenticated" || authState === "demo") && loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-4 text-center">

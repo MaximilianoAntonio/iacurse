@@ -99,32 +99,39 @@ class LogoutView(views.APIView):
 class MeView(views.APIView):
     """Usuario actual.
 
-    Mantiene compatibilidad con el frontend Next.js que llama /api/me?userId=...
-    Si no hay sesión y se pasa ?userId=, devuelve ese usuario (modo demo/switcher).
-    Si no hay nada, devuelve el primer estudiante (parity con Next.js).
+    Prioridad de resolución:
+    1. Sesión autenticada (request.user) — siempre gana (seguridad).
+    2. ?userId=<id>&demo=1 — modo demo explícito (selector/switcher del piloto).
+    3. ?demo=1 sin userId — primer estudiante (parity con Next.js).
+    4. Sin nada — respuesta vacía (para forzar login).
+
+    NOTA DE SEGURIDAD: nunca confiar en ?userId= sin demo=1 explícito.
+    El bypass previo permitía suplantar cualquier usuario por su ID.
     """
 
-    permission_classes = [AllowAny]  # allowAny para preservar UX de demo
+    permission_classes = [AllowAny]  # AllowAny para soportar modo demo sin login
 
     def get(self, request):
-        user = request.user if request.user.is_authenticated else None
+        # 1. Sesión autenticada: siempre gana
+        if request.user.is_authenticated:
+            return Response({"user": _serialize_user(request.user)})
 
-        # Modo demo/switcher: ?userId=<id> explícito
-        explicit_id = request.query_params.get("userId")
-        if explicit_id:
-            try:
-                user = User.objects.get(pk=explicit_id)
-            except User.DoesNotExist:
-                user = None
-
-        # Fallback: primer estudiante (parity con Next.js me/route.ts)
-        if user is None:
+        # 2-3. Modo demo explícito (piloto sin login)
+        demo_mode = request.query_params.get("demo") in ("1", "true", "True")
+        if demo_mode:
+            explicit_id = request.query_params.get("userId")
+            if explicit_id:
+                try:
+                    user = User.objects.get(pk=explicit_id)
+                    return Response({"user": _serialize_user(user)})
+                except User.DoesNotExist:
+                    pass
+            # Fallback: primer estudiante (parity con Next.js)
             user = User.objects.filter(role=User.ROLE_STUDENT).order_by("created_at").first()
+            return Response({"user": _serialize_user(user) if user else None})
 
-        if user is None:
-            return Response({"user": None})
-
-        return Response({"user": _serialize_user(user)})
+        # 4. Sin sesión y sin demo → invitar a login
+        return Response({"user": None})
 
 
 class UsersView(views.APIView):

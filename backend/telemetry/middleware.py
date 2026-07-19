@@ -71,8 +71,11 @@ class AccessLogMiddleware:
         now = timezone.now()
         if user.last_active is None or (now - user.last_active).total_seconds() > 60:
             try:
-                # Update directo para evitar recursión del save()
-                type(user).objects.filter(pk=user.pk).update(last_active=now)
+                # Update directo para evitar recursión del save().
+                # Usamos el modelo real (no type(user)) porque request.user puede
+                # ser un SimpleLazyObject cuyo type() no es el modelo User.
+                from django.contrib.auth import get_user_model
+                get_user_model().objects.filter(pk=user.pk).update(last_active=now)
             except Exception:
                 pass
 
