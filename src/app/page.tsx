@@ -5,27 +5,45 @@ import { useAppStore } from "@/store/app-store";
 import { AppShell } from "@/components/app/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
+import { LoginView } from "@/components/views/login-view";
 import type { User } from "@/lib/types";
+
+type AuthState = "loading" | "authenticated" | "demo" | "anonymous";
 
 export default function Home() {
   const currentUserId = useAppStore((s) => s.currentUserId);
   const setUser = useAppStore((s) => s.setUser);
   const switchUser = useAppStore((s) => s.switchUser);
   const [switching, setSwitching] = useState(false);
+  // Estado de autenticación: distingue sesión real (Django) de demo (sin login)
+  const [authState, setAuthState] = useState<AuthState>("loading");
 
-  // Cargar usuarios
+  // Cargar lista de usuarios (para el selector del header)
   const { data: usersData } = useFetch<{ users: User[] }>("/api/users", []);
 
-  // Cargar usuario actual
-  const meUrl = currentUserId ? `/api/me?userId=${currentUserId}` : "/api/me";
-  const { data: meData, loading } = useFetch<{ user: User }>(meUrl, [currentUserId]);
+  // Cargar usuario actual desde el backend.
+  // - authState="authenticated": /api/me (sin query) — el backend usa la sesión.
+  // - authState="demo": /api/me?demo=1[&userId=...] — primer estudiante o switcher.
+  // - authState="loading"/"anonymous": null (no pide nada).
+  const meUrl =
+    authState === "authenticated"
+      ? "/api/me"
+      : authState === "demo"
+        ? `/api/me?demo=1${currentUserId ? `&userId=${currentUserId}` : ""}`
+        : null;
+  const { data: meData, loading } = useFetch<{ user: User }>(meUrl, [currentUserId, authState]);
+
+  // Al montar: comprobar si hay cookie de sesión (para reanudar sesión real)
+  useEffect(() => {
+    // sessionid es HttpOnly, no accesible. Usamos un flag en localStorage
+    // que se setea tras login exitoso y se borra tras logout.
+    const hasSession = typeof window !== "undefined" && localStorage.getItem("electromed-session") === "1";
+    setAuthState(hasSession ? "authenticated" : "anonymous");
+  }, []);
 
   useEffect(() => {
     if (meData?.user) {
       setUser(meData.user);
-      // Re-aplicar la vista desde la URL después de cargar el usuario,
-      // ya que setUser puede haber cambiado el rol y validado la vista.
-      // Esto asegura que ?view=teacher respete al recargar la página.
       useAppStore.getState().hydrateFromUrl();
     }
   }, [meData, setUser]);
@@ -33,11 +51,24 @@ export default function Home() {
   const handleSwitchUser = (userId: string) => {
     setSwitching(true);
     switchUser(userId);
-    // El useEffect de useFetch se dispara por el cambio de currentUserId
     setTimeout(() => setSwitching(false), 400);
   };
 
-  if (loading || !meData?.user) {
+  const handleLogin = (user: User) => {
+    // Login real vía backend Django: marcar flag de sesión y recargar usuario.
+    if (typeof window !== "undefined") {
+      localStorage.setItem("electromed-session", "1");
+    }
+    setUser(user);
+    setAuthState("authenticated");
+  };
+
+  const handleDemoAccess = () => {
+    setAuthState("demo");
+  };
+
+  // Pantalla de carga mientras se resuelve la sesión (autenticada o demo)
+  if ((authState === "loading" || authState === "authenticated" || authState === "demo") && loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-4 text-center">
@@ -53,12 +84,18 @@ export default function Home() {
     );
   }
 
-  return (
-    <div className={switching ? "opacity-60 transition-opacity" : "transition-opacity"}>
-      <AppShell
-        users={usersData?.users ?? []}
-        onSwitchUser={handleSwitchUser}
-      />
-    </div>
-  );
+  // Si hay usuario (autenticado o demo), mostrar la app
+  if (meData?.user) {
+    return (
+      <div className={switching ? "opacity-60 transition-opacity" : "transition-opacity"}>
+        <AppShell
+          users={usersData?.users ?? []}
+          onSwitchUser={handleSwitchUser}
+        />
+      </div>
+    );
+  }
+
+  // Sin sesión: mostrar pantalla de login
+  return <LoginView onLogin={handleLogin} onDemoAccess={handleDemoAccess} />;
 }

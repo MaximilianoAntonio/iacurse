@@ -2,9 +2,54 @@
 
 // Este hook realiza fetching de datos en efectos, lo que requiere llamar setState
 // dentro del effect. Es el patrón estándar de fetching en React.
-/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/set-state in effect */
 
 import { useCallback, useEffect, useState } from "react";
+
+// ---------------------------------------------------------------------------
+// Backend Django (lineamiento: Backend Python).
+// Las URLs relativas /api/... se redirigen al backend Django configurado por
+// NEXT_PUBLIC_API_URL (default http://localhost:8000). Si la URL ya es absoluta
+// (http/https), se usa tal cual.
+// ---------------------------------------------------------------------------
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+function resolveUrl(url: string): string {
+  if (!url) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_BASE}${url}`;
+}
+
+// Token CSRF: el backend Django lo requiere para POST/PATCH/DELETE con
+// SessionAuthentication. Se obtiene de la cookie csrftoken (SameSite=Lax).
+function getCsrfToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+// Asegura que la cookie CSRF exista antes del primer POST (fetch GET a /api/auth/csrf).
+// Re-valida si la cookie caduca (no se cachea indefinidamente).
+// La promesa compartida evita races entre POSTs simultáneos.
+let csrfPromise: Promise<void> | null = null;
+async function ensureCsrf(): Promise<void> {
+  // Si ya hay cookie válida, no hacer nada
+  if (getCsrfToken()) return;
+  // Si hay un ensure en vuelo, esperar a que termine (evita doble fetch)
+  if (csrfPromise) {
+    await csrfPromise;
+    return;
+  }
+  csrfPromise = fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" })
+    .then(() => undefined)
+    .catch(() => {
+      // silencioso: el backend podría no exigir CSRF en algunos modos
+    })
+    .finally(() => {
+      csrfPromise = null;
+    });
+  await csrfPromise;
+}
 
 interface FetchState<T> {
   data: T | null;
@@ -30,7 +75,7 @@ export function useFetch<T>(url: string | null, deps: unknown[] = []): FetchStat
     let active = true;
     setLoading(true);
     setError(null);
-    fetch(url)
+    fetch(resolveUrl(url), { credentials: "include" })
       .then(async (r) => {
         if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
@@ -57,9 +102,14 @@ export function useFetch<T>(url: string | null, deps: unknown[] = []): FetchStat
 
 // Hook para peticiones POST
 export async function postJSON<T>(url: string, body: unknown): Promise<T> {
-  const r = await fetch(url, {
+  await ensureCsrf();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const csrf = getCsrfToken();
+  if (csrf) headers["X-CSRFToken"] = csrf;
+  const r = await fetch(resolveUrl(url), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers,
     body: JSON.stringify(body),
   });
   if (!r.ok) {
@@ -70,11 +120,29 @@ export async function postJSON<T>(url: string, body: unknown): Promise<T> {
 }
 
 export async function patchJSON<T>(url: string, body: unknown): Promise<T> {
-  const r = await fetch(url, {
+  await ensureCsrf();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const csrf = getCsrfToken();
+  if (csrf) headers["X-CSRFToken"] = csrf;
+  const r = await fetch(resolveUrl(url), {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers,
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`Error ${r.status}`);
   return r.json() as Promise<T>;
+}
+
+export async function deleteURL(url: string): Promise<void> {
+  await ensureCsrf();
+  const headers: Record<string, string> = {};
+  const csrf = getCsrfToken();
+  if (csrf) headers["X-CSRFToken"] = csrf;
+  const r = await fetch(resolveUrl(url), {
+    method: "DELETE",
+    credentials: "include",
+    headers,
+  });
+  if (!r.ok) throw new Error(`Error ${r.status}`);
 }

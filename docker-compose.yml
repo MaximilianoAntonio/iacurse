@@ -1,0 +1,84 @@
+# Docker Compose — Plataforma Electromedicina II
+# Orquesta: PostgreSQL + Django (backend) + Next.js (frontend)
+# Lineamiento: "infraestructura computacional básica suficiente para el despliegue del MVP"
+#
+# Uso:
+#   docker compose up                  # producción (build completo)
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up  # dev con hot-reload
+services:
+  # ===========================================================================
+  # Base de datos PostgreSQL (lineamiento: PostgreSQL/MySQL)
+  # ===========================================================================
+  db:
+    image: postgres:16-alpine
+    container_name: electromed-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-electromed}
+      POSTGRES_USER: ${POSTGRES_USER:-electromed}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-electromed}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-electromed} -d ${POSTGRES_DB:-electromed}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Backend Django (lineamiento: Backend Python)
+  # ===========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: electromed-backend
+    command: prod
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.${DJANGO_MODE:-prod}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-0}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-insecure-key-change-in-prod}
+      DATABASE_URL: postgres://${POSTGRES_USER:-electromed}:${POSTGRES_PASSWORD:-electromed}@db:5432/${POSTGRES_DB:-electromed}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-electromed}
+      POSTGRES_USER: ${POSTGRES_USER:-electromed}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-electromed}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      TIME_ZONE: ${TIME_ZONE:-America/Santiago}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Frontend Next.js (React)
+  # ===========================================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: electromed-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NODE_ENV: production
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

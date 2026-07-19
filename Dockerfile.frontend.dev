@@ -1,0 +1,14 @@
+# Frontend Next.js — Desarrollo con hot-reload
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm install
+
+# El código se monta como volumen en docker-compose.dev.yml (no se copia aquí)
+
+EXPOSE 3000
+
+# El comando lo define docker-compose.dev.yml (npm run dev)
+CMD ["npm", "run", "dev"]

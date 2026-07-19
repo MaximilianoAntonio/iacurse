@@ -1,0 +1,68 @@
+[
+  {
+    "model": "learning.badge",
+    "pk": "badge-primer-paso",
+    "fields": {
+      "slug": "primer-paso",
+      "name": "Primer Paso",
+      "description": "Completa tu primera actividad guiada en la plataforma.",
+      "icon": "Footprints",
+      "tier": "bronze"
+    }
+  },
+  {
+    "model": "learning.badge",
+    "pk": "badge-explorador",
+    "fields": {
+      "slug": "explorador",
+      "name": "Explorador",
+      "description": "Visita las cinco unidades temáticas del curso de Electromedicina II.",
+      "icon": "Compass",
+      "tier": "bronze"
+    }
+  },
+  {
+    "model": "learning.badge",
+    "pk": "badge-racha-7",
+    "fields": {
+      "slug": "racha-7",
+      "name": "Constancia",
+      "description": "Mantén una racha de 7 días consecutivos de estudio.",
+      "icon": "Flame",
+      "tier": "silver"
+    }
+  },
+  {
+    "model": "learning.badge",
+    "pk": "badge-maestro-ecg",
+    "fields": {
+      "slug": "maestro-ecg",
+      "name": "Maestro del ECG",
+      "description": "Domina la unidad de Electrocardiografía con un 80% o más de dominio.",
+      "icon": "Award",
+      "tier": "gold"
+    }
+  },
+  {
+    "model": "learning.badge",
+    "pk": "badge-centinela",
+    "fields": {
+      "slug": "centinela",
+      "name": "Centinela",
+      "description": "Completa el módulo de Seguridad Eléctrica Clínica.",
+      "icon": "ShieldCheck",
+      "tier": "silver"
+    }
+  },
+  {
+    "model": "learning.badge",
+    "pk": "badge-tutor-activo",
+    "fields": {
+      "slug": "tutor-activo",
+      "name": "Curioso",
+      "description": "Realiza al menos 10 consultas al tutor IA.",
+      "icon": "MessageCircleQuestion",
+      "tier": "silver"
+    }
+  }
+]

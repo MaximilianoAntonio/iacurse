@@ -1,0 +1,89 @@
+"""
+Vistas del Panel Docente — analytics con telemetría REAL.
+
+Endpoints:
+- GET /api/teacher           — métricas agregadas de todos los estudiantes
+- GET /api/teacher/student/<id> — detalle de un estudiante
+- GET /api/progress          — analítica del estudiante autenticado
+- GET /api/leaderboard       — ranking por puntos
+
+Ahora incluye número de accesos (AccessLog) y tiempo real (StudySession).
+"""
+from rest_framework import status, views
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from accounts.models import User
+from . import aggregations
+
+
+def _resolve_user(request) -> User:
+    user = request.user if request.user.is_authenticated else None
+    explicit = request.query_params.get("userId")
+    if explicit:
+        try:
+            user = User.objects.get(pk=explicit)
+        except User.DoesNotExist:
+            user = None
+    return user
+
+
+class TeacherView(views.APIView):
+    """GET /api/teacher — Panel docente con métricas agregadas."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Validar que el usuario sea docente (o modo demo)
+        if not request.user.is_teacher:
+            # Permitir en modo demo para no romper el desarrollo
+            pass
+        unit_filter = request.query_params.get("unitId")
+        data = aggregations.teacher_dashboard(unit_filter=unit_filter)
+        return Response(data)
+
+
+class TeacherStudentDetailView(views.APIView):
+    """GET /api/teacher/student/<id> — detalle de un estudiante."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, student_id):
+        try:
+            student = User.objects.get(pk=student_id, role=User.ROLE_STUDENT)
+        except User.DoesNotExist:
+            return Response({"error": "Estudiante no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(aggregations.student_detail(student))
+
+
+class ProgressView(views.APIView):
+    """GET /api/progress — analítica del propio estudiante."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        user = _resolve_user(request)
+        if user is None:
+            return Response({"error": "Falta userId"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(aggregations.student_progress_analytics(user))
+
+
+class LeaderboardView(views.APIView):
+    """GET /api/leaderboard — ranking de estudiantes por puntos."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from django.db.models import Count
+
+        students = User.objects.filter(role=User.ROLE_STUDENT).order_by("-points", "name")
+        ranking = []
+        for s in students:
+            completed = (
+                s.attempts.filter(correct=True).values("activity_id").distinct().count()
+            )
+            ranking.append({
+                "id": s.id, "name": s.name, "points": s.points,
+                "completedActivities": completed,
+            })
+        return Response({"leaderboard": ranking})

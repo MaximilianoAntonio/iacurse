@@ -1,0 +1,28 @@
+# Frontend Next.js — Plataforma Electromedicina II
+# Lineamiento: Frontend JavaScript y React
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copiar manifests de dependencias primero (mejor cache de Docker)
+COPY package.json package-lock.json* ./
+
+# Instalar dependencias
+RUN npm install --omit=optional
+
+# Copiar el resto del código
+COPY . .
+
+# Variables de entorno en build (NEXT_PUBLIC_* se incrustan en el bundle)
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build de producción
+RUN npm run build
+
+EXPOSE 3000
+
+# Producción: next start
+CMD ["npm", "start"]

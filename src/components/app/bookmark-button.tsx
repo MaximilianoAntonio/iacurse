@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAppStore } from "@/store/app-store";
-import { useFetch, postJSON } from "@/hooks/use-fetch";
+import { useFetch, postJSON, deleteURL } from "@/hooks/use-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ export function BookmarkButton({ activityId, className }: BookmarkButtonProps) {
     if (!userId) return;
     if (isBookmarked) {
       try {
-        await fetch(`/api/bookmarks?userId=${userId}&activityId=${activityId}`, { method: "DELETE" });
+        await deleteURL(`/api/bookmarks?userId=${userId}&activityId=${activityId}`);
         refetch();
         toast({ title: "Bookmark eliminado", description: "La actividad ya no está guardada." });
       } catch {
@@ -53,7 +53,7 @@ export function BookmarkButton({ activityId, className }: BookmarkButtonProps) {
       className={cn(
         "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
         isBookmarked
-          ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+          ? "border-gold/30 bg-gold-soft text-gold-foreground hover:bg-gold-soft "
           : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground",
         className
       )}

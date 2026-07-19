@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useFetch, postJSON, patchJSON } from "@/hooks/use-fetch";
+import { useFetch, postJSON, patchJSON, deleteURL } from "@/hooks/use-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -125,7 +125,7 @@ export function RubricsTab({ authorId }: { authorId: string }) {
   const handleDelete = async (rubricId: string) => {
     if (!confirm("¿Eliminar esta rúbrica?")) return;
     try {
-      await fetch(`/api/admin/rubrics?rubricId=${rubricId}`, { method: "DELETE" });
+      await deleteURL(`/api/admin/rubrics?rubricId=${rubricId}`);
       refetch();
       toast({ title: "Rúbrica eliminada" });
     } catch (e) {
@@ -191,13 +191,13 @@ export function RubricsTab({ authorId }: { authorId: string }) {
             {rubrics.length} rúbrica{rubrics.length !== 1 ? "s" : ""} · Para evaluar respuestas abiertas con criterios pedagógicos
           </p>
         </div>
-        <Button size="sm" onClick={openCreate} className="bg-[#003366] hover:bg-[#004488]">
+        <Button size="sm" onClick={openCreate} className="bg-primary hover:bg-primary">
           <Plus className="mr-1.5 h-4 w-4" /> Nueva Rúbrica
         </Button>
       </div>
 
-      <div className="rounded-md border border-[#003366]/20 bg-[#003366]/[0.02] p-3 text-xs text-muted-foreground">
-        <p className="flex items-center gap-1.5 font-semibold text-[#003366]">
+      <div className="rounded-md border border-primary/20 bg-primary/[0.02] p-3 text-xs text-muted-foreground">
+        <p className="flex items-center gap-1.5 font-semibold text-primary">
           <Award className="h-3.5 w-3.5" /> ¿Para qué sirven las rúbricas?
         </p>
         <p className="mt-1">
@@ -213,8 +213,8 @@ export function RubricsTab({ authorId }: { authorId: string }) {
       ) : rubrics.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#003366]/5">
-              <Award className="h-5 w-5 text-[#003366]" />
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/5">
+              <Award className="h-5 w-5 text-primary" />
             </div>
             <p className="text-sm font-medium">Sin rúbricas</p>
             <p className="text-xs text-muted-foreground">Crea una rúbrica para evaluar respuestas abiertas con criterios</p>
@@ -232,7 +232,7 @@ export function RubricsTab({ authorId }: { authorId: string }) {
             return (
               <Card key={r.id} className="transition-shadow hover:shadow-md">
                 <CardContent className="flex items-start gap-3 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-gold to-gold/70 text-white">
                     <Award className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -267,7 +267,7 @@ export function RubricsTab({ authorId }: { authorId: string }) {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-amber-500" />
+              <Award className="h-5 w-5 text-gold" />
               {editR ? "Editar rúbrica" : "Nueva rúbrica de evaluación"}
             </DialogTitle>
             <DialogDescription>
@@ -400,7 +400,7 @@ export function RubricsTab({ authorId }: { authorId: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => { setCreateOpen(false); setEditR(null); }}>Cancelar</Button>
-            <Button size="sm" onClick={handleSave} className="bg-[#003366] hover:bg-[#004488]">
+            <Button size="sm" onClick={handleSave} className="bg-primary hover:bg-primary">
               <Save className="mr-1.5 h-3.5 w-3.5" /> {editR ? "Guardar" : "Crear"}
             </Button>
           </DialogFooter>
