@@ -7,9 +7,19 @@
 set -e
 
 echo "⏳ Esperando PostgreSQL en ${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}..."
-until python -c "import socket,os,sys; s=socket.socket(); s.settimeout(2);
-h=os.environ.get('POSTGRES_HOST','db'); p=int(os.environ.get('POSTGRES_PORT','5432'));
-sys.exit(0 if (lambda: (s.connect((h,p)), s.close()))() is None else 1)" 2>/dev/null; do
+until python -c "
+import socket, os, sys
+h = os.environ.get('POSTGRES_HOST', 'db')
+p = int(os.environ.get('POSTGRES_PORT', '5432'))
+try:
+    s = socket.socket()
+    s.settimeout(2)
+    s.connect((h, p))
+    s.close()
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+" 2>/dev/null; do
     echo "  Postgres no listo, reintentando..."
     sleep 1
 done
