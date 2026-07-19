@@ -40,14 +40,15 @@ trap cleanup EXIT INT TERM
 # Modo Docker Compose (recomendado — usa PostgreSQL real)
 # ---------------------------------------------------------------------------
 if [ "$USE_DOCKER" -eq 1 ]; then
-    echo "🐳 Iniciando con Docker Compose (PostgreSQL + Django + Next.js)..."
+    echo "🐳 Iniciando con Docker Compose en modo DESARROLLO (con hot-reload)..."
     cd "$PROJECT_DIR"
     if [ ! -f .env ]; then
         echo "⚠️  No existe .env. Copiando de .env.example..."
         cp .env.example .env
         echo "   Edita .env con tus API keys antes de continuar."
     fi
-    docker compose up --build
+    # Modo dev: hot-reload en backend y frontend
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
     exit 0
 fi
 

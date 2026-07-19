@@ -1,0 +1,26 @@
+# Override para desarrollo con hot-reload.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Cambios respecto a producción:
+# - Backend: monta código y arranca con runserver (auto-reload)
+# - Frontend: monta código y arranca con next dev (fast refresh)
+services:
+  backend:
+    command: dev
+    environment:
+      DJANGO_MODE: dev
+      DJANGO_DEBUG: "1"
+    volumes:
+      - ./backend:/app
+    # Override del entrypoint para usar runserver con auto-reload
+
+  frontend:
+    build:
+      dockerfile: Dockerfile.frontend.dev
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
