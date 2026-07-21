@@ -1,4 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# See https://help.github.com/articles/ignoring-files/ for about ignoring files.
 
 # dependencies
 node_modules
@@ -30,8 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (pueden contener secretos; mantener fuera del repo)
 .env*
+!.env.example
+!.env.local.example
 
 # vercel
 .vercel
@@ -52,3 +54,21 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# ---------------------------------------------------------------------------
+# Capturas de QA/auditoria sueltas en la raiz (artifacts, no codigo fuente)
+# ---------------------------------------------------------------------------
+/*.png
+/*.jpeg
+/*.jpg
+/*.gif
+/*.webp
+
+# Tooling artifacts
+/tool-results/
+/.zscripts/
+/.zcode/
+
+# Directorios vacios de scaffolding que no aportan al repo
+/mini-services/
+/upload/
