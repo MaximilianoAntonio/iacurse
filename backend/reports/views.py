@@ -2,12 +2,12 @@
 Vistas de reportes de error de IA (lineamiento: 'Reportar error').
 
 Reproduce src/app/api/report/route.ts (POST crear, GET listar, PATCH estado).
+Todas requieren sesión real (sin modo demo).
 """
 from rest_framework import status, views
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.models import User
 from learning.models import ErrorReport
 
 VALID_SOURCES = {"chat", "activity", "content"}
@@ -15,26 +15,12 @@ VALID_REASONS = {"incorrect", "biased", "offtopic", "harmful", "other"}
 VALID_STATUSES = {"open", "reviewed", "resolved"}
 
 
-def _resolve_user(request) -> User:
-    user = request.user if request.user.is_authenticated else None
-    explicit = request.query_params.get("userId") or (request.data or {}).get("userId")
-    if explicit:
-        try:
-            user = User.objects.get(pk=explicit)
-        except User.DoesNotExist:
-            user = None
-    return user
-
-
 class ReportView(views.APIView):
     """POST /api/report — crea un reporte de error de IA."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = _resolve_user(request)
-        if user is None:
-            return Response({"error": "Usuario no encontrado"}, status=status.HTTP_400_BAD_REQUEST)
         source = request.data.get("source")
         reason = request.data.get("reason")
         if source not in VALID_SOURCES:
@@ -44,7 +30,7 @@ class ReportView(views.APIView):
         comment = (request.data.get("comment") or "")[:1000]
         source_id = request.data.get("sourceId") or ""
         report = ErrorReport.objects.create(
-            user=user, source=source, source_id=source_id,
+            user=request.user, source=source, source_id=source_id,
             reason=reason, comment=comment,
         )
         return Response({"ok": True, "reportId": report.id}, status=status.HTTP_201_CREATED)

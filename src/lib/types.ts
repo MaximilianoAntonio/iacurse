@@ -46,6 +46,14 @@ export interface Unit {
   color: string;
   order: number;
   lessonCount?: number;
+  activityCount?: number;
+  lessons?: {
+    id: string;
+    slug: string;
+    title: string;
+    durationMin?: number;
+    order?: number;
+  }[];
   progress?: {
     completed: number;
     total: number;
@@ -124,7 +132,7 @@ export interface Attempt {
 
 export interface ChatMessage {
   id: string;
-  userId: string;
+  userId?: string;
   role: "user" | "assistant";
   content: string;
   context: string | null;

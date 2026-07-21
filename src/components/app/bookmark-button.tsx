@@ -1,12 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useAppStore } from "@/store/app-store";
 import { useFetch, postJSON, deleteURL } from "@/hooks/use-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { User } from "@/lib/types";
 
 interface BookmarkButtonProps {
   activityId: string;
@@ -14,23 +12,20 @@ interface BookmarkButtonProps {
 }
 
 export function BookmarkButton({ activityId, className }: BookmarkButtonProps) {
-  const currentUser = useAppStore((s) => s.currentUser) as User | null;
-  const userId = currentUser?.id ?? "";
   const { toast } = useToast();
 
   // Fetch all bookmarks to check if this activity is bookmarked
   const { data, refetch } = useFetch<{ bookmarks: { activityId: string }[] }>(
-    userId ? `/api/bookmarks?userId=${userId}` : null,
-    [userId]
+    `/api/bookmarks`,
+    []
   );
 
   const isBookmarked = (data?.bookmarks ?? []).some((b) => b.activityId === activityId);
 
   const handleToggle = async () => {
-    if (!userId) return;
     if (isBookmarked) {
       try {
-        await deleteURL(`/api/bookmarks?userId=${userId}&activityId=${activityId}`);
+        await deleteURL(`/api/bookmarks?activityId=${activityId}`);
         refetch();
         toast({ title: "Bookmark eliminado", description: "La actividad ya no está guardada." });
       } catch {
@@ -38,7 +33,7 @@ export function BookmarkButton({ activityId, className }: BookmarkButtonProps) {
       }
     } else {
       try {
-        await postJSON("/api/bookmarks", { userId, activityId });
+        await postJSON("/api/bookmarks", { activityId });
         refetch();
         toast({ title: "Actividad guardada", description: "Puedes encontrarla en tus bookmarks." });
       } catch {

@@ -16,17 +16,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Flame, Sparkles, Sun, Moon, Users, UserCog, MessageSquare, X, Search, PanelLeftOpen } from "lucide-react";
+import { Menu, Flame, Sparkles, Sun, Moon, LogOut, UserCog, MessageSquare, X, Search, PanelLeftOpen } from "lucide-react";
 import { useTheme } from "next-themes";
 import { initials } from "@/lib/course-utils";
-import type { User } from "@/lib/types";
+import { postJSON } from "@/hooks/use-fetch";
 
 interface HeaderProps {
-  users: User[];
-  onSwitchUser: (userId: string) => void;
+  onLogout: () => void;
 }
 
-export function Header({ users, onSwitchUser }: HeaderProps) {
+export function Header({ onLogout }: HeaderProps) {
   const currentUser = useAppStore((s) => s.currentUser);
   const role = useAppStore((s) => s.role);
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -141,11 +140,11 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
           </Button>
         )}
 
-        {/* Selector de usuario (piloto) */}
+        {/* Menú de usuario */}
         {currentUser && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-3 text-left transition hover:bg-accent" aria-label="Cambiar de cuenta">
+              <button className="flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-3 text-left transition hover:bg-accent" aria-label="Menú de usuario">
                 <Avatar className="h-7 w-7">
                   <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-xs font-bold text-white">
                     {initials(currentUser.name)}
@@ -160,37 +159,28 @@ export function Header({ users, onSwitchUser }: HeaderProps) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel className="flex items-center gap-2">
-                <Users className="h-3.5 w-3.5" />
-                Cambiar de cuenta (piloto)
+              <DropdownMenuLabel className="flex flex-col gap-0.5">
+                <span className="text-sm font-semibold">{currentUser.name}</span>
+                <span className="text-xs font-normal text-muted-foreground">{currentUser.email}</span>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {users.map((u) => (
-                <DropdownMenuItem
-                  key={u.id}
-                  onClick={() => onSwitchUser(u.id)}
-                  className="flex items-center gap-2 py-2"
-                >
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-xs font-bold text-white">
-                      {initials(u.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 leading-tight">
-                    <div className="text-xs font-medium">{u.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {u.role === "teacher" ? "Docente" : `${u.points} pts · ${u.streak}d racha`}
-                    </div>
-                  </div>
-                  {u.id === currentUser.id && (
-                    <span className="h-2 w-2 rounded-full bg-[#003366]" />
-                  )}
-                </DropdownMenuItem>
-              ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate("about")} className="gap-2 text-xs">
                 <UserCog className="h-3.5 w-3.5" />
                 Acerca del piloto
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    await postJSON("/api/auth/logout", {});
+                  } catch {
+                    // silencioso: cerramos sesión en el cliente igual
+                  }
+                  onLogout();
+                }}
+                className="gap-2 text-xs text-rose-600 focus:text-rose-700"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Cerrar sesión
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

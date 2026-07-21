@@ -2,25 +2,14 @@
 Vistas del tutor IA — chat socrático.
 
 Reproduce src/app/api/tutor/route.ts (POST chat, GET historial, PATCH rating).
+Todas requieren sesión real (sin modo demo).
 """
 from rest_framework import status, views
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.models import User
 from .models import ChatMessage
 from .services import tutor_chat
-
-
-def _resolve_user(request) -> User:
-    user = request.user if request.user.is_authenticated else None
-    explicit = request.query_params.get("userId")
-    if explicit:
-        try:
-            user = User.objects.get(pk=explicit)
-        except User.DoesNotExist:
-            user = None
-    return user
 
 
 class TutorView(views.APIView):
@@ -29,12 +18,10 @@ class TutorView(views.APIView):
     PATCH /api/tutor — calificar un mensaje.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = _resolve_user(request)
-        if user is None:
-            return Response({"error": "Usuario no encontrado"}, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user
         message = request.data.get("message")
         context = request.data.get("context")
         if not message:
@@ -51,9 +38,7 @@ class TutorView(views.APIView):
         return Response(response)
 
     def get(self, request):
-        user = _resolve_user(request)
-        if user is None:
-            return Response({"messages": []})
+        user = request.user
         messages = ChatMessage.objects.filter(user=user).order_by("created_at")[:100]
         return Response({
             "messages": [

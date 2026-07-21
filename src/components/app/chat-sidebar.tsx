@@ -71,7 +71,6 @@ export function ChatSidebar() {
   const chatOpen = useAppStore((s) => s.chatOpen);
   const setChatOpen = useAppStore((s) => s.setChatOpen);
   const tutorContextUnit = useAppStore((s) => s.tutorContextUnit);
-  const userId = currentUser?.id ?? "";
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -81,14 +80,9 @@ export function ChatSidebar() {
   const { toast } = useToast();
 
   const { data, loading, refetch } = useFetch<{ messages: ChatMessage[] }>(
-    userId ? `/api/tutor?userId=${userId}` : null,
-    [userId]
+    `/api/tutor`,
+    []
   );
-
-  // Reset mensajes locales cuando cambia el usuario
-  useEffect(() => {
-    setLocalMessages([]);
-  }, [userId]);
 
   // Combinar mensajes del servidor + locales optimistas
   const allMessages = useMemo(() => {
@@ -109,13 +103,12 @@ export function ChatSidebar() {
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text || sending || !userId) return;
+    if (!text || sending) return;
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
     const userMsg: ChatMessage = {
       id: `local-${Date.now()}`,
-      userId,
       role: "user",
       content: text,
       context: tutorContextUnit,
@@ -127,7 +120,6 @@ export function ChatSidebar() {
 
     try {
       const res = await postJSON<{ message: ChatMessage; newBadges?: { badgeName: string; badgeTier: string }[] }>("/api/tutor", {
-        userId,
         message: text,
         context: tutorContextUnit ?? undefined,
       });
@@ -159,7 +151,7 @@ export function ChatSidebar() {
     } finally {
       setSending(false);
     }
-  }, [input, sending, userId, tutorContextUnit, refetch, toast]);
+  }, [input, sending, tutorContextUnit, refetch, toast]);
 
   const handleRate = useCallback(
     async (messageId: string, rating: number) => {
@@ -178,10 +170,8 @@ export function ChatSidebar() {
 
   const handleReport = useCallback(
     async (messageId: string, reason: string, comment: string) => {
-      if (!userId) return;
       try {
         await postJSON("/api/report", {
-          userId,
           source: "chat",
           sourceId: messageId,
           reason,
@@ -200,7 +190,7 @@ export function ChatSidebar() {
         });
       }
     },
-    [userId, toast]
+    [toast]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

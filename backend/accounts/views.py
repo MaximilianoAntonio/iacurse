@@ -97,47 +97,22 @@ class LogoutView(views.APIView):
 
 
 class MeView(views.APIView):
-    """Usuario actual.
+    """Usuario actual (sesión requerida).
 
-    Prioridad de resolución:
-    1. Sesión autenticada (request.user) — siempre gana (seguridad).
-    2. ?userId=<id>&demo=1 — modo demo explícito (selector/switcher del piloto).
-    3. ?demo=1 sin userId — primer estudiante (parity con Next.js).
-    4. Sin nada — respuesta vacía (para forzar login).
-
-    NOTA DE SEGURIDAD: nunca confiar en ?userId= sin demo=1 explícito.
-    El bypass previo permitía suplantar cualquier usuario por su ID.
+    Devuelve el usuario autenticado por la cookie de sesión de Django.
+    No hay modo demo: el acceso a la plataforma requiere login real.
     """
 
-    permission_classes = [AllowAny]  # AllowAny para soportar modo demo sin login
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # 1. Sesión autenticada: siempre gana
-        if request.user.is_authenticated:
-            return Response({"user": _serialize_user(request.user)})
-
-        # 2-3. Modo demo explícito (piloto sin login)
-        demo_mode = request.query_params.get("demo") in ("1", "true", "True")
-        if demo_mode:
-            explicit_id = request.query_params.get("userId")
-            if explicit_id:
-                try:
-                    user = User.objects.get(pk=explicit_id)
-                    return Response({"user": _serialize_user(user)})
-                except User.DoesNotExist:
-                    pass
-            # Fallback: primer estudiante (parity con Next.js)
-            user = User.objects.filter(role=User.ROLE_STUDENT).order_by("created_at").first()
-            return Response({"user": _serialize_user(user) if user else None})
-
-        # 4. Sin sesión y sin demo → invitar a login
-        return Response({"user": None})
+        return Response({"user": _serialize_user(request.user)})
 
 
 class UsersView(views.APIView):
-    """Lista todos los usuarios (para el selector/switcher de usuario del header)."""
+    """Lista todos los usuarios (para el panel docente). Requiere sesión."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         users = User.objects.all().order_by("role", "name")

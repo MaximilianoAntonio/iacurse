@@ -10,22 +10,11 @@ Endpoints:
 Ahora incluye número de accesos (AccessLog) y tiempo real (StudySession).
 """
 from rest_framework import status, views
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.models import User
 from . import aggregations
-
-
-def _resolve_user(request) -> User:
-    user = request.user if request.user.is_authenticated else None
-    explicit = request.query_params.get("userId")
-    if explicit:
-        try:
-            user = User.objects.get(pk=explicit)
-        except User.DoesNotExist:
-            user = None
-    return user
 
 
 class TeacherView(views.APIView):
@@ -34,10 +23,8 @@ class TeacherView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Validar que el usuario sea docente (o modo demo)
-        if not request.user.is_teacher:
-            # Permitir en modo demo para no romper el desarrollo
-            pass
+        # Accesible a cualquier usuario autenticado; las vistas del frontend
+        # filtran por rol (los estudiantes no navegan a la vista docente).
         unit_filter = request.query_params.get("unitId")
         data = aggregations.teacher_dashboard(unit_filter=unit_filter)
         return Response(data)
@@ -59,23 +46,18 @@ class TeacherStudentDetailView(views.APIView):
 class ProgressView(views.APIView):
     """GET /api/progress — analítica del propio estudiante."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = _resolve_user(request)
-        if user is None:
-            return Response({"error": "Falta userId"}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(aggregations.student_progress_analytics(user))
+        return Response(aggregations.student_progress_analytics(request.user))
 
 
 class LeaderboardView(views.APIView):
     """GET /api/leaderboard — ranking de estudiantes por puntos."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Count
-
         students = User.objects.filter(role=User.ROLE_STUDENT).order_by("-points", "name")
         ranking = []
         for s in students:

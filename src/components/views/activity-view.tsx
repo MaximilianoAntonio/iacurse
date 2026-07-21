@@ -164,7 +164,6 @@ function isAnswerClose(expected: string, given: string): boolean {
 // ---------- main view ----------
 
 export function ActivityView() {
-  const currentUser = useAppStore((s) => s.currentUser);
   const navigate = useAppStore((s) => s.navigate);
   const openUnit = useAppStore((s) => s.openUnit);
   const openLesson = useAppStore((s) => s.openLesson);
@@ -172,16 +171,10 @@ export function ActivityView() {
   const currentLessonId = useAppStore((s) => s.currentLessonId);
   const currentActivityId = useAppStore((s) => s.currentActivityId);
 
-  const userId = currentUser?.id ?? "";
-
-  const url =
-    currentLessonId && userId
-      ? `/api/lessons/${currentLessonId}?userId=${userId}`
-      : null;
+  const url = currentLessonId ? `/api/lessons/${currentLessonId}` : null;
 
   const { data, loading, error } = useFetch<LessonResponse>(url, [
     currentLessonId,
-    userId,
   ]);
 
   // Actualizar el título del documento con el nombre de la actividad
@@ -272,7 +265,6 @@ export function ActivityView() {
       unitColor={unitColor}
       typeMeta={typeMeta}
       diffMeta={diffMeta}
-      userId={userId}
       prevActivity={prevActivity}
       nextActivity={nextActivity}
       isLast={isLast}
@@ -295,7 +287,6 @@ interface ActivityInnerProps {
   unitColor: ReturnType<typeof getUnitColor>;
   typeMeta: { label: string; icon: string; color: string };
   diffMeta: { label: string; color: string; bg: string };
-  userId: string;
   prevActivity: Activity | null;
   nextActivity: Activity | null;
   isLast: boolean;
@@ -315,7 +306,6 @@ function ActivityInner(props: ActivityInnerProps) {
     unitColor,
     typeMeta,
     diffMeta,
-    userId,
     prevActivity,
     nextActivity,
     isLast,
@@ -375,7 +365,7 @@ function ActivityInner(props: ActivityInnerProps) {
       try {
         const res = await postJSON<AttemptResult>(
           `/api/activities/${activity.id}/attempt`,
-          { userId, answer, timeSpent, hintsUsed }
+          { answer, timeSpent, hintsUsed }
         );
         setResult(res.attempt);
         setSubmitted(true);
@@ -419,7 +409,7 @@ function ActivityInner(props: ActivityInnerProps) {
         setSubmitting(false);
       }
     },
-    [activity.id, userId, submitting, toast]
+    [activity.id, submitting, toast]
   );
 
   const handleRetry = useCallback(() => {
@@ -443,7 +433,6 @@ function ActivityInner(props: ActivityInnerProps) {
   const submitReport = useCallback(async () => {
     try {
       await postJSON("/api/report", {
-        userId,
         source: "activity",
         sourceId: activity.id,
         reason: reportReason,
@@ -460,7 +449,7 @@ function ActivityInner(props: ActivityInnerProps) {
       const msg = e instanceof Error ? e.message : "Error al enviar el reporte";
       toast({ title: "Error", description: msg, variant: "destructive" });
     }
-  }, [userId, activity.id, reportReason, reportComment, toast]);
+  }, [activity.id, reportReason, reportComment, toast]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 lg:p-8">

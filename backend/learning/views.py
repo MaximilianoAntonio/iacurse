@@ -17,7 +17,7 @@ from django.db import transaction
 from django.db.models import Count, F, Max
 from django.utils import timezone
 from rest_framework import status, views
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.models import User
@@ -26,31 +26,6 @@ from .badges import check_and_award_badges
 from .grading import grade
 from .models import Attempt, Badge, Bookmark, Progress, UserBadge
 from .streak import update_streak
-
-
-def _resolve_user(request) -> User:
-    """Usuario autenticado, o explícito vía ?userId= (compat demo)."""
-    user = request.user if request.user.is_authenticated else None
-    explicit = request.query_params.get("userId")
-    if explicit:
-        try:
-            user = User.objects.get(pk=explicit)
-        except User.DoesNotExist:
-            user = None
-    return user
-
-
-def _get_current_user(request):
-    """Usuario autenticado o explícito vía ?userId= (compat demo)."""
-    user = request.user if request.user.is_authenticated else None
-    explicit = request.query_params.get("userId")
-    if explicit:
-        from accounts.models import User
-        try:
-            user = User.objects.get(pk=explicit)
-        except User.DoesNotExist:
-            user = None
-    return user
 
 
 class AttemptView(views.APIView):
@@ -235,15 +210,14 @@ class AttemptView(views.APIView):
 class BadgesListView(views.APIView):
     """GET /api/badges — lista insignias con flag earned."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = _resolve_user(request)
+        user = request.user
         badges = Badge.objects.order_by("tier", "name")
         earned_map = {}
-        if user:
-            for ub in UserBadge.objects.filter(user=user).select_related("badge"):
-                earned_map[ub.badge_id] = ub.awarded_at.isoformat()
+        for ub in UserBadge.objects.filter(user=user).select_related("badge"):
+            earned_map[ub.badge_id] = ub.awarded_at.isoformat()
         return Response({
             "badges": [
                 {

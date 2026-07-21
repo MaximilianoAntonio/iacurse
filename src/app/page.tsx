@@ -8,36 +8,23 @@ import { useFetch } from "@/hooks/use-fetch";
 import { LoginView } from "@/components/views/login-view";
 import type { User } from "@/lib/types";
 
-type AuthState = "loading" | "authenticated" | "demo" | "anonymous";
+type AuthState = "loading" | "authenticated" | "anonymous";
 
 export default function Home() {
-  const currentUserId = useAppStore((s) => s.currentUserId);
   const setUser = useAppStore((s) => s.setUser);
-  const switchUser = useAppStore((s) => s.switchUser);
-  const [switching, setSwitching] = useState(false);
-  // Estado de autenticación: distingue sesión real (Django) de demo (sin login)
   const [authState, setAuthState] = useState<AuthState>("loading");
 
-  // Cargar lista de usuarios (para el selector del header)
-  const { data: usersData } = useFetch<{ users: User[] }>("/api/users", []);
+  // Cargar usuario actual desde el backend vía cookie de sesión.
+  // Solo se pide cuando hay indicios de sesión abierta.
+  const meUrl = authState === "authenticated" ? "/api/me" : null;
+  const { data: meData, loading } = useFetch<{ user: User }>(meUrl, [authState]);
 
-  // Cargar usuario actual desde el backend.
-  // - authState="authenticated": /api/me (sin query) — el backend usa la sesión.
-  // - authState="demo": /api/me?demo=1[&userId=...] — primer estudiante o switcher.
-  // - authState="loading"/"anonymous": null (no pide nada).
-  const meUrl =
-    authState === "authenticated"
-      ? "/api/me"
-      : authState === "demo"
-        ? `/api/me?demo=1${currentUserId ? `&userId=${currentUserId}` : ""}`
-        : null;
-  const { data: meData, loading } = useFetch<{ user: User }>(meUrl, [currentUserId, authState]);
-
-  // Al montar: comprobar si hay cookie de sesión (para reanudar sesión real)
+  // Al montar: comprobar si hay sesión previa (flag en localStorage; la cookie
+  // sessionid es HttpOnly y no se puede leer desde JS).
   useEffect(() => {
-    // sessionid es HttpOnly, no accesible. Usamos un flag en localStorage
-    // que se setea tras login exitoso y se borra tras logout.
-    const hasSession = typeof window !== "undefined" && localStorage.getItem("electromed-session") === "1";
+    const hasSession =
+      typeof window !== "undefined" &&
+      localStorage.getItem("electromed-session") === "1";
     setAuthState(hasSession ? "authenticated" : "anonymous");
   }, []);
 
@@ -45,17 +32,16 @@ export default function Home() {
     if (meData?.user) {
       setUser(meData.user);
       useAppStore.getState().hydrateFromUrl();
+    } else if (authState === "authenticated" && !loading && !meData?.user) {
+      // La sesión ya no es válida (cookie expirada / logout en otro lado).
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("electromed-session");
+      }
+      setAuthState("anonymous");
     }
-  }, [meData, setUser]);
-
-  const handleSwitchUser = (userId: string) => {
-    setSwitching(true);
-    switchUser(userId);
-    setTimeout(() => setSwitching(false), 400);
-  };
+  }, [meData, loading, authState, setUser]);
 
   const handleLogin = (user: User) => {
-    // Login real vía backend Django: marcar flag de sesión y recargar usuario.
     if (typeof window !== "undefined") {
       localStorage.setItem("electromed-session", "1");
     }
@@ -63,12 +49,16 @@ export default function Home() {
     setAuthState("authenticated");
   };
 
-  const handleDemoAccess = () => {
-    setAuthState("demo");
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("electromed-session");
+    }
+    setUser(null);
+    setAuthState("anonymous");
   };
 
-  // Pantalla de carga mientras se resuelve la sesión (autenticada o demo)
-  if ((authState === "loading" || authState === "authenticated" || authState === "demo") && loading) {
+  // Pantalla de carga mientras se resuelve la sesión
+  if ((authState === "loading" || authState === "authenticated") && loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-4 text-center">
@@ -84,18 +74,11 @@ export default function Home() {
     );
   }
 
-  // Si hay usuario (autenticado o demo), mostrar la app
+  // Sesión válida: mostrar la app
   if (meData?.user) {
-    return (
-      <div className={switching ? "opacity-60 transition-opacity" : "transition-opacity"}>
-        <AppShell
-          users={usersData?.users ?? []}
-          onSwitchUser={handleSwitchUser}
-        />
-      </div>
-    );
+    return <AppShell onLogout={handleLogout} />;
   }
 
   // Sin sesión: mostrar pantalla de login
-  return <LoginView onLogin={handleLogin} onDemoAccess={handleDemoAccess} />;
+  return <LoginView onLogin={handleLogin} />;
 }

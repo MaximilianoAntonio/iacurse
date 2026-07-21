@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
-import { LoadingGrid } from "@/components/app/loading";
+import { LoadingGrid, FetchError } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { getUnitColor } from "@/lib/course-utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,12 +20,20 @@ type FilterKey = "all" | "in-progress" | "completed" | "not-started";
 export function UnitsView() {
   const currentUser = useAppStore((s) => s.currentUser) as User | null;
   const openUnit = useAppStore((s) => s.openUnit);
-  const userId = currentUser?.id ?? "";
 
-  const { data, loading } = useFetch<{ units: Unit[] }>(`/api/units?userId=${userId}`, [userId]);
+  const { data, loading, error, refetch } = useFetch<{ units: Unit[] }>(`/api/units`, []);
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-8 p-4 lg:p-8">
+        <PageHeader title="Unidades" />
+        <FetchError description={error} onRetry={refetch} />
+      </div>
+    );
+  }
 
   if (loading || !data) {
     return (

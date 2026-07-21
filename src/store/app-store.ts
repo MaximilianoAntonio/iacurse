@@ -6,11 +6,9 @@ import type { Role, User, ViewKey } from "@/lib/types";
 
 interface AppState {
   // Auth
-  currentUserId: string | null;
   currentUser: User | null;
   role: Role;
   setUser: (user: User | null) => void;
-  switchUser: (userId: string) => void;
   setRole: (role: Role) => void;
 
   // Navigation (sincronizado con la URL)
@@ -87,7 +85,6 @@ function parseUrl(): {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      currentUserId: null,
       currentUser: null,
       role: "student",
       setUser: (user) => {
@@ -112,7 +109,6 @@ export const useAppStore = create<AppState>()(
             }
             return {
               currentUser: user,
-              currentUserId: user?.id ?? null,
               role: newRole,
               view: targetView,
               currentUnitId: targetUnitId,
@@ -123,12 +119,10 @@ export const useAppStore = create<AppState>()(
           }
           return {
             currentUser: user,
-            currentUserId: user?.id ?? null,
             role: newRole,
           };
         });
       },
-      switchUser: (userId) => set({ currentUserId: userId }),
       setRole: (role) => set({ role }),
 
       view: "dashboard",
@@ -206,7 +200,8 @@ export const useAppStore = create<AppState>()(
     {
       name: "electromed-store",
       partialize: (state) => ({
-        currentUserId: state.currentUserId,
+        currentUser: state.currentUser,
+        role: state.role,
         chatOpen: state.chatOpen,
         navCollapsed: state.navCollapsed,
       }),

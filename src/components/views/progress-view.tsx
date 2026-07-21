@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { FetchError } from "@/components/app/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -60,7 +61,7 @@ import {
   MessageSquare,
   Star,
 } from "lucide-react";
-import type { ActivityType, Difficulty, User } from "@/lib/types";
+import type { ActivityType, Difficulty } from "@/lib/types";
 
 // ---------- Types ----------
 
@@ -183,15 +184,27 @@ function difficultyLabel(d: string): string {
 // ---------- Main component ----------
 
 export function ProgressView() {
-  const currentUser = useAppStore((s) => s.currentUser) as User | null;
   const navigate = useAppStore((s) => s.navigate);
   const openUnit = useAppStore((s) => s.openUnit);
 
-  const userId = currentUser?.id ?? "";
-  const { data, loading } = useFetch<ProgressResponse>(
-    `/api/progress?userId=${userId}`,
-    [userId]
+  const { data, loading, error, refetch } = useFetch<ProgressResponse>(
+    `/api/progress`,
+    []
   );
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-6 p-4 lg:p-8">
+        <PageHeader
+          title="Mi progreso"
+          icon="BarChart3"
+          iconGradient="from-[#004488] to-[#0066AA]"
+          description="Analítica de tu aprendizaje adaptativo en Electromedicina II."
+        />
+        <FetchError description={error} onRetry={refetch} />
+      </div>
+    );
+  }
 
   if (loading || !data) {
     return (

@@ -16,7 +16,7 @@ import {
 import { Bell, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/course-utils";
-import type { User, ViewKey } from "@/lib/types";
+import type { ViewKey } from "@/lib/types";
 
 interface AppNotification {
   id: string;
@@ -34,13 +34,11 @@ interface NotificationsResponse {
 }
 
 export function NotificationBell() {
-  const currentUser = useAppStore((s) => s.currentUser) as User | null;
   const navigate = useAppStore((s) => s.navigate);
-  const userId = currentUser?.id ?? "";
 
   const { data } = useFetch<NotificationsResponse>(
-    userId ? `/api/notifications?userId=${userId}` : null,
-    [userId]
+    `/api/notifications`,
+    []
   );
 
   const notifications = data?.notifications ?? [];

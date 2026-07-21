@@ -4,7 +4,7 @@ import * as React from "react";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
-import { LoadingGrid } from "@/components/app/loading";
+import { LoadingGrid, FetchError } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { getUnitColor, activityTypeMeta, difficultyMeta } from "@/lib/course-utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,11 +65,10 @@ export function UnitDetailView() {
   const openLesson = useAppStore((s) => s.openLesson);
   const openActivity = useAppStore((s) => s.openActivity);
   const setTutorContext = useAppStore((s) => s.setTutorContext);
-  const userId = currentUser?.id ?? "";
 
-  const { data, loading } = useFetch<UnitDetailResponse>(
-    `/api/units/${currentUnitId}?userId=${userId}`,
-    [currentUnitId, userId]
+  const { data, loading, error, refetch } = useFetch<UnitDetailResponse>(
+    currentUnitId ? `/api/units/${currentUnitId}` : null,
+    [currentUnitId]
   );
 
   // Actualizar el título del documento con el nombre de la unidad
@@ -86,6 +85,15 @@ export function UnitDetailView() {
           <ArrowLeft className="mr-1 h-4 w-4" /> Volver a unidades
         </Button>
         <p className="text-muted-foreground">No se seleccionó ninguna unidad.</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-8 p-4 lg:p-8">
+        <PageHeader title="Unidad" />
+        <FetchError description={error} onRetry={refetch} />
       </div>
     );
   }

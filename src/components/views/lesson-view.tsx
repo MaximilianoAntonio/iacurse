@@ -4,7 +4,7 @@ import * as React from "react";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
-import { LoadingRows } from "@/components/app/loading";
+import { LoadingRows, FetchError } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { ReadingProgress } from "@/components/app/reading-progress";
 import { LessonToc } from "@/components/app/lesson-toc";
@@ -26,7 +26,6 @@ import {
   PlayCircle,
   Sparkles,
 } from "lucide-react";
-import type { User } from "@/lib/types";
 
 interface LessonResponse {
   lesson: {
@@ -55,17 +54,15 @@ interface LessonResponse {
 }
 
 export function LessonView() {
-  const currentUser = useAppStore((s) => s.currentUser) as User | null;
   const currentLessonId = useAppStore((s) => s.currentLessonId);
   const navigate = useAppStore((s) => s.navigate);
   const openUnit = useAppStore((s) => s.openUnit);
   const openActivity = useAppStore((s) => s.openActivity);
   const setTutorContext = useAppStore((s) => s.setTutorContext);
-  const userId = currentUser?.id ?? "";
 
-  const { data, loading } = useFetch<LessonResponse>(
-    currentLessonId ? `/api/lessons/${currentLessonId}?userId=${userId}` : null,
-    [currentLessonId, userId]
+  const { data, loading, error, refetch } = useFetch<LessonResponse>(
+    currentLessonId ? `/api/lessons/${currentLessonId}` : null,
+    [currentLessonId]
   );
 
   // Actualizar el título del documento con el nombre de la lección
@@ -82,6 +79,14 @@ export function LessonView() {
           <ArrowLeft className="mr-1 h-4 w-4" /> Volver a unidades
         </Button>
         <p className="text-muted-foreground">No se seleccionó ninguna lección.</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-6 p-4 lg:p-8">
+        <FetchError description={error} onRetry={refetch} />
       </div>
     );
   }

@@ -7,14 +7,12 @@ import { Header } from "@/components/app/header";
 import { Footer } from "@/components/app/footer";
 import { ChatSidebar } from "@/components/app/chat-sidebar";
 import { ViewRouter } from "@/components/app/view-router";
-import type { User } from "@/lib/types";
 
 interface AppShellProps {
-  users: User[];
-  onSwitchUser: (userId: string) => void;
+  onLogout: () => void;
 }
 
-export function AppShell({ users, onSwitchUser }: AppShellProps) {
+export function AppShell({ onLogout }: AppShellProps) {
   const chatOpen = useAppStore((s) => s.chatOpen);
   const navCollapsed = useAppStore((s) => s.navCollapsed);
   const hydrateFromUrl = useAppStore((s) => s.hydrateFromUrl);
@@ -48,7 +46,7 @@ export function AppShell({ users, onSwitchUser }: AppShellProps) {
           navCollapsed ? "lg:pl-0" : "lg:pl-72"
         } ${chatOpen ? "lg:pr-[380px]" : ""}`}
       >
-        <Header users={users} onSwitchUser={onSwitchUser} />
+        <Header onLogout={onLogout} />
         <main className="flex-1">
           <ViewRouter />
         </main>

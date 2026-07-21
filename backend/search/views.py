@@ -2,13 +2,13 @@
 Vistas de búsqueda global — reproduce src/app/api/search/route.ts.
 
 Busca en units, lessons y activities por título/contenido.
+Requiere sesión real (sin modo demo).
 """
 from django.db.models import Q
 from rest_framework import status, views
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.models import User
 from curriculum.models import Activity, Lesson, Unit
 from learning.models import Attempt
 
@@ -16,20 +16,17 @@ from learning.models import Attempt
 class SearchView(views.APIView):
     """GET /api/search?q=... — búsqueda global de contenido."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
         if len(q) < 2:
             return Response({"results": [], "query": q})
 
-        user_id = request.query_params.get("userId")
-        correct_activity_ids = set()
-        if user_id:
-            correct_activity_ids = set(
-                Attempt.objects.filter(user_id=user_id, correct=True)
-                .values_list("activity_id", flat=True)
-            )
+        correct_activity_ids = set(
+            Attempt.objects.filter(user=request.user, correct=True)
+            .values_list("activity_id", flat=True)
+        )
 
         results = []
         # Unidades

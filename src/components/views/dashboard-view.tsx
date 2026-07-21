@@ -6,7 +6,7 @@ import { useAppStore } from "@/store/app-store";
 import { useFetch, postJSON } from "@/hooks/use-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/app/page-header";
-import { LoadingGrid } from "@/components/app/loading";
+import { LoadingGrid, FetchError } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { WeeklyGoalRing } from "@/components/app/weekly-goal-ring";
 import { getUnitColor, timeAgo, initials } from "@/lib/course-utils";
@@ -72,6 +72,7 @@ interface ProgressResponse {
   }[];
   stats: { totalAttempts: number; correctRate: number; totalTimeMin: number; avgScore: number };
   chatCount: number;
+  activityByDay?: { date: string; attempts: number; correct: number; timeMin: number }[];
 }
 
 export function DashboardView() {
@@ -80,26 +81,25 @@ export function DashboardView() {
   const openUnit = useAppStore((s) => s.openUnit);
   const openActivity = useAppStore((s) => s.openActivity);
 
-  const userId = currentUser?.id ?? "";
-  const { data: unitsData, loading: unitsLoading } = useFetch<{ units: Unit[] }>(
-    `/api/units?userId=${userId}`,
-    [userId]
+  const { data: unitsData, loading: unitsLoading, error: unitsError, refetch: refetchUnits } = useFetch<{ units: Unit[] }>(
+    `/api/units`,
+    []
   );
-  const { data: progressData } = useFetch<ProgressResponse>(
-    `/api/progress?userId=${userId}`,
-    [userId]
+  const { data: progressData, error: progressError, refetch: refetchProgress } = useFetch<ProgressResponse>(
+    `/api/progress`,
+    []
   );
   const { data: nextData } = useFetch<NextActivityResponse>(
-    userId ? `/api/next-activity?userId=${userId}` : null,
-    [userId]
+    `/api/next-activity`,
+    []
   );
   const { data: recentBadgesData } = useFetch<{ badges: { id: string; name: string; icon: string; tier: string; description: string; awardedAt: string }[] }>(
-    userId ? `/api/recent-badges?userId=${userId}` : null,
-    [userId]
+    `/api/recent-badges`,
+    []
   );
   const { data: bookmarksData } = useFetch<{ bookmarks: { id: string; activityId: string; activity: { id: string; title: string; type: string; difficulty: string; points: number; lesson: { id: string; title: string; unit: { id: string; title: string; color: string; icon: string } } } }[] }>(
-    userId ? `/api/bookmarks?userId=${userId}` : null,
-    [userId]
+    `/api/bookmarks`,
+    []
   );
 
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
@@ -113,7 +113,7 @@ export function DashboardView() {
       return;
     }
     try {
-      await postJSON("/api/user/weekly-goal", { userId, weeklyGoalMin: minutes });
+      await postJSON("/api/user/weekly-goal", { weeklyGoalMin: minutes });
       useAppStore.setState((s) => ({
         currentUser: s.currentUser ? { ...s.currentUser, weeklyGoalMin: minutes } : null,
       }));
@@ -123,6 +123,22 @@ export function DashboardView() {
       toast({ title: "Error", description: "No se pudo actualizar la meta.", variant: "destructive" });
     }
   };
+
+  if (unitsError || progressError) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-8 p-4 lg:p-8">
+        <PageHeader title="Panel" />
+        <FetchError
+          title="No se pudo cargar tu panel"
+          description={unitsError ?? progressError ?? undefined}
+          onRetry={() => {
+            refetchUnits();
+            refetchProgress();
+          }}
+        />
+      </div>
+    );
+  }
 
   if (unitsLoading || !unitsData) {
     return (

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
-import { LoadingGrid, LoadingRows } from "@/components/app/loading";
+import { LoadingGrid, LoadingRows, FetchError } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import {
   Card,
@@ -111,17 +111,36 @@ const kpiTheme: Record<string, { icon: string; gradient: string }> = {
 export function AchievementsView() {
   const currentUser = useAppStore((s) => s.currentUser) as User | null;
 
-  const userId = currentUser?.id ?? "";
-  const { data: badgesData, loading: badgesLoading } = useFetch<BadgesResponse>(
-    `/api/badges?userId=${userId}`,
-    [userId]
+  const { data: badgesData, loading: badgesLoading, error: badgesError, refetch: refetchBadges } = useFetch<BadgesResponse>(
+    `/api/badges`,
+    []
   );
   const { data: progressData } = useFetch<BadgeProgressResponse>(
-    userId ? `/api/badge-progress?userId=${userId}` : null,
-    [userId]
+    `/api/badge-progress`,
+    []
   );
-  const { data: leaderboardData, loading: leaderboardLoading } =
+  const { data: leaderboardData, loading: leaderboardLoading, error: leaderboardError, refetch: refetchLeaderboard } =
     useFetch<LeaderboardResponse>(`/api/leaderboard`, []);
+
+  if (badgesError || leaderboardError) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-6 p-4 lg:p-8">
+        <PageHeader
+          title="Logros y ranking"
+          icon="Trophy"
+          iconGradient="from-amber-500 to-orange-600"
+          description="Tu progreso, insignias y posición en el curso."
+        />
+        <FetchError
+          description={badgesError ?? leaderboardError ?? undefined}
+          onRetry={() => {
+            refetchBadges();
+            refetchLeaderboard();
+          }}
+        />
+      </div>
+    );
+  }
 
   const badges = badgesData?.badges ?? [];
   const earnedBadges = badges.filter((b) => b.earned);
@@ -254,7 +273,7 @@ export function AchievementsView() {
             <CardContent className="p-0">
               <ol className="divide-y divide-border">
                 {leaderboard.map((entry) => {
-                  const isCurrentUser = entry.id === userId;
+                  const isCurrentUser = entry.id === currentUser?.id;
                   return (
                     <LeaderboardRow
                       key={entry.id}

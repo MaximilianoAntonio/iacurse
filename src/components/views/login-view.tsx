@@ -4,8 +4,7 @@
  * Pantalla de login — Módulo de acceso del lineamiento.
  *
  * Autenticación real contra el backend Django (sesión por cookie).
- * Si el login falla, ofrece acceso demo (primer estudiante) para preservar
- * la UX del piloto sin fricción.
+ * No hay modo demo: el acceso requiere credenciales válidas.
  */
 
 import { useState } from "react";
@@ -14,10 +13,9 @@ import type { User } from "@/lib/types";
 
 interface LoginViewProps {
   onLogin: (user: User) => void;
-  onDemoAccess?: () => void;
 }
 
-export function LoginView({ onLogin, onDemoAccess }: LoginViewProps) {
+export function LoginView({ onLogin }: LoginViewProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +34,7 @@ export function LoginView({ onLogin, onDemoAccess }: LoginViewProps) {
       if (/fetch|network|failed to/i.test(msg)) {
         setError("No se pudo conectar con el servidor. Verifica que el backend esté corriendo.");
       } else {
-        setError(msg);
+        setError("Credenciales inválidas. Verifica tu correo y contraseña.");
       }
     } finally {
       setLoading(false);
@@ -106,16 +104,6 @@ export function LoginView({ onLogin, onDemoAccess }: LoginViewProps) {
           >
             {loading ? "Ingresando..." : "Ingresar"}
           </button>
-
-          {onDemoAccess && (
-            <button
-              type="button"
-              onClick={onDemoAccess}
-              className="w-full text-xs text-slate-500 underline hover:text-slate-700"
-            >
-              Acceso demo (sin login)
-            </button>
-          )}
         </form>
 
         <p className="text-center text-xs text-slate-400">

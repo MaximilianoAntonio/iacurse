@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Search, X, BookOpen, FileText, ListChecks, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getUnitColor, activityTypeMeta, difficultyMeta } from "@/lib/course-utils";
-import type { User } from "@/lib/types";
 
 // Helper para resaltar texto coincidente con la búsqueda
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -96,7 +95,6 @@ interface GlobalSearchProps {
 }
 
 export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
-  const currentUser = useAppStore((s) => s.currentUser) as User | null;
   const openUnit = useAppStore((s) => s.openUnit);
   const openLesson = useAppStore((s) => s.openLesson);
   const openActivity = useAppStore((s) => s.openActivity);
@@ -130,9 +128,8 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     });
   };
 
-  const userId = currentUser?.id ?? "";
-  const url = query.length >= 2 ? `/api/search?q=${encodeURIComponent(query)}&userId=${userId}` : null;
-  const { data } = useFetch<SearchResponse>(url, [query, userId]);
+  const url = query.length >= 2 ? `/api/search?q=${encodeURIComponent(query)}` : null;
+  const { data } = useFetch<SearchResponse>(url, [query]);
 
   const results = data?.results ?? { units: [], lessons: [], activities: [] };
   const totalResults = results.units.length + results.lessons.length + results.activities.length;
