@@ -60,12 +60,15 @@ class LeaderboardView(views.APIView):
     def get(self, request):
         students = User.objects.filter(role=User.ROLE_STUDENT).order_by("-points", "name")
         ranking = []
-        for s in students:
+        for rank, s in enumerate(students, start=1):
             completed = (
                 s.attempts.filter(correct=True).values("activity_id").distinct().count()
             )
             ranking.append({
-                "id": s.id, "name": s.name, "points": s.points,
+                "rank": rank,
+                "id": s.id, "name": s.name, "email": s.email,
+                "points": s.points, "streak": s.streak,
+                "avatar": s.avatar or None,
                 "completedActivities": completed,
             })
         return Response({"leaderboard": ranking})

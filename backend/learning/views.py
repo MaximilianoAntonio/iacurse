@@ -246,7 +246,9 @@ class RecentBadgesView(views.APIView):
         return Response({
             "badges": [
                 {
+                    "id": ub.badge.id,
                     "slug": ub.badge.slug, "name": ub.badge.name,
+                    "description": ub.badge.description,
                     "icon": ub.badge.icon, "tier": ub.badge.tier,
                     "awardedAt": ub.awarded_at.isoformat(),
                 }
@@ -289,15 +291,30 @@ class BadgeProgressView(views.APIView):
             except Progress.DoesNotExist:
                 pass
 
-        progress_data = [
-            {"slug": "primer-paso", "current": total_correct, "target": 1, "pct": min(100, total_correct * 100)},
-            {"slug": "explorador", "current": visited, "target": 5, "pct": min(100, visited * 20)},
-            {"slug": "racha-7", "current": streak, "target": 7, "pct": min(100, round(streak / 7 * 100))},
-            {"slug": "maestro-ecg", "current": ecg_mastery, "target": 80, "pct": min(100, round(ecg_mastery / 80 * 100)), "unitContext": "Electrocardiografía (ECG)"},
-            {"slug": "centinela", "current": safety_completed, "target": safety_total or 7, "pct": min(100, round(safety_completed / (safety_total or 7) * 100)) if (safety_total or 7) else 0},
-            {"slug": "tutor-activo", "current": chat_count, "target": 10, "pct": min(100, chat_count * 10)},
+        # Resolver IDs reales de cada badge por slug (la PK puede ser un cuid
+        # autogenerado cuando se crea vía seed_demo en vez del fixture).
+        slug_to_id = dict(Badge.objects.values_list("slug", "id"))
+
+        raw = [
+            ("primer-paso", total_correct, 1, min(100, total_correct * 100), None),
+            ("explorador", visited, 5, min(100, visited * 20), None),
+            ("racha-7", streak, 7, min(100, round(streak / 7 * 100)), None),
+            ("maestro-ecg", ecg_mastery, 80, min(100, round(ecg_mastery / 80 * 100)), "Electrocardiografía (ECG)"),
+            ("centinela", safety_completed, safety_total or 7, min(100, round(safety_completed / (safety_total or 7) * 100)) if (safety_total or 7) else 0, None),
+            ("tutor-activo", chat_count, 10, min(100, chat_count * 10), None),
         ]
-        return Response({"progress": progress_data})
+        progress_data = [
+            {
+                "badgeId": slug_to_id.get(slug, slug),
+                "slug": slug,
+                "current": current,
+                "target": target,
+                "pct": pct,
+                **({"unitContext": ctx} if ctx else {}),
+            }
+            for slug, current, target, pct, ctx in raw
+        ]
+        return Response({"badges": progress_data})
 
 
 # ---------------------------------------------------------------------------
@@ -317,9 +334,17 @@ class BookmarksView(views.APIView):
                     "createdAt": b.created_at.isoformat(),
                     "activity": {
                         "id": b.activity.id, "title": b.activity.title,
+                        "type": b.activity.type,
+                        "difficulty": b.activity.difficulty,
+                        "points": b.activity.points,
                         "lesson": {
                             "id": b.activity.lesson.id, "title": b.activity.lesson.title,
-                            "unit": {"id": b.activity.lesson.unit.id, "title": b.activity.lesson.unit.title},
+                            "unit": {
+                                "id": b.activity.lesson.unit.id,
+                                "title": b.activity.lesson.unit.title,
+                                "color": b.activity.lesson.unit.color,
+                                "icon": b.activity.lesson.unit.icon,
+                            },
                         },
                     } if b.activity else None,
                 }
@@ -370,15 +395,26 @@ class NotificationsView(views.APIView):
             threshold_7d = timezone.now() - timedelta(days=7)
             for ub in user.user_badges.filter(awarded_at__gte=threshold_7d).select_related("badge"):
                 notifications.append({
-                    "type": "badge", "slug": ub.badge.slug, "name": ub.badge.name,
-                    "icon": ub.badge.icon, "createdAt": ub.awarded_at.isoformat(),
+                    "id": f"badge-{ub.id}",
+                    "type": "badge",
+                    "title": ub.badge.name,
+                    "description": ub.badge.description,
+                    "icon": ub.badge.icon,
+                    "createdAt": ub.awarded_at.isoformat(),
+                    "actionView": "achievements",
                 })
         elif user.is_teacher:
             # Reportes abiertos
             for rep in ErrorReport.objects.filter(status="open").select_related("user"):
                 notifications.append({
-                    "type": "report", "reportId": rep.id, "reason": rep.reason,
-                    "reporterName": rep.user.name, "createdAt": rep.created_at.isoformat(),
+                    "id": f"report-{rep.id}",
+                    "type": "report",
+                    "title": f"Reporte de {rep.user.name}",
+                    "description": rep.reason,
+                    "icon": "Flag",
+                    "createdAt": rep.created_at.isoformat(),
+                    "actionView": "teacher",
+                    "reportId": rep.id,
                 })
 
         unread = sum(1 for n in notifications if n["createdAt"] >= threshold_24h.isoformat())

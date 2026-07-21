@@ -18,14 +18,15 @@ from django.utils import timezone
 
 from accounts.models import User
 from curriculum.models import Unit
-from learning.models import Attempt, Progress, StudySession
+from learning.models import Attempt, Progress, SelfAssessment, StudySession
 from telemetry.models import AccessLog
 
 
 def student_progress_analytics(user: User) -> dict:
     """Analítica del propio estudiante (progress/route.ts).
 
-    Incluye activityByDay (14 días), byType, byDifficulty, stats, sesiones.
+    Incluye activityByDay (14 días), byType, byDifficulty, stats, sesiones y
+    selfAssess (autoevaluaciones metacognitivas).
     """
     progress_rows = list(
         Progress.objects.filter(user=user).select_related("unit").order_by("unit__order")
@@ -37,6 +38,9 @@ def student_progress_analytics(user: User) -> dict:
     )
     sessions = list(
         StudySession.objects.filter(user=user).order_by("-started_at")[:30]
+    )
+    self_assess = list(
+        SelfAssessment.objects.filter(user=user).select_related("unit").order_by("-created_at")[:50]
     )
     chat_count = user.chat_messages.filter(role="user").count()
 
@@ -97,6 +101,14 @@ def student_progress_analytics(user: User) -> dict:
                 "activity": {
                     "id": a.activity.id, "title": a.activity.title,
                     "type": a.activity.type, "difficulty": a.activity.difficulty,
+                    "lesson": {
+                        "id": a.activity.lesson.id, "title": a.activity.lesson.title,
+                        "unit": {
+                            "id": a.activity.lesson.unit.id,
+                            "title": a.activity.lesson.unit.title,
+                            "color": a.activity.lesson.unit.color,
+                        },
+                    },
                 } if a.activity else None,
             }
             for a in attempts
@@ -110,6 +122,14 @@ def student_progress_analytics(user: User) -> dict:
         ],
         "chatCount": chat_count,
         "activityByDay": days,
+        "selfAssess": [
+            {
+                "id": sa.id, "confidence": sa.confidence,
+                "reflection": sa.reflection, "unitId": sa.unit_id,
+                "createdAt": sa.created_at.isoformat(),
+            }
+            for sa in self_assess
+        ],
         "byType": dict(by_type),
         "byDifficulty": dict(by_difficulty),
         "stats": {
@@ -227,34 +247,68 @@ def student_detail(student: User) -> dict:
         if a.activity:
             by_activity[a.activity].append(a)
 
-    activity_breakdown = []
+    activities_breakdown = []
     for act, act_attempts in by_activity.items():
         scores = [x.score for x in act_attempts if x.score is not None]
-        activity_breakdown.append({
-            "activityId": act.id, "activityTitle": act.title,
-            "attempts": len(act_attempts),
+        best_score = max(scores) if scores else 0
+        activities_breakdown.append({
+            "activity": {
+                "id": act.id, "title": act.title, "type": act.type,
+                "difficulty": act.difficulty, "points": act.points,
+                "lesson": {
+                    "id": act.lesson.id, "title": act.lesson.title,
+                    "unit": {
+                        "id": act.lesson.unit.id, "title": act.lesson.unit.title,
+                        "color": act.lesson.unit.color, "icon": act.lesson.unit.icon,
+                    },
+                },
+            },
+            "attempts": [
+                {
+                    "id": x.id, "correct": x.correct, "score": x.score or 0,
+                    "timeSpent": x.time_spent,
+                    "createdAt": x.created_at.isoformat(),
+                }
+                for x in sorted(act_attempts, key=lambda a: a.created_at)
+            ],
+            "bestScore": best_score,
             "correct": any(x.correct for x in act_attempts),
-            "bestScore": max(scores) if scores else None,
+            "totalAttempts": len(act_attempts),
             "totalTime": sum(x.time_spent or 0 for x in act_attempts),
             "totalHints": sum(x.hints_used for x in act_attempts),
+            "lastAttempt": (
+                max(a.created_at for a in act_attempts).isoformat() if act_attempts else None
+            ),
         })
 
     scores_all = [a.score for a in attempts if a.score is not None]
+    correct_attempts = sum(1 for a in attempts if a.correct)
+    activities_attempted = len(by_activity)
+    activities_correct = sum(1 for act_attempts in by_activity.values()
+                              if any(x.correct for x in act_attempts))
+    total_hints_used = sum(a.hints_used for a in attempts)
 
     return {
-        "user": {
+        "student": {
             "id": student.id, "name": student.name, "email": student.email,
+            "avatar": student.avatar or None,
             "points": student.points, "streak": student.streak,
             "lastActive": student.last_active.isoformat() if student.last_active else None,
+            "createdAt": student.created_at.isoformat(),
         },
         "progress": [
             {
-                "unitId": p.unit.id, "unitTitle": p.unit.title,
+                "unitId": p.unit.id,
+                "unit": {
+                    "id": p.unit.id, "title": p.unit.title, "color": p.unit.color,
+                    "icon": p.unit.icon, "slug": p.unit.slug, "order": p.unit.order,
+                },
                 "completed": p.completed, "total": p.total, "mastery": p.mastery,
+                "lastVisited": p.last_visited.isoformat() if p.last_visited else None,
             }
             for p in progress
         ],
-        "activityBreakdown": activity_breakdown,
+        "activities": activities_breakdown,
         "sessions": [
             {"id": s.id, "duration": s.duration, "startedAt": s.started_at.isoformat()}
             for s in sessions
@@ -262,14 +316,18 @@ def student_detail(student: User) -> dict:
         "chatCount": chat_count,
         "accessCount": accesses,  # NUEVO: número de accesos
         "badges": [
-            {"slug": b.badge.slug, "name": b.badge.name, "icon": b.badge.icon,
+            {"id": b.badge.id, "slug": b.badge.slug, "name": b.badge.name,
+             "icon": b.badge.icon, "tier": b.badge.tier,
              "awardedAt": b.awarded_at.isoformat()}
             for b in badges
         ],
         "stats": {
             "totalAttempts": len(attempts),
-            "correctAttempts": sum(1 for a in attempts if a.correct),
+            "correctAttempts": correct_attempts,
+            "totalActivitiesAttempted": activities_attempted,
+            "totalActivitiesCorrect": activities_correct,
             "totalTimeMin": sum(s.duration for s in sessions) // 60,
             "avgScore": round(sum(scores_all) / len(scores_all)) if scores_all else 0,
+            "totalHintsUsed": total_hints_used,
         },
     }

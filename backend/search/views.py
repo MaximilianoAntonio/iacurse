@@ -14,50 +14,74 @@ from learning.models import Attempt
 
 
 class SearchView(views.APIView):
-    """GET /api/search?q=... — búsqueda global de contenido."""
+    """GET /api/search?q=... — búsqueda global de contenido.
+
+    Devuelve los resultados agrupados por tipo para que el frontend pueda
+    renderizar secciones separadas (units / lessons / activities).
+    """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
+        empty = {"results": {"units": [], "lessons": [], "activities": []}, "query": q, "count": 0}
         if len(q) < 2:
-            return Response({"results": [], "query": q})
+            return Response(empty)
 
         correct_activity_ids = set(
             Attempt.objects.filter(user=request.user, correct=True)
             .values_list("activity_id", flat=True)
         )
 
-        results = []
-        # Unidades
+        units = []
         for u in Unit.objects.filter(
             Q(title__icontains=q) | Q(summary__icontains=q) | Q(description__icontains=q)
         ):
-            results.append({
-                "type": "unit", "id": u.id, "title": u.title,
-                "snippet": (u.summary or u.description)[:150],
-                "slug": u.slug, "color": u.color,
+            units.append({
+                "id": u.id, "title": u.title,
+                "summary": (u.summary or "")[:200],
+                "icon": u.icon, "color": u.color, "slug": u.slug, "order": u.order,
+                "snippet": (u.summary or u.description or "")[:150],
             })
 
-        # Lecciones
+        lessons = []
         for l in Lesson.objects.select_related("unit").filter(
             Q(title__icontains=q) | Q(description__icontains=q) | Q(content__icontains=q)
         ):
-            results.append({
-                "type": "lesson", "id": l.id, "title": l.title,
-                "snippet": (l.description or l.content)[:150],
-                "unitTitle": l.unit.title, "unitColor": l.unit.color,
+            lessons.append({
+                "id": l.id, "title": l.title,
+                "description": (l.description or "")[:200],
+                "durationMin": l.duration_min,
+                "unit": {
+                    "id": l.unit.id, "title": l.unit.title, "color": l.unit.color,
+                    "icon": l.unit.icon, "slug": l.unit.slug,
+                },
+                "snippet": (l.description or l.content or "")[:150],
             })
 
-        # Actividades
+        activities = []
         for a in Activity.objects.select_related("lesson__unit").filter(
             Q(title__icontains=q) | Q(prompt__icontains=q)
         ):
-            results.append({
-                "type": "activity", "id": a.id, "title": a.title,
-                "snippet": a.prompt[:150],
-                "unitTitle": a.lesson.unit.title, "unitColor": a.lesson.unit.color,
+            activities.append({
+                "id": a.id, "title": a.title, "type": a.type,
+                "difficulty": a.difficulty, "points": a.points,
+                "lessonId": a.lesson_id,
+                "lesson": {
+                    "id": a.lesson.id, "title": a.lesson.title,
+                    "unit": {
+                        "id": a.lesson.unit.id, "title": a.lesson.unit.title,
+                        "color": a.lesson.unit.color, "icon": a.lesson.unit.icon,
+                        "slug": a.lesson.unit.slug,
+                    },
+                },
                 "completed": a.id in correct_activity_ids,
+                "snippet": (a.prompt or "")[:150],
             })
 
-        return Response({"results": results, "query": q, "count": len(results)})
+        count = len(units) + len(lessons) + len(activities)
+        return Response({
+            "results": {"units": units, "lessons": lessons, "activities": activities},
+            "query": q,
+            "count": count,
+        })

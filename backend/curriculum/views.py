@@ -123,14 +123,22 @@ class UnitDetailView(views.APIView):
         except Progress.DoesNotExist:
             pass
 
+        # attemptsByActivity: map activityId → resumen, consumido por el frontend
+        # en unit-detail-view (marcado de actividades completadas).
+        attempts_by_activity = {}
+        for l in lessons:
+            for a in l["activities"]:
+                attempts_by_activity[a["id"]] = a["attemptSummary"]
+
         return Response({
             "unit": {
                 "id": unit.id, "slug": unit.slug, "title": unit.title,
                 "summary": unit.summary, "description": unit.description,
                 "icon": unit.icon, "color": unit.color, "order": unit.order,
+                "lessons": lessons,
             },
-            "lessons": lessons,
             "progress": progress,
+            "attemptsByActivity": attempts_by_activity,
         })
 
 
@@ -154,6 +162,7 @@ class LessonDetailView(views.APIView):
                 "bloomLevel": a.bloom_level, "maxAttempts": a.max_attempts,
                 "masteryThreshold": a.mastery_threshold, "weight": a.weight,
                 "timeLimitMin": a.time_limit_min,
+                "lessonId": lesson.id,
             }
             attempts = a.attempts.filter(user=user).order_by("-created_at")
             best = attempts.order_by("-score").first()
@@ -166,18 +175,23 @@ class LessonDetailView(views.APIView):
             }
             activities.append(act_dict)
 
+        # attemptsByActivity: map activityId → resumen, consumido por el frontend.
+        attempts_by_activity = {a["id"]: a["attemptSummary"] for a in activities}
+
         return Response({
             "lesson": {
                 "id": lesson.id, "slug": lesson.slug, "title": lesson.title,
                 "description": lesson.description, "content": lesson.content,
                 "durationMin": lesson.duration_min, "order": lesson.order,
+                "unitId": lesson.unit.id,
                 "unit": {
                     "id": lesson.unit.id, "title": lesson.unit.title,
                     "color": lesson.unit.color, "icon": lesson.unit.icon,
                     "slug": lesson.unit.slug,
                 },
+                "activities": activities,
             },
-            "activities": activities,
+            "attemptsByActivity": attempts_by_activity,
         })
 
 
@@ -186,6 +200,9 @@ class NextActivityView(views.APIView):
 
     Lógica: última unidad visitada con actividad incompleta (reason=continue),
     si no, primera unidad con actividad incompleta (reason=new), si no, null.
+
+    Devuelve la actividad anidada con su lección y unidad, más el progreso de
+    la unidad, para que el dashboard pueda renderizar la tarjeta "Continuar".
     """
 
     permission_classes = [IsAuthenticated]
@@ -201,30 +218,49 @@ class NextActivityView(views.APIView):
             Attempt.objects.filter(user=user, correct=True).values_list("activity_id", flat=True)
         )
 
+        def build_response(unit_activity, unit, reason):
+            unit_progress = Progress.objects.filter(user=user, unit=unit).first()
+            return Response({
+                "recommendation": {
+                    "activity": {
+                        "id": unit_activity.id,
+                        "title": unit_activity.title,
+                        "type": unit_activity.type,
+                        "difficulty": unit_activity.difficulty,
+                        "points": unit_activity.points,
+                        "lessonId": unit_activity.lesson_id,
+                    },
+                    "lesson": {
+                        "id": unit_activity.lesson.id,
+                        "title": unit_activity.lesson.title,
+                    },
+                    "unit": {
+                        "id": unit.id, "title": unit.title, "color": unit.color,
+                        "icon": unit.icon, "slug": unit.slug, "order": unit.order,
+                    },
+                    "reason": reason,
+                    "unitProgress": {
+                        "completed": unit_progress.completed if unit_progress else 0,
+                        "total": unit_progress.total if unit_progress else 0,
+                        "mastery": min(100, unit_progress.mastery) if unit_progress else 0,
+                    },
+                }
+            })
+
         # Intentar primero la última unidad visitada
         for p in visited:
-            for unit_activity in Activity.objects.filter(lesson__unit=p.unit):
+            for unit_activity in (
+                Activity.objects.filter(lesson__unit=p.unit).select_related("lesson").order_by("order")
+            ):
                 if unit_activity.id not in correct_activity_ids:
-                    return Response({
-                        "activityId": unit_activity.id,
-                        "activityTitle": unit_activity.title,
-                        "unitId": p.unit.id,
-                        "unitTitle": p.unit.title,
-                        "unitColor": p.unit.color,
-                        "reason": "continue",
-                    })
+                    return build_response(unit_activity, p.unit, "continue")
 
         # Si no, primera unidad con actividad incompleta
         for unit in Unit.objects.order_by("order"):
-            for unit_activity in Activity.objects.filter(lesson__unit=unit):
+            for unit_activity in (
+                Activity.objects.filter(lesson__unit=unit).select_related("lesson").order_by("order")
+            ):
                 if unit_activity.id not in correct_activity_ids:
-                    return Response({
-                        "activityId": unit_activity.id,
-                        "activityTitle": unit_activity.title,
-                        "unitId": unit.id,
-                        "unitTitle": unit.title,
-                        "unitColor": unit.color,
-                        "reason": "new",
-                    })
+                    return build_response(unit_activity, unit, "new")
 
-        return Response({"activityId": None})
+        return Response({"recommendation": None})
