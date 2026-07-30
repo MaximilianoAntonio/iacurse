@@ -250,3 +250,28 @@ class ErrorReport(models.Model):
             models.Index(fields=["user"]),
             models.Index(fields=["status"]),
         ]
+
+
+class PersonalizedUnit(TimeStampedModel):
+    """Contenido de unidad personalizado para un alumno a partir de su diagnóstico."""
+
+    id = models.CharField(primary_key=True, max_length=40, default=_cuid_default, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="personalized_units")
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="personalized_units")
+    diagnostic_answers = models.JSONField("respuestas de diagnóstico", default=list)  # [{'question': '...', 'answer': '...'}]
+    adapted_content = models.TextField("contenido adaptado (markdown)", blank=True, default="")
+    # True cuando el estudiante saltó el diagnóstico: se usa el contenido base
+    # sin adaptar y se le ofrece completar el diagnóstico más tarde.
+    skipped = models.BooleanField("diagnóstico saltado", default=False)
+
+    class Meta:
+        verbose_name = "unidad personalizada"
+        verbose_name_plural = "unidades personalizadas"
+        unique_together = [("user", "unit")]
+        indexes = [
+            models.Index(fields=["user", "unit"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} - {self.unit.title} (Personalizada)"
+

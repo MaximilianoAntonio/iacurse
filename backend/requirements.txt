@@ -24,6 +24,8 @@ google-generativeai>=0.7,<0.9
 
 # --- Servidor de producción ---
 gunicorn>=22.0,<24.0
+# Estáticos servidos desde gunicorn en producción (admin/DRF sin nginx)
+whitenoise>=6.6,<7.0
 
 # --- Filtros de consultas complejas ---
 django-filter>=24.0,<25.0
@@ -33,4 +35,3 @@ django-filter>=24.0,<25.0
 # ============================================================================
 pytest>=8.0,<9.0
 pytest-django>=4.8,<5.0
-factory-boy>=3.3,<4.0

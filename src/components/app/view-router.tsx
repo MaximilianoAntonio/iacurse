@@ -16,15 +16,13 @@ import { CourseBuilderView } from "@/components/views/course-builder-view";
 export function ViewRouter() {
   const view = useAppStore((s) => s.view);
   const navigate = useAppStore((s) => s.navigate);
-  const toggleChat = useAppStore((s) => s.toggleChat);
 
-  // "tutor" ya no es una vista (es un panel lateral). Si llega, abrir el chat e ir al dashboard.
+  // Redirigir "tutor" al dashboard ya que el tutor ha sido removido
   useEffect(() => {
     if (view === "tutor") {
-      toggleChat();
       navigate("dashboard");
     }
-  }, [view, toggleChat, navigate]);
+  }, [view, navigate]);
 
   switch (view) {
     case "dashboard":

@@ -27,7 +27,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   while (idx !== -1) {
     if (idx > lastIndex) parts.push(text.slice(lastIndex, idx));
     parts.push(
-      <mark key={idx} className="rounded bg-amber-200 px-0.5 text-foreground dark:bg-amber-900/60">
+      <mark key={idx} className="rounded bg-accent px-0.5 text-accent-foreground">
         {text.slice(idx, idx + q.length)}
       </mark>
     );
@@ -101,8 +101,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const [query, setQuery] = React.useState("");
   const [recentSearches, setRecentSearches] = React.useState<string[]>([]);
 
-  // Cargar búsquedas recientes del localStorage al montar
-  React.useEffect(() => {
+  // Cargar búsquedas recientes del localStorage cada vez que se abre el
+  // buscador (patrón "ajustar estado durante el render").
+  const [wasOpen, setWasOpen] = React.useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       try {
         const stored = localStorage.getItem("electromed-search-history");
@@ -111,7 +114,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         // ignore
       }
     }
-  }, [open]);
+  }
 
   const saveSearch = (q: string) => {
     const trimmed = q.trim();
@@ -185,7 +188,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
             <div className="py-6">
               {recentSearches.length > 0 ? (
                 <div>
-                  <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-3 pb-2 text-xs font-semibold text-muted-foreground">
                     Búsquedas recientes
                   </p>
                   <div className="flex flex-wrap gap-1.5 px-3 pb-2">
@@ -238,7 +241,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Units */}
               {results.units.length > 0 && (
                 <div>
-                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-3 pb-1 text-xs font-semibold text-muted-foreground">
                     Unidades ({results.units.length})
                   </p>
                   {results.units.map((u) => {
@@ -266,7 +269,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Lessons */}
               {results.lessons.length > 0 && (
                 <div>
-                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-3 pb-1 text-xs font-semibold text-muted-foreground">
                     Lecciones ({results.lessons.length})
                   </p>
                   {results.lessons.map((l) => {
@@ -301,7 +304,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Activities */}
               {results.activities.length > 0 && (
                 <div>
-                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-3 pb-1 text-xs font-semibold text-muted-foreground">
                     Actividades ({results.activities.length})
                   </p>
                   {results.activities.map((a) => {
@@ -329,7 +332,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           {a.completed && (
-                            <Badge variant="outline" className="border-[#003366]/20 bg-[#003366]/5 text-xs text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20">
+                            <Badge variant="outline" className="border-primary/25 bg-primary/5 text-xs text-primary">
                               ✓
                             </Badge>
                           )}

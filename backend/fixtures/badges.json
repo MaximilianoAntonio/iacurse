@@ -53,16 +53,5 @@
       "icon": "ShieldCheck",
       "tier": "silver"
     }
-  },
-  {
-    "model": "learning.badge",
-    "pk": "badge-tutor-activo",
-    "fields": {
-      "slug": "tutor-activo",
-      "name": "Curioso",
-      "description": "Realiza al menos 10 consultas al tutor IA.",
-      "icon": "MessageCircleQuestion",
-      "tier": "silver"
-    }
   }
 ]

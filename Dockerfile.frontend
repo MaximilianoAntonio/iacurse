@@ -1,28 +1,42 @@
 # Frontend Next.js — Plataforma Electromedicina II
 # Lineamiento: Frontend JavaScript y React
-FROM node:20-alpine
+#
+# Build multi-etapa usando el output "standalone" de Next (next.config.ts):
+# la imagen final contiene solo el server standalone + estáticos + public,
+# sin node_modules completo ni código fuente (imagen mucho más liviana).
 
+# --- Etapa 1: dependencias ---
+FROM node:20-alpine AS deps
 WORKDIR /app
-
-# Copiar manifests de dependencias primero (mejor cache de Docker)
 COPY package.json package-lock.json* ./
+# npm ci: instalación reproducible desde el lockfile (incluye deps opcionales
+# como los binarios de sharp para la plataforma)
+RUN npm ci
 
-# Instalar dependencias
-RUN npm install --omit=optional
-
-# Copiar el resto del código
+# --- Etapa 2: build ---
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Variables de entorno en build (NEXT_PUBLIC_* se incrustan en el bundle)
+# NEXT_PUBLIC_* se incrustan en el bundle en build-time
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# Build de producción
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
+
+# --- Etapa 3: runtime ---
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
 
-# Producción: next start
-CMD ["npm", "start"]
+# Producción: server standalone de Next (no requiere node_modules completo)
+CMD ["node", "server.js"]

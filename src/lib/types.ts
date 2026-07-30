@@ -47,6 +47,11 @@ export interface Unit {
   order: number;
   lessonCount?: number;
   activityCount?: number;
+  /** true cuando el estudiante ya tiene una PersonalizedUnit (diagnóstico
+   *  respondido o saltado) para esta unidad. */
+  hasAdaptedContent?: boolean;
+  /** true cuando el estudiante saltó el diagnóstico (ve el contenido base). */
+  diagnosticSkipped?: boolean;
   lessons?: {
     id: string;
     slug: string;
@@ -60,6 +65,25 @@ export interface Unit {
     mastery: number;
     lastVisited: string | null;
   } | null;
+}
+
+/** Respuesta de una pregunta de diagnóstico (par pregunta/respuesta). */
+export interface DiagnosticAnswer {
+  question: string;
+  answer: string;
+}
+
+/** Reporte de error (panel docente de /api/report). */
+export interface ErrorReportItem {
+  id: string;
+  source: "chat" | "activity" | "content";
+  sourceId: string;
+  reason: string;
+  comment: string;
+  status: "open" | "reviewed" | "resolved";
+  reporterName: string;
+  reporterEmail: string;
+  createdAt: string;
 }
 
 export interface Lesson {
@@ -81,7 +105,8 @@ export interface Activity {
   type: ActivityType;
   title: string;
   prompt: string;
-  data: string; // JSON
+  /** Datos del tipo de actividad: objeto JSON (Django) o string serializado (legacy). */
+  data: unknown;
   points: number;
   difficulty: Difficulty;
   order: number;
@@ -127,16 +152,6 @@ export interface Attempt {
   score: number | null;
   correct: boolean | null;
   timeSpent: number | null;
-  createdAt: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  userId?: string;
-  role: "user" | "assistant";
-  content: string;
-  context: string | null;
-  rating: number | null;
   createdAt: string;
 }
 

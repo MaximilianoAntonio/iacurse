@@ -4,18 +4,44 @@ import { useState } from "react";
 import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
-import { LoadingGrid, FetchError } from "@/components/app/loading";
+import { FetchError } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { getUnitColor } from "@/lib/course-utils";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, CheckCircle2, ArrowRight, BookMarked, Clock, ListChecks, Search, Filter, X } from "lucide-react";
+import { CheckCircle2, ArrowRight, BookMarked, Search, Filter, X, Sparkles } from "lucide-react";
 import type { Unit, User } from "@/lib/types";
 
 type FilterKey = "all" | "in-progress" | "completed" | "not-started";
+
+/** Skeleton de carga: replica header + grid de tarjetas con shimmer. */
+function UnitsSkeleton() {
+  return (
+    <div className="mx-auto max-w-7xl space-y-8 p-4 lg:p-8">
+      <div className="space-y-3">
+        <div className="skeleton h-8 w-56" />
+        <div className="skeleton h-4 w-96 max-w-full" />
+      </div>
+      <div className="skeleton h-11 w-full rounded-lg" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="space-y-3 rounded-xl border border-border bg-card p-5">
+            <div className="flex items-start justify-between">
+              <div className="skeleton h-11 w-11 rounded-lg" />
+              <div className="skeleton h-5 w-20 rounded-full" />
+            </div>
+            <div className="skeleton h-4 w-3/4" />
+            <div className="skeleton h-3 w-full" />
+            <div className="skeleton h-3 w-2/3" />
+            <div className="skeleton mt-2 h-2 w-full rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function UnitsView() {
   const currentUser = useAppStore((s) => s.currentUser) as User | null;
@@ -36,17 +62,13 @@ export function UnitsView() {
   }
 
   if (loading || !data) {
-    return (
-      <div className="mx-auto max-w-7xl space-y-8 p-4 lg:p-8">
-        <PageHeader title="Unidades" description="Cargando contenido del curso..." />
-        <LoadingGrid count={5} />
-      </div>
-    );
+    return <UnitsSkeleton />;
   }
 
   const units = data.units;
-  const totalActivities = units.reduce((a, u) => a + (u.activityCount ?? 0), 0);
-  const totalCompleted = units.reduce((a, u) => a + (u.progress?.completed ?? 0), 0);
+  const totalUnits = units.length;
+  const isAdapted = (u: Unit) => Boolean(u.hasAdaptedContent && !u.diagnosticSkipped);
+  const totalAdapted = units.filter(isAdapted).length;
 
   const q = search.trim().toLowerCase();
   const filteredUnits = units.filter((u) => {
@@ -54,20 +76,16 @@ export function UnitsView() {
       const hay = `${u.title} ${u.summary} ${u.description}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
-    const completed = u.progress?.completed ?? 0;
-    const total = u.activityCount ?? 0;
-    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-    if (filter === "completed" && pct < 100) return false;
-    if (filter === "in-progress" && (pct === 0 || pct >= 100)) return false;
-    if (filter === "not-started" && pct > 0) return false;
+    const adapted = isAdapted(u);
+    if (filter === "completed" && !adapted) return false;
+    if (filter === "not-started" && adapted) return false;
     return true;
   });
 
   const filterOptions: { key: FilterKey; label: string; count: number }[] = [
     { key: "all", label: "Todas", count: units.length },
-    { key: "in-progress", label: "En progreso", count: units.filter((u) => { const p = (u.progress?.completed ?? 0) / Math.max(1, u.activityCount ?? 1); return p > 0 && p < 1; }).length },
-    { key: "completed", label: "Completadas", count: units.filter((u) => (u.progress?.completed ?? 0) >= (u.activityCount ?? 1) && (u.activityCount ?? 0) > 0).length },
-    { key: "not-started", label: "Sin empezar", count: units.filter((u) => (u.progress?.completed ?? 0) === 0).length },
+    { key: "completed", label: "Adaptadas", count: totalAdapted },
+    { key: "not-started", label: "Pendientes", count: units.length - totalAdapted },
   ];
 
   return (
@@ -76,38 +94,34 @@ export function UnitsView() {
         title="Unidades temáticas"
         description="Contenido del programa de Electromedicina II, organizado por unidades de aprendizaje."
         icon="BookOpen"
-        iconGradient="from-[#003366] to-[#0066AA]"
+        iconGradient="from-brand to-brand-ink"
         actions={
-          <div className="hidden items-center gap-4 rounded-xl border border-border bg-card px-4 py-2 text-sm sm:flex">
+          <div className="hidden items-center gap-4 rounded-lg border border-border bg-card px-4 py-2 text-sm shadow-xs sm:flex">
             <div className="flex items-center gap-1.5">
-              <BookMarked className="h-4 w-4 text-[#003366]" />
-              <span className="font-semibold">{units.length}</span>
+              <BookMarked className="h-4 w-4 text-brand dark:text-brand-gold" />
+              <span className="font-mono font-semibold tabular-nums">{totalUnits}</span>
               <span className="text-muted-foreground">unidades</span>
             </div>
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-1.5">
-              <ListChecks className="h-4 w-4 text-sky-600" />
-              <span className="font-semibold">{totalCompleted}/{totalActivities}</span>
-              <span className="text-muted-foreground">actividades</span>
+              <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-mono font-semibold tabular-nums">{totalAdapted}/{totalUnits}</span>
+              <span className="text-muted-foreground">adaptadas</span>
             </div>
           </div>
         }
       />
 
-      {/* Intro banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-[#003366]/20 bg-gradient-to-br from-[#003366]/5 via-[#004488]/5 to-[#0066AA]/5 p-7 dark:border-[#003366]/30 dark:from-[#003366]/20 dark:via-[#004488]/10 dark:to-[#0066AA]/10">
-        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-amber-200/40 blur-2xl dark:bg-amber-800/20" />
-        <div className="relative flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#0066AA] text-white shadow-lg">
-            <DynamicIcon name="Lightbulb" className="h-6 w-6" />
-          </div>
-          <div className="space-y-1.5">
-            <h3 className="font-semibold text-[#003366] dark:text-amber-100">¿Cómo se estructura el aprendizaje?</h3>
-            <p className="max-w-2xl text-sm leading-relaxed text-[#003366]/80 dark:text-amber-200/70">
-              Cada unidad contiene lecciones con material teórico y actividades guiadas. Resuelve problemas, analiza casos clínicos
-              y recibe retroalimentación inmediata del tutor IA. Tu progreso y dominio se actualizan automáticamente.
-            </p>
-          </div>
+      {/* Nota explicativa — plana, sin relleno de marca masivo */}
+      <div className="flex items-start gap-3 rounded-xl border border-dashed border-brand/25 bg-brand/[0.04] p-5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand dark:text-brand-gold">
+          <DynamicIcon name="Lightbulb" className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-brand dark:text-brand-gold">¿Cómo funciona el aprendizaje adaptativo?</p>
+          <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            Al entrar a cada unidad por primera vez puedes responder un diagnóstico de preguntas abiertas: la IA adaptará el texto base a tu nivel y lo guardará para tu estudio. Si prefieres, sáltalo y complétalo después.
+          </p>
         </div>
       </div>
 
@@ -119,12 +133,12 @@ export function UnitsView() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar unidades, temas, conceptos..."
-            className="h-11 pl-9 pr-9 focus-visible:ring-2 focus-visible:ring-[#003366]/30"
+            className="h-11 pl-9 pr-9"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="Limpiar búsqueda"
             >
               <X className="h-3.5 w-3.5" />
@@ -137,14 +151,14 @@ export function UnitsView() {
             <button
               key={opt.key}
               onClick={() => setFilter(opt.key)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors duration-200 ease-out-expo ${
                 filter === opt.key
-                  ? "border-amber-300 bg-[#003366]/5 text-[#003366] dark:border-[#003366]/30 dark:bg-[#003366]/20/40 dark:text-amber-400"
-                  : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "border-brand/30 bg-brand/5 text-brand dark:border-brand-gold/40 dark:bg-brand-gold/10 dark:text-brand-gold"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               {opt.label}
-              <span className={`rounded-full px-1.5 text-xs ${filter === opt.key ? "bg-amber-200 text-[#003366] dark:bg-amber-900 dark:text-amber-200" : "bg-muted"}`}>
+              <span className={`rounded-full px-1.5 font-mono text-xs tabular-nums ${filter === opt.key ? "bg-brand-gold/20 text-brand dark:bg-brand-gold/20 dark:text-brand-gold" : "bg-muted"}`}>
                 {opt.count}
               </span>
             </button>
@@ -154,7 +168,7 @@ export function UnitsView() {
 
       {/* Grid de unidades */}
       {filteredUnits.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Search className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -174,123 +188,69 @@ export function UnitsView() {
           </Button>
         </div>
       ) : (
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredUnits.map((u, idx) => {
+      <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredUnits.map((u) => {
           const color = getUnitColor(u.color);
-          const completed = u.progress?.completed ?? 0;
-          const total = u.activityCount ?? 0;
-          const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-          const mastery = u.progress?.mastery ?? 0;
-          const isComplete = pct === 100 && total > 0;
-          const isInProgress = pct > 0 && pct < 100;
+          const adapted = isAdapted(u);
+          const skipped = Boolean(u.diagnosticSkipped);
 
           return (
             <button
               key={u.id}
               onClick={() => openUnit(u.id)}
-              className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-left transition-all hover:-translate-y-1 hover:shadow-xl"
+              className="hover-lift group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-5 text-left shadow-xs hover:border-brand/30"
             >
-              {/* Gradient header strip */}
-              <div className={`relative h-24 bg-gradient-to-br ${color.gradient} p-4`}>
-                <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/15 blur-xl" />
-                <div className="absolute right-3 top-3 flex items-center gap-1.5">
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold text-white backdrop-blur">
-                    UNIDAD {idx + 1}
-                  </span>
+              <div className="flex items-start justify-between">
+                <div className={`flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br ${color.gradient} text-white shadow-sm transition-transform duration-200 ease-out-expo group-hover:scale-105`}>
+                  <DynamicIcon name={u.icon} className="h-5 w-5" />
                 </div>
-                <div className="relative flex h-full items-end">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur transition-transform group-hover:scale-110">
-                    <DynamicIcon name={u.icon} className="h-6 w-6" />
-                  </div>
-                </div>
+                {adapted ? (
+                  <Badge className="shrink-0 border-none bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> Adaptada
+                  </Badge>
+                ) : skipped ? (
+                  <Badge variant="outline" className="shrink-0 border-brand-gold/50 text-amber-700 dark:text-brand-gold">
+                    Diagnóstico saltado
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="shrink-0">Pendiente</Badge>
+                )}
               </div>
 
-              {/* Body */}
-              <div className="flex flex-1 flex-col p-5">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <h3 className="font-bold leading-tight">{u.title}</h3>
-                  {isComplete ? (
-                    <Badge className="shrink-0 bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400">
-                      <CheckCircle2 className="mr-1 h-3 w-3" /> OK
-                    </Badge>
-                  ) : isInProgress ? (
-                    <Badge variant="secondary" className="shrink-0">{pct}%</Badge>
-                  ) : (
-                    <Badge variant="outline" className="shrink-0">Nueva</Badge>
-                  )}
-                </div>
-                <p className="line-clamp-2 text-sm text-muted-foreground">{u.summary}</p>
+              <h3 className="mt-3 font-semibold leading-tight transition-colors duration-200 group-hover:text-brand dark:group-hover:text-brand-gold">{u.title}</h3>
+              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{u.summary}</p>
 
-                {/* Meta */}
-                <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="h-3.5 w-3.5" /> {u.lessonCount} lecciones
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <ListChecks className="h-3.5 w-3.5" /> {total} actividades
+              {/* Progreso */}
+              <div className="mt-4 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Diagnóstico</span>
+                  <span className="font-medium">
+                    {adapted ? "Completado" : skipped ? "Saltado" : "Pendiente"}
                   </span>
                 </div>
+                <Progress value={adapted ? 100 : 0} className="h-1.5 bg-muted" />
+              </div>
 
-                {/* Progress */}
-                <div className="mt-4 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Progreso</span>
-                    <span className="font-semibold">{completed}/{total}</span>
-                  </div>
-                  <Progress value={pct} className="h-2.5 bg-muted/60" />
-                  <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
-                    <span>Dominio: <span className="font-semibold text-foreground">{mastery}%</span></span>
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                  {isComplete ? (
-                    <span className="inline-flex items-center rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-                      Revisar unidad
-                    </span>
-                  ) : isInProgress ? (
-                    <span className="inline-flex items-center rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-[#003366] shadow-sm">
-                      Continuar
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-full bg-gradient-to-r from-[#003366] to-[#0066AA] px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                      Comenzar
-                    </span>
-                  )}
-                  <span className={`flex h-7 w-7 items-center justify-center rounded-full ${color.bgSoft} ${color.text} transition-transform group-hover:translate-x-0.5`}>
-                    <ArrowRight className="h-3.5 w-3.5" />
+              {/* CTA */}
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                {adapted || skipped ? (
+                  <span className="inline-flex items-center rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+                    Leer contenido
                   </span>
-                </div>
+                ) : (
+                  <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-xs">
+                    Comenzar
+                  </span>
+                )}
+                <span className={`flex h-7 w-7 items-center justify-center rounded-full ${color.bgSoft} ${color.text} transition-transform duration-200 ease-out-expo group-hover:translate-x-0.5`}>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </span>
               </div>
             </button>
           );
         })}
       </div>
       )}
-
-      {/* Tip card */}
-      <Card className="border-dashed bg-muted/30">
-        <CardContent className="flex items-start gap-3 p-5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400">
-            <DynamicIcon name="MessageSquare" className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">¿Dudas con algún concepto?</p>
-            <p className="text-xs text-muted-foreground">
-              El tutor IA está disponible para guiarte con el método socrático, sin darte las respuestas directas.
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto shrink-0 text-amber-600"
-            onClick={() => useAppStore.getState().setChatOpen(true)}
-          >
-            Abrir tutor <ArrowRight className="ml-1 h-3.5 w-3.5" />
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

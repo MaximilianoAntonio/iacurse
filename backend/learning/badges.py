@@ -1,14 +1,13 @@
 """
 Sistema de insignias — reproducido fielmente desde src/lib/badges.ts.
 
-6 reglas con slugs exactos (deben coincidir con fixtures/badges.json):
+5 reglas con slugs exactos (deben coincidir con fixtures/badges.json):
 - primer-paso    : >=1 actividad correcta (distinct activityId)
 - explorador     : >=5 unidades visitadas (Progress.last_visited not null)
 - racha-7        : streak >= 7
 - maestro-ecg    : mastery >= 80 en unidad slug 'electrocardiografia'
 - centinela      : todas las actividades completadas en unidad slug
                    'seguridad-electrica' Y total > 0
-- tutor-activo   : >=10 mensajes de chat (role=user)
 
 Semántica snapshot-once: el snapshot de insignias existentes se toma al inicio
 y NO se actualiza durante el loop (cada slug se otorga a lo más una vez).
@@ -76,7 +75,7 @@ def _award_if_missing(
 
 
 def check_and_award_badges(user: User) -> List[BadgeAwardResult]:
-    """Evalúa las 6 reglas y otorga las insignias nuevas.
+    """Evalúa las 5 reglas y otorga las insignias nuevas.
 
     Devuelve solo las NUEVAMENTE otorgadas (para celebración UI).
     """
@@ -103,8 +102,6 @@ def check_and_award_badges(user: User) -> List[BadgeAwardResult]:
 
     user_fresh = User.objects.filter(pk=user.pk).values("streak").first()
     user_streak = user_fresh["streak"] if user_fresh else 0
-
-    chat_count = user.chat_messages.filter(role="user").count()
 
     # --- Step C: aplicar reglas (snapshot-once) ---
     newly_awarded: list[BadgeAwardResult] = []
@@ -155,12 +152,6 @@ def check_and_award_badges(user: User) -> List[BadgeAwardResult]:
     )
     _award_if_missing(
         "centinela", centinela_cond,
-        badge_by_slug, existing_badge_ids, user.id, newly_awarded,
-    )
-
-    # Regla 6: tutor-activo (>=10 mensajes de chat user)
-    _award_if_missing(
-        "tutor-activo", chat_count >= 10,
         badge_by_slug, existing_badge_ids, user.id, newly_awarded,
     )
 

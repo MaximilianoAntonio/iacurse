@@ -1,9 +1,5 @@
 "use client";
 
-// Este hook realiza fetching de datos en efectos, lo que requiere llamar setState
-// dentro del effect. Es el patrón estándar de fetching en React.
-/* eslint-disable react-hooks/set-state in effect */
-
 import { useCallback, useEffect, useState } from "react";
 
 // ---------------------------------------------------------------------------
@@ -66,15 +62,21 @@ export function useFetch<T>(url: string | null, deps: unknown[] = []): FetchStat
 
   const refetch = useCallback(() => setTick((t) => t + 1), []);
 
-  useEffect(() => {
-    if (!url) {
-      setData(null);
-      setLoading(false);
-      return;
-    }
-    let active = true;
-    setLoading(true);
+  // Reset sincrónico cuando cambia la URL (patrón "ajustar estado durante el
+  // render"): sin esto el efecto haría setState sincrónico en su cuerpo.
+  // Nota: refetch() NO activa `loading` para no parpadear el skeleton sobre
+  // los datos ya mostrados.
+  const [prevUrl, setPrevUrl] = useState(url);
+  if (url !== prevUrl) {
+    setPrevUrl(url);
+    setData(null);
     setError(null);
+    setLoading(Boolean(url));
+  }
+
+  useEffect(() => {
+    if (!url) return;
+    let active = true;
     fetch(resolveUrl(url), { credentials: "include" })
       .then(async (r) => {
         if (!r.ok) throw new Error(`Error ${r.status}`);
@@ -83,6 +85,7 @@ export function useFetch<T>(url: string | null, deps: unknown[] = []): FetchStat
       .then((json) => {
         if (active) {
           setData(json);
+          setError(null);
           setLoading(false);
         }
       })
@@ -114,7 +117,15 @@ export async function postJSON<T>(url: string, body: unknown): Promise<T> {
   });
   if (!r.ok) {
     const err = await r.json().catch(() => ({ error: r.statusText }));
-    throw new Error(err.error ?? `Error ${r.status}`);
+    // DRF devuelve errores de serializer como {"campo": ["mensaje", ...]}:
+    // propagar el primer mensaje para que la UI lo muestre al usuario.
+    const firstField = Object.values(err).find(
+      (v) => Array.isArray(v) && v.length > 0
+    );
+    const msg =
+      err.error ??
+      (firstField ? String((firstField as unknown[])[0]) : `Error ${r.status}`);
+    throw new Error(msg);
   }
   return r.json() as Promise<T>;
 }
@@ -145,4 +156,26 @@ export async function deleteURL(url: string): Promise<void> {
     headers,
   });
   if (!r.ok) throw new Error(`Error ${r.status}`);
+}
+
+// Sube un archivo (multipart/form-data) al backend. No fija Content-Type:
+// el navegador genera el boundary del FormData automáticamente.
+export async function uploadFile(url: string, file: File): Promise<{ url: string }> {
+  await ensureCsrf();
+  const headers: Record<string, string> = {};
+  const csrf = getCsrfToken();
+  if (csrf) headers["X-CSRFToken"] = csrf;
+  const form = new FormData();
+  form.append("file", file);
+  const r = await fetch(resolveUrl(url), {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: form,
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: r.statusText }));
+    throw new Error(err.error ?? `Error ${r.status}`);
+  }
+  return r.json() as Promise<{ url: string }>;
 }

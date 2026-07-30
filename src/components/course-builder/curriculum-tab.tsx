@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import {
   BookOpen,
   Plus,
@@ -48,6 +49,8 @@ interface CurriculumUnit {
   icon: string;
   color: string;
   order: number;
+  content?: string;
+  diagnosticQuestions?: string[];
   lessonCount: number;
   activityCount: number;
   sourceCourseId: string | null;
@@ -62,6 +65,8 @@ interface CurriculumUnitDetail {
   icon: string;
   color: string;
   order: number;
+  content?: string;
+  diagnosticQuestions?: string[];
   objectives: { id: string; code: string; description: string; bloomLevel: string }[];
   lessons: {
     id: string;
@@ -72,6 +77,7 @@ interface CurriculumUnitDetail {
     content: string;
     durationMin: number;
     order: number;
+    isPublished: boolean;
     activities: {
       id: string;
       lessonId: string;
@@ -112,6 +118,8 @@ export function CurriculumTab() {
     description: "",
     color: "sky",
     icon: "BookOpen",
+    content: "",
+    diagnosticQuestions: "",
   });
 
   const units = data?.units ?? [];
@@ -122,9 +130,15 @@ export function CurriculumTab() {
       return;
     }
     try {
-      await postJSON("/api/admin/units", unitForm);
+      await postJSON("/api/admin/units", {
+        ...unitForm,
+        diagnosticQuestions: unitForm.diagnosticQuestions
+          .split("\n")
+          .map((q) => q.trim())
+          .filter((q) => q.length > 0),
+      });
       setCreateUnitOpen(false);
-      setUnitForm({ title: "", summary: "", description: "", color: "sky", icon: "BookOpen" });
+      setUnitForm({ title: "", summary: "", description: "", color: "sky", icon: "BookOpen", content: "", diagnosticQuestions: "" });
       refetch();
       toast({ title: "Unidad creada", description: "La unidad se agregó al currículo" });
     } catch (e) {
@@ -156,14 +170,14 @@ export function CurriculumTab() {
             {units.length} unidad{units.length !== 1 ? "es" : ""} · Edita el contenido que ven los estudiantes
           </p>
         </div>
-        <Button size="sm" onClick={() => setCreateUnitOpen(true)} className="bg-primary hover:bg-primary">
+        <Button size="sm" onClick={() => setCreateUnitOpen(true)} className="bg-primary transition-colors hover:bg-primary/90">
           <Plus className="mr-1.5 h-4 w-4" /> Nueva Unidad
         </Button>
       </div>
 
-      <div className="rounded-md border border-gold/30 bg-gold-soft p-3 text-xs text-gold-foreground">
+      <div className="rounded-lg border border-brand-gold/40 bg-accent/40 p-3 text-xs text-accent-foreground">
         <div className="flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-brand-gold" />
           <div>
             <p className="font-semibold">Zona de edición directa del currículo</p>
             <p className="mt-0.5">Los cambios que hagas aquí se reflejan inmediatamente en la vista de los estudiantes. Procede con precaución.</p>
@@ -174,7 +188,7 @@ export function CurriculumTab() {
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-xl bg-muted" />
+            <div key={i} className="skeleton h-20 rounded-xl" />
           ))}
         </div>
       ) : units.length === 0 ? (
@@ -188,11 +202,11 @@ export function CurriculumTab() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="stagger-children space-y-2">
           {units.map((u, idx) => {
             const color = getUnitColor(u.color);
             return (
-              <Card key={u.id} className="transition-shadow hover:shadow-md">
+              <Card key={u.id} className="hover-lift">
                 <CardContent className="flex items-center gap-4 p-4">
                   <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md", color.gradient)}>
                     <DynamicIcon name={u.icon} className="h-5 w-5" />
@@ -215,7 +229,7 @@ export function CurriculumTab() {
                     <Button
                       variant="default"
                       size="sm"
-                      className="h-8 text-xs bg-primary hover:bg-primary"
+                      className="h-8 text-xs bg-primary transition-colors hover:bg-primary/90"
                       onClick={() => setEditingUnitId(u.id)}
                     >
                       <Edit2 className="mr-1 h-3.5 w-3.5" /> Editar
@@ -223,7 +237,7 @@ export function CurriculumTab() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50"
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                       onClick={() => handleDeleteUnit(u.id, u.title)}
                       aria-label={`Eliminar unidad ${u.title}`}
                     >
@@ -239,7 +253,7 @@ export function CurriculumTab() {
 
       {/* Dialog crear unidad */}
       <Dialog open={createUnitOpen} onOpenChange={setCreateUnitOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[calc(100vw-2rem)] max-h-[92vh] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>Nueva unidad del currículo</DialogTitle>
             <DialogDescription>
@@ -258,6 +272,14 @@ export function CurriculumTab() {
             <div>
               <Label className="text-xs font-semibold">Descripción larga</Label>
               <Textarea value={unitForm.description} onChange={(e) => setUnitForm({ ...unitForm, description: e.target.value })} placeholder="Descripción que se muestra al abrir la unidad" className="mt-1 min-h-[70px]" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Contenido Base (Markdown)</Label>
+              <MarkdownEditor value={unitForm.content} onChange={(val) => setUnitForm({ ...unitForm, content: val })} />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Preguntas de Diagnóstico (una por línea)</Label>
+              <Textarea value={unitForm.diagnosticQuestions} onChange={(e) => setUnitForm({ ...unitForm, diagnosticQuestions: e.target.value })} placeholder="¿Qué es un transductor?&#10;¿Cómo se define el ruido eléctrico?" className="mt-1 min-h-[100px]" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -282,7 +304,7 @@ export function CurriculumTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setCreateUnitOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleCreateUnit} className="bg-primary hover:bg-primary">
+            <Button size="sm" onClick={handleCreateUnit} className="bg-primary transition-colors hover:bg-primary/90">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Crear
             </Button>
           </DialogFooter>
@@ -304,23 +326,27 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
   const [lessonDialog, setLessonDialog] = React.useState<{ open: boolean; initial: LessonFormData | null }>({ open: false, initial: null });
   const [activityDialog, setActivityDialog] = React.useState<{ open: boolean; lessonId: string | null; initial: ActivityFormData | null }>({ open: false, lessonId: null, initial: null });
   const [expandedLessons, setExpandedLessons] = React.useState<Set<string>>(new Set());
-  const [unitForm, setUnitForm] = React.useState({ title: "", summary: "", description: "", icon: "BookOpen", color: "sky" });
+  const [unitForm, setUnitForm] = React.useState({ title: "", summary: "", description: "", icon: "BookOpen", color: "sky", content: "", diagnosticQuestions: "" });
   const [newObjOpen, setNewObjOpen] = React.useState(false);
   const [objForm, setObjForm] = React.useState({ code: "", description: "", bloomLevel: "apply" });
 
   const unit = data?.unit;
 
-  React.useEffect(() => {
-    if (unit) {
-      setUnitForm({
-        title: unit.title,
-        summary: unit.summary,
-        description: unit.description,
-        icon: unit.icon,
-        color: unit.color,
-      });
-    }
-  }, [unit?.id]);
+  // Llena el formulario con los datos actuales de la unidad al abrir el
+  // diálogo de edición (evento, en vez de un effect con setState).
+  const openEditUnit = () => {
+    if (!unit) return;
+    setUnitForm({
+      title: unit.title,
+      summary: unit.summary,
+      description: unit.description,
+      icon: unit.icon,
+      color: unit.color,
+      content: unit.content || "",
+      diagnosticQuestions: (unit.diagnosticQuestions || []).join("\n"),
+    });
+    setEditUnitOpen(true);
+  };
 
   const toggleLesson = (id: string) => {
     setExpandedLessons((prev) => {
@@ -333,7 +359,19 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
 
   const handleUpdateUnit = async () => {
     try {
-      await patchJSON("/api/admin/units", { unitId, ...unitForm });
+      await patchJSON("/api/admin/units", {
+        unitId,
+        title: unitForm.title,
+        summary: unitForm.summary,
+        description: unitForm.description,
+        icon: unitForm.icon,
+        color: unitForm.color,
+        content: unitForm.content,
+        diagnosticQuestions: unitForm.diagnosticQuestions
+          .split("\n")
+          .map((q) => q.trim())
+          .filter((q) => q.length > 0),
+      });
       setEditUnitOpen(false);
       refetch();
       toast({ title: "Unidad actualizada" });
@@ -350,9 +388,10 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
         description: formData.description,
         content: formData.content,
         durationMin: formData.durationMin,
+        isPublished: formData.isPublished,
       });
       refetch();
-      toast({ title: "Lección creada" });
+      toast({ title: formData.isPublished ? "Lección publicada" : "Borrador guardado" });
     } catch (e) {
       toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
     }
@@ -367,9 +406,10 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
         description: formData.description,
         content: formData.content,
         durationMin: formData.durationMin,
+        isPublished: formData.isPublished,
       });
       refetch();
-      toast({ title: "Lección actualizada" });
+      toast({ title: formData.isPublished ? "Lección publicada" : "Borrador guardado" });
     } catch (e) {
       toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
     }
@@ -504,10 +544,10 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           </div>
         </div>
         <div className="ml-auto flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setEditUnitOpen(true)}>
+          <Button variant="outline" size="sm" onClick={openEditUnit}>
             <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Editar unidad
           </Button>
-          <Button size="sm" onClick={() => setLessonDialog({ open: true, initial: null })} className="bg-primary hover:bg-primary">
+          <Button size="sm" onClick={() => setLessonDialog({ open: true, initial: null })} className="bg-primary transition-colors hover:bg-primary/90">
             <Plus className="mr-1.5 h-4 w-4" /> Nueva Lección
           </Button>
         </div>
@@ -547,7 +587,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 text-rose-600 shrink-0"
+                    className="h-6 w-6 p-0 text-destructive shrink-0"
                     onClick={() => handleDeleteObjective(o.id)}
                     aria-label="Eliminar objetivo"
                   >
@@ -572,7 +612,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="stagger-children space-y-2">
           {unit.lessons.map((lesson, li) => {
             const expanded = expandedLessons.has(lesson.id);
             return (
@@ -585,16 +625,21 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                     >
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">{li + 1}</span>
                       <CardTitle className="text-base truncate">{lesson.title}</CardTitle>
+                      {!lesson.isPublished && (
+                        <Badge variant="outline" className="shrink-0 border-brand-gold/50 bg-brand-gold/10 text-[10px] text-amber-700 dark:text-brand-gold">
+                          Borrador
+                        </Badge>
+                      )}
                       {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
                     </button>
                     <div className="flex shrink-0 gap-1">
                       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setActivityDialog({ open: true, lessonId: lesson.id, initial: null })}>
                         <Plus className="mr-1 h-3 w-3" /> Actividad
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setLessonDialog({ open: true, initial: { id: lesson.id, title: lesson.title, description: lesson.description, content: lesson.content, durationMin: lesson.durationMin } })}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setLessonDialog({ open: true, initial: { id: lesson.id, title: lesson.title, description: lesson.description, content: lesson.content, durationMin: lesson.durationMin, isPublished: lesson.isPublished } })}>
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-600" onClick={() => handleDeleteLesson(lesson.id, lesson.title)}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteLesson(lesson.id, lesson.title)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -628,7 +673,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                         const assessColor: Record<string, string> = {
                           diagnostic: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300",
                           formative: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-                          summative: "border-gold/30 bg-gold-soft text-gold-foreground",
+                          summative: "border-brand-gold/40 bg-brand-gold/10 text-amber-700 dark:border-brand-gold/50 dark:bg-brand-gold/10 dark:text-brand-gold",
                           self_reflection: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300",
                         };
                         return (
@@ -638,18 +683,27 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-medium truncate">{act.title}</p>
-                                <Badge variant="outline" className="text-xs">
-                                  {meta?.label ?? act.type}
-                                </Badge>
-                                <Badge variant="outline" className={cn("text-xs", assessColor[act.assessmentType] || "")} title="Tipo de evaluación">
+                                <p className="truncate text-sm font-semibold text-foreground">{act.title}</p>
+                                <Badge variant="outline" className={cn("text-[10px] py-0 px-2 leading-4 rounded-full", assessColor[act.assessmentType] || "")} title="Tipo de evaluación">
                                   {assessLabel[act.assessmentType] ?? act.assessmentType}
                                 </Badge>
-                                <Badge variant="outline" className={cn("text-xs", diff.bg, diff.color)}>
+                              </div>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-0.5 rounded text-[11px]">
+                                  {meta?.label ?? act.type}
+                                </span>
+                                <span>·</span>
+                                <span className={cn("font-medium", diff.color)}>
                                   {diff.label}
-                                </Badge>
-                                <Badge variant="secondary" className="text-xs">{act.points} pts</Badge>
-                                <Badge variant="outline" className="text-xs capitalize" title="Nivel de Bloom">{act.bloomLevel}</Badge>
+                                </span>
+                                <span>·</span>
+                                <span className="font-semibold text-foreground/80">
+                                  {act.points} pts
+                                </span>
+                                <span>·</span>
+                                <span className="capitalize" title="Nivel taxonómico de Bloom">
+                                  Bloom: {act.bloomLevel}
+                                </span>
                               </div>
                               <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{act.prompt}</p>
                               <p className="mt-0.5 text-xs text-muted-foreground">
@@ -687,7 +741,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 text-rose-600"
+                                className="h-7 w-7 p-0 text-destructive"
                                 onClick={() => handleDeleteActivity(act.id, act.title)}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -715,7 +769,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
 
       {/* Dialog editar unidad */}
       <Dialog open={editUnitOpen} onOpenChange={setEditUnitOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[calc(100vw-2rem)] max-h-[92vh] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>Editar unidad</DialogTitle>
           </DialogHeader>
@@ -731,6 +785,18 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
             <div>
               <Label className="text-xs font-semibold">Descripción</Label>
               <Textarea value={unitForm.description} onChange={(e) => setUnitForm({ ...unitForm, description: e.target.value })} className="mt-1 min-h-[70px]" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Contenido Base (Markdown)</Label>
+              <MarkdownEditor value={unitForm.content} onChange={(val) => setUnitForm({ ...unitForm, content: val })} />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Preguntas de Diagnóstico (una por línea)</Label>
+              <Textarea value={unitForm.diagnosticQuestions} onChange={(e) => setUnitForm({ ...unitForm, diagnosticQuestions: e.target.value })} placeholder="¿Qué es un transductor?&#10;¿Cómo se define el ruido eléctrico?" className="mt-1 min-h-[100px]" />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Al guardar cambios en las preguntas se reinician las adaptaciones ya generadas
+                por los estudiantes: cada uno repetirá el diagnóstico con la nueva pauta.
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -755,7 +821,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setEditUnitOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleUpdateUnit} className="bg-primary hover:bg-primary">
+            <Button size="sm" onClick={handleUpdateUnit} className="bg-primary transition-colors hover:bg-primary/90">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Guardar
             </Button>
           </DialogFooter>
@@ -828,7 +894,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setNewObjOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleCreateObjective} className="bg-primary hover:bg-primary">
+            <Button size="sm" onClick={handleCreateObjective} className="bg-primary transition-colors hover:bg-primary/90">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Crear objetivo
             </Button>
           </DialogFooter>

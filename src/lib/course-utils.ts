@@ -107,12 +107,19 @@ export const difficultyMeta: Record<
   hard: { label: "Avanzado", color: "text-rose-700 dark:text-rose-300", bg: "bg-rose-100 dark:bg-rose-950" },
 };
 
-export function parseActivityData<T>(data: string): T {
-  try {
-    return JSON.parse(data) as T;
-  } catch {
-    return {} as T;
+// El backend Django devuelve `data` de actividad como objeto JSON; la versión
+// legacy (Prisma/SQLite) la entregaba como string serializado. Se aceptan
+// ambas formas (parity con parse_activity_data del backend).
+export function parseActivityData<T>(data: unknown): T {
+  if (data && typeof data === "object") return data as T;
+  if (typeof data === "string") {
+    try {
+      return JSON.parse(data) as T;
+    } catch {
+      return {} as T;
+    }
   }
+  return {} as T;
 }
 
 // Icono de badge por tier

@@ -1,5 +1,5 @@
 """
-Tests del sistema de insignias — reproduce las 6 reglas con slugs exactos.
+Tests del sistema de insignias — reproduce las 5 reglas con slugs exactos.
 
 Valida:
 - Cada regla dispara la insignia correcta
@@ -21,14 +21,13 @@ User = get_user_model()
 
 @pytest.fixture
 def badges(db):
-    """Crea las 6 insignias canónicas."""
+    """Crea las 5 insignias canónicas."""
     data = [
         ("primer-paso", "Primer Paso", "Footprints", "bronze"),
         ("explorador", "Explorador", "Compass", "bronze"),
         ("racha-7", "Constancia", "Flame", "silver"),
         ("maestro-ecg", "Maestro del ECG", "Award", "gold"),
         ("centinela", "Centinela", "ShieldCheck", "silver"),
-        ("tutor-activo", "Curioso", "MessageCircleQuestion", "silver"),
     ]
     for slug, name, icon, tier in data:
         Badge.objects.create(slug=slug, name=name, icon=icon, tier=tier)
@@ -144,16 +143,6 @@ class TestCentinela:
         Progress.objects.create(user=student, unit=safety, completed=1, total=2)
         awarded = check_and_award_badges(student)
         assert "centinela" not in [r.badge_slug for r in awarded]
-
-
-@pytest.mark.django_db
-class TestTutorActivo:
-    def test_awarded_on_10_chat_messages(self, badges, student):
-        from tutor.models import ChatMessage
-        for _ in range(10):
-            ChatMessage.objects.create(user=student, role="user", content="hola")
-        awarded = check_and_award_badges(student)
-        assert "tutor-activo" in [r.badge_slug for r in awarded]
 
 
 @pytest.mark.django_db

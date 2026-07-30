@@ -59,12 +59,12 @@ export function NotificationBell() {
           aria-label="Notificaciones"
         >
           {hasUnread ? (
-            <BellRing className="h-4 w-4 text-amber-500" />
+            <BellRing className="h-4 w-4 text-brand-gold" />
           ) : (
             <Bell className="h-4 w-4" />
           )}
           {hasUnread && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-xs font-bold text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-xs font-bold text-white">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -74,7 +74,7 @@ export function NotificationBell() {
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>Notificaciones</span>
           {hasUnread && (
-            <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+            <Badge className="bg-destructive/10 text-destructive">
               {unreadCount} nueva{unreadCount !== 1 ? "s" : ""}
             </Badge>
           )}
@@ -93,9 +93,9 @@ export function NotificationBell() {
             {notifications.map((n) => {
               const isRecent = new Date(n.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000);
               const typeColor = {
-                badge: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
-                report: "bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400",
-                info: "bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400",
+                badge: "bg-accent text-accent-foreground",
+                report: "bg-destructive/10 text-destructive",
+                info: "bg-primary/10 text-primary",
               }[n.type];
               return (
                 <DropdownMenuItem
@@ -109,7 +109,7 @@ export function NotificationBell() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="truncate text-xs font-semibold">{n.title}</p>
-                      {isRecent && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />}
+                      {isRecent && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{n.description}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(n.createdAt)}</p>

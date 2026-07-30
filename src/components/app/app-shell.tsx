@@ -5,7 +5,6 @@ import { useAppStore } from "@/store/app-store";
 import { Sidebar } from "@/components/app/sidebar";
 import { Header } from "@/components/app/header";
 import { Footer } from "@/components/app/footer";
-import { ChatSidebar } from "@/components/app/chat-sidebar";
 import { ViewRouter } from "@/components/app/view-router";
 
 interface AppShellProps {
@@ -13,7 +12,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ onLogout }: AppShellProps) {
-  const chatOpen = useAppStore((s) => s.chatOpen);
+  const view = useAppStore((s) => s.view);
   const navCollapsed = useAppStore((s) => s.navCollapsed);
   const hydrateFromUrl = useAppStore((s) => s.hydrateFromUrl);
   const setNavFromUrl = useAppStore((s) => s.setNavFromUrl);
@@ -39,20 +38,20 @@ export function AppShell({ onLogout }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Sidebar />
-      {/* El main se empuja a la izquierda por el sidebar (solo en desktop si no está colapsado)
-          y a la derecha cuando el chat está abierto en desktop */}
+      {/* El main se empuja según el sidebar: panel completo (w-72) o mini-rail (w-16) en desktop */}
       <div
-        className={`flex min-h-screen flex-1 flex-col transition-[padding] duration-300 ${
-          navCollapsed ? "lg:pl-0" : "lg:pl-72"
-        } ${chatOpen ? "lg:pr-[380px]" : ""}`}
+        className={`flex min-h-screen flex-1 flex-col transition-[padding] duration-300 ease-out-expo ${
+          navCollapsed ? "lg:pl-16" : "lg:pl-72"
+        }`}
       >
         <Header onLogout={onLogout} />
-        <main className="flex-1">
-          <ViewRouter />
+        <main className="flex-1" key={view}>
+          <div className="animate-fade-in-up">
+            <ViewRouter />
+          </div>
         </main>
         <Footer />
       </div>
-      <ChatSidebar />
     </div>
   );
 }

@@ -1,0 +1,44 @@
+# Contexto de build del frontend (Dockerfile.frontend)
+# Sin este archivo, `COPY . .` copiaba .env, .git y node_modules a la imagen.
+
+# Secretos y entorno local
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# VCS y tooling
+.git
+.gitignore
+.agents
+.impeccable
+.zcode
+.zscripts
+
+# Dependencias y artefactos de build (se regeneran dentro de la imagen)
+node_modules
+.next
+out
+build
+*.tsbuildinfo
+next-env.d.ts
+
+# Backend (tiene su propio Dockerfile y contexto)
+backend
+
+# Datos y artefactos locales
+media
+*.log
+tool-results
+mini-services
+upload
+*.png
+*.jpeg
+*.jpg
+*.gif
+*.webp
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore

@@ -50,7 +50,7 @@ class EventLog(models.Model):
     """Evento genérico de telemetría para analítica flexible.
 
     El frontend envía eventos arbitrarios vía POST /api/telemetry/event:
-    page_view, open_lesson, request_hint, submit_attempt, open_chat, etc.
+    page_view, open_lesson, request_hint, submit_attempt, self_assess, etc.
     Esto permite medir patrones de interacción sin acoplar el backend a
     cada evento específico del frontend.
     """
@@ -61,12 +61,9 @@ class EventLog(models.Model):
         ("open_activity", "Abrir actividad"),
         ("request_hint", "Solicitar pista"),
         ("submit_attempt", "Enviar intento"),
-        ("open_chat", "Abrir tutor IA"),
-        ("send_chat", "Enviar mensaje al tutor"),
-        ("rate_message", "Calificar mensaje"),
         ("bookmark", "Marcar actividad"),
         ("self_assess", "Autoevaluación"),
-        ("report_error", "Reportar error de IA"),
+        ("report_error", "Reportar error"),
         ("custom", "Personalizado"),
     ]
 

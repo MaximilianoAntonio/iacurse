@@ -1,0 +1,31 @@
+# Contexto de build del backend (backend/Dockerfile)
+
+# Secretos y entorno local
+.env
+.env.*
+!.env.example
+
+# VCS y tooling
+.git
+.gitignore
+.pytest_cache
+.vscode
+
+# Entorno virtual y caches de Python
+.venv
+venv
+__pycache__
+*.pyc
+
+# Artefactos generados (se regeneran en el entrypoint)
+staticfiles
+media
+
+# Datos locales (SQLite dev, backups)
+*.sqlite3
+db
+*.log
+
+# Docker
+Dockerfile
+.dockerignore

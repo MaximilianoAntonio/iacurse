@@ -1,5 +1,13 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect --
+ * Flujo de autenticación con restricciones de SSR: el efecto de montaje lee
+ * localStorage (inaccesible durante el server render, por lo que no puede
+ * ser init perezoso ni ajuste en render sin mismatch de hidratación) y el
+ * efecto de error reacciona al fallo async de /api/me evitando la condición
+ * de carrera documentada más abajo. Son los patrones correctos aquí.
+ */
+
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/app-store";
 import { AppShell } from "@/components/app/app-shell";

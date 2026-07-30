@@ -39,6 +39,8 @@ class Unit(TimeStampedModel):
     icon = models.CharField("icono", max_length=64, default="BookOpen")
     color = models.CharField("color", max_length=32, default="sky")
     order = models.IntegerField("orden", default=0)
+    content = models.TextField("contenido base (markdown)", blank=True, default="")
+    diagnostic_questions = models.JSONField("preguntas de diagnóstico", default=list)
 
     class Meta:
         verbose_name = "unidad"
@@ -60,6 +62,9 @@ class Lesson(TimeStampedModel):
     content = models.TextField("contenido (markdown)", blank=True, default="")
     duration_min = models.IntegerField("duración (min)", default=15)
     order = models.IntegerField("orden", default=0)
+    # Borrador docente: una lección no publicada se edita en el Course Builder
+    # pero no es visible para los estudiantes hasta publicarla.
+    is_published = models.BooleanField("publicada", default=True)
 
     class Meta:
         verbose_name = "lección"

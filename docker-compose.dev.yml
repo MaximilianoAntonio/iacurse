@@ -19,6 +19,9 @@ services:
       dockerfile: Dockerfile.frontend.dev
     environment:
       NODE_ENV: development
+      # En Windows el bind-mount no propaga eventos de filesystem al contenedor;
+      # sin polling el hot-reload no ve los cambios hechos desde el host.
+      WATCHPACK_POLLING: "true"
     volumes:
       - ./:/app
       - /app/node_modules

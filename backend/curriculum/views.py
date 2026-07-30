@@ -9,7 +9,8 @@ from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from learning.models import Attempt, Progress
+from learning.models import Attempt, Progress, PersonalizedUnit
+from learning.ai_services import adapt_unit_for_student
 from .models import Activity, Lesson, Unit
 
 
@@ -28,45 +29,53 @@ def _unit_to_dict(unit, lessons=None):
 
 
 class UnitsListView(views.APIView):
-    """GET /api/units — lista unidades con lecciones y progreso del usuario."""
+    """GET /api/units — lista unidades con progreso real del usuario y flags
+    de adaptación (hasAdaptedContent / diagnosticSkipped)."""
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
         units = Unit.objects.order_by("order", "title")
-        progress_map = {}
-        for p in Progress.objects.filter(user=user):
-            progress_map[p.unit_id] = {
-                "completed": min(p.completed, p.total),
-                "total": p.total,
-                "mastery": min(100, p.mastery),
-            }
+        pers_units = {
+            pu.unit_id: pu.skipped
+            for pu in PersonalizedUnit.objects.filter(user=user)
+        }
+        progress_map = {p.unit_id: p for p in Progress.objects.filter(user=user)}
+        lesson_counts = {
+            row["unit"]: row["n"]
+            for row in Lesson.objects.filter(is_published=True)
+            .values("unit")
+            .annotate(n=Count("id"))
+        }
+        activity_counts = {
+            row["lesson__unit"]: row["n"]
+            for row in Activity.objects.values("lesson__unit").annotate(n=Count("id"))
+        }
 
         result = []
         for u in units:
-            lessons = [
-                {
-                    "id": l.id,
-                    "slug": l.slug,
-                    "title": l.title,
-                    "durationMin": l.duration_min,
-                    "order": l.order,
-                }
-                for l in u.lessons.order_by("order")
-            ]
-            activity_count = Activity.objects.filter(lesson__unit=u).count()
-            prog = progress_map.get(u.id, {"completed": 0, "total": activity_count, "mastery": 0})
-            d = _unit_to_dict(u, lessons)
-            d["lessonCount"] = u.lessons.count()
-            d["activityCount"] = activity_count
-            d["progress"] = prog
+            has_adapted = u.id in pers_units
+            prog_obj = progress_map.get(u.id)
+            total_activities = activity_counts.get(u.id, 0)
+            d = _unit_to_dict(u, lessons=[])
+            d["lessonCount"] = lesson_counts.get(u.id, 0)
+            d["activityCount"] = total_activities
+            d["hasAdaptedContent"] = has_adapted
+            d["diagnosticSkipped"] = pers_units.get(u.id, False) if has_adapted else False
+            d["progress"] = {
+                "completed": prog_obj.completed if prog_obj else 0,
+                "total": prog_obj.total if prog_obj else total_activities,
+                "mastery": min(100, prog_obj.mastery) if prog_obj else 0,
+            }
             result.append(d)
         return Response({"units": result})
 
 
 class UnitDetailView(views.APIView):
-    """GET /api/units/<slug_or_id> — detalle de unidad con progreso por actividad."""
+    """GET /api/units/<slug_or_id> — detalle de unidad adaptada con progreso.
+    POST /api/units/<slug_or_id> — guardar diagnóstico y generar unidad personalizada.
+    """
 
     permission_classes = [IsAuthenticated]
 
@@ -76,55 +85,53 @@ class UnitDetailView(views.APIView):
             return Response({"error": "Unidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
 
+        # Buscar unidad personalizada (diagnóstico contestado)
+        pers_unit = PersonalizedUnit.objects.filter(user=user, unit=unit).first()
+        has_adapted = pers_unit is not None
+
+        # Lecciones publicadas con actividades y resumen de intentos del usuario
+        # (los borradores del docente no son visibles para estudiantes)
         lessons = []
-        for l in unit.lessons.order_by("order").prefetch_related("activities"):
+        for l in unit.lessons.filter(is_published=True).order_by("order").prefetch_related("activities"):
             activities = []
             for a in l.activities.order_by("order"):
-                act_dict = {
+                attempts = a.attempts.filter(user=user)
+                best = attempts.order_by("-score").first()
+                activities.append({
                     "id": a.id,
                     "type": a.type,
                     "title": a.title,
-                    "prompt": a.prompt,
-                    "data": a.data,
                     "points": a.points,
                     "difficulty": a.difficulty,
                     "order": a.order,
-                    "assessmentType": a.assessment_type,
-                    "bloomLevel": a.bloom_level,
-                    "maxAttempts": a.max_attempts,
-                    "masteryThreshold": a.mastery_threshold,
-                    "timeLimitMin": a.time_limit_min,
-                }
-                # Resumen de intentos del usuario
-                attempts = a.attempts.filter(user=user)
-                best = attempts.order_by("-score").first()
-                act_dict["attemptSummary"] = {
-                    "attempts": attempts.count(),
-                    "completed": attempts.filter(correct=True).exists(),
-                    "bestScore": best.score if best else None,
-                }
-                activities.append(act_dict)
+                    "attemptSummary": {
+                        "attempts": attempts.count(),
+                        "completed": attempts.filter(correct=True).exists(),
+                        "bestScore": best.score if best else None,
+                    },
+                })
             lessons.append({
                 "id": l.id, "slug": l.slug, "title": l.title,
-                "description": l.description, "content": l.content,
+                "description": l.description,
                 "durationMin": l.duration_min, "order": l.order,
                 "activities": activities,
             })
 
-        # Progreso de unidad
-        progress = None
-        try:
-            p = Progress.objects.get(user=user, unit=unit)
-            progress = {
-                "completed": min(p.completed, p.total),
-                "total": p.total, "mastery": min(100, p.mastery),
-                "lastVisited": p.last_visited.isoformat() if p.last_visited else None,
-            }
-        except Progress.DoesNotExist:
-            pass
+        # Progreso real del usuario en la unidad (actividades completadas)
+        prog_obj = Progress.objects.filter(user=user, unit=unit).first()
+        total_activities = Activity.objects.filter(lesson__unit=unit).count()
+        progress = {
+            "completed": prog_obj.completed if prog_obj else 0,
+            "total": prog_obj.total if prog_obj else total_activities,
+            "mastery": min(100, prog_obj.mastery) if prog_obj else 0,
+            "lastVisited": (
+                prog_obj.last_visited.isoformat()
+                if prog_obj and prog_obj.last_visited
+                else None
+            ),
+        }
 
         # attemptsByActivity: map activityId → resumen, consumido por el frontend
-        # en unit-detail-view (marcado de actividades completadas).
         attempts_by_activity = {}
         for l in lessons:
             for a in l["activities"]:
@@ -135,10 +142,93 @@ class UnitDetailView(views.APIView):
                 "id": unit.id, "slug": unit.slug, "title": unit.title,
                 "summary": unit.summary, "description": unit.description,
                 "icon": unit.icon, "color": unit.color, "order": unit.order,
+                "content": unit.content,
+                "diagnosticQuestions": unit.diagnostic_questions,
                 "lessons": lessons,
+                "hasAdaptedContent": has_adapted,
+                "adaptedContent": pers_unit.adapted_content if pers_unit else "",
+                "diagnosticAnswers": pers_unit.diagnostic_answers if pers_unit else [],
+                "diagnosticSkipped": pers_unit.skipped if pers_unit else False,
             },
             "progress": progress,
             "attemptsByActivity": attempts_by_activity,
+        })
+
+    def post(self, request, slug):
+        unit = Unit.objects.filter(Q(slug=slug) | Q(pk=slug)).first()
+        if not unit:
+            return Response({"error": "Unidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user
+
+        # Opción "Saltar diagnóstico": se desbloquea la unidad con el contenido
+        # base (sin adaptar) y queda marcada para completar el diagnóstico después.
+        if request.data.get("skip"):
+            PersonalizedUnit.objects.update_or_create(
+                user=user,
+                unit=unit,
+                defaults={
+                    "diagnostic_answers": [],
+                    "adapted_content": unit.content,
+                    "skipped": True,
+                },
+            )
+            return Response({
+                "ok": True,
+                "hasAdaptedContent": True,
+                "adaptedContent": unit.content,
+                "diagnosticAnswers": [],
+                "diagnosticSkipped": True,
+            })
+
+        answers = request.data.get("answers")  # [{'question': '...', 'answer': '...'}]
+
+        # Validación de forma: lista no vacía de pares pregunta/respuesta.
+        if not isinstance(answers, list) or not answers:
+            return Response(
+                {"error": "Faltan las respuestas del diagnóstico"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(answers) > 50:
+            return Response(
+                {"error": "Demasiadas respuestas (máx. 50)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        clean_answers = []
+        for item in answers:
+            if not isinstance(item, dict):
+                return Response(
+                    {"error": "Formato de respuestas inválido"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            q = str(item.get("question", "")).strip()
+            a = str(item.get("answer", "")).strip()
+            if not q or not a:
+                return Response(
+                    {"error": "Todas las preguntas deben tener respuesta"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            clean_answers.append({"question": q[:500], "answer": a[:4000]})
+
+        # Adaptar contenido base usando la IA
+        adapted_content = adapt_unit_for_student(unit.title, unit.content, clean_answers)
+
+        # Crear o actualizar PersonalizedUnit
+        pers_unit, created = PersonalizedUnit.objects.update_or_create(
+            user=user,
+            unit=unit,
+            defaults={
+                "diagnostic_answers": clean_answers,
+                "adapted_content": adapted_content,
+                "skipped": False,
+            }
+        )
+
+        return Response({
+            "ok": True,
+            "hasAdaptedContent": True,
+            "adaptedContent": adapted_content,
+            "diagnosticAnswers": clean_answers,
+            "diagnosticSkipped": False,
         })
 
 
@@ -148,7 +238,7 @@ class LessonDetailView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, lesson_id):
-        lesson = Lesson.objects.filter(pk=lesson_id).select_related("unit").first()
+        lesson = Lesson.objects.filter(pk=lesson_id, is_published=True).select_related("unit").first()
         if not lesson:
             return Response({"error": "Lección no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user

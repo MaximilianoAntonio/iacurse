@@ -4,9 +4,12 @@ URLs raíz del backend Electromedicina II.
 Todas las rutas de API cuelgan de /api/ para parity con el frontend Next.js
 que ya llama a /api/... (cambiando solo el host base).
 """
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import JsonResponse
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve
 
 
 def health(_request):
@@ -23,8 +26,23 @@ urlpatterns = [
     path("api/", include("learning.urls")),
     path("api/", include("telemetry.urls")),
     path("api/", include("analytics.urls")),
-    path("api/", include("tutor.urls")),
     path("api/", include("sandbox.urls")),
     path("api/", include("reports.urls")),
     path("api/", include("search.urls")),
 ]
+
+# Servir archivos subidos (imágenes del editor docente).
+# En desarrollo static() los expone automáticamente; en producción se sirven
+# desde Django/gunicorn porque el stack MVP no incluye nginx/Caddy. A la
+# escala del piloto es suficiente; si se agrega un reverse proxy, conviene
+# servir /media/ (y /static/) directamente allí.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    urlpatterns += [
+        re_path(
+            r"^media/(?P<path>.*)$",
+            serve,
+            {"document_root": settings.MEDIA_ROOT},
+        ),
+    ]

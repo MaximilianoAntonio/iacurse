@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/store/app-store";
 import { useFetch, postJSON } from "@/hooks/use-fetch";
+import { useDraftGuard, clearActivityDrafts } from "@/hooks/use-draft-guard";
+import { useStudySessionTracker } from "@/hooks/use-telemetry";
 import { PageHeader } from "@/components/app/page-header";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
-import { LoadingRows } from "@/components/app/loading";
 import { Celebration } from "@/components/app/celebration";
 import { BookmarkButton } from "@/components/app/bookmark-button";
 import { useToast } from "@/hooks/use-toast";
@@ -161,6 +162,17 @@ function isAnswerClose(expected: string, given: string): boolean {
     .some((w) => w.length > 3 && g.includes(w));
 }
 
+/** Indicador de autoguardado local (borrador en localStorage). */
+function DraftSavedNote({ visible }: { visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <p className="flex animate-fade-in items-center gap-1.5 text-xs text-muted-foreground">
+      <CheckCircle2 className="h-3.5 w-3.5 text-brand dark:text-brand-gold" />
+      Borrador guardado en este equipo
+    </p>
+  );
+}
+
 // ---------- main view ----------
 
 export function ActivityView() {
@@ -176,6 +188,10 @@ export function ActivityView() {
   const { data, loading, error } = useFetch<LessonResponse>(url, [
     currentLessonId,
   ]);
+
+  // Telemetría: resolver actividades también cuenta como tiempo de
+  // interacción (misma sesión de estudio con la unidad como contexto).
+  useStudySessionTracker(data?.lesson?.unitId, Boolean(data?.lesson?.unitId));
 
   // Actualizar el título del documento con el nombre de la actividad
   useEffect(() => {
@@ -212,8 +228,21 @@ export function ActivityView() {
   if (loading || !data) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 p-4 lg:p-8">
-        <PageHeader title="Cargando actividad..." />
-        <LoadingRows count={3} />
+        <div className="space-y-3">
+          <div className="skeleton h-4 w-56" />
+          <div className="skeleton h-8 w-2/3" />
+        </div>
+        <div className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-xs">
+          <div className="flex gap-2">
+            <div className="skeleton h-6 w-24 rounded-full" />
+            <div className="skeleton h-6 w-20 rounded-full" />
+            <div className="skeleton h-6 w-16 rounded-full" />
+          </div>
+          <div className="skeleton h-5 w-full" />
+          <div className="skeleton h-5 w-4/5" />
+          <div className="skeleton h-24 w-full rounded-xl" />
+          <div className="skeleton h-10 w-40" />
+        </div>
       </div>
     );
   }
@@ -343,11 +372,19 @@ function ActivityInner(props: ActivityInnerProps) {
   const attemptsLeft = Math.max(0, MAX_ATTEMPTS - currentAttemptNumber);
   const maxReached = currentAttemptNumber >= MAX_ATTEMPTS;
 
+  // Reset del cronómetro al cambiar de actividad o reintentar (patrón
+  // "ajustar estado durante el render"; el intervalo queda en el effect).
+  const timerKey = `${activity.id}:${submitted}`;
+  const [prevTimerKey, setPrevTimerKey] = useState(timerKey);
+  if (prevTimerKey !== timerKey) {
+    setPrevTimerKey(timerKey);
+    if (!submitted) setElapsed(0);
+  }
+
   // Timer: arranca al montar / cambiar de actividad; se congela al enviar.
   useEffect(() => {
     if (submitted) return;
     startTimeRef.current = Date.now();
-    setElapsed(0);
     const interval = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
     }, 1000);
@@ -370,6 +407,9 @@ function ActivityInner(props: ActivityInnerProps) {
         setResult(res.attempt);
         setSubmitted(true);
         setSessionAttempts((n) => n + 1);
+        // Envío exitoso: limpiar los borradores locales de esta actividad
+        // para no revivir respuestas que el servidor ya registró.
+        clearActivityDrafts(activity.id);
         // Disparar celebración si fue correcta y ganó puntos (primera vez)
         if (res.attempt.correct && res.attempt.pointsAwarded > 0) {
           setCelebrating(true);
@@ -494,7 +534,7 @@ function ActivityInner(props: ActivityInnerProps) {
       />
 
       {/* Tarjeta de actividad */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden shadow-xs">
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -512,9 +552,9 @@ function ActivityInner(props: ActivityInnerProps) {
                 <DynamicIcon name="Target" className="h-3 w-3" />
                 {diffMeta.label}
               </Badge>
-              <Badge className="gap-1 bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300">
+              <Badge className="gap-1 bg-brand-gold/15 text-amber-700 hover:bg-brand-gold/15 dark:bg-brand-gold/20 dark:text-brand-gold">
                 <Sparkles className="h-3 w-3" />
-                {activity.points} pts
+                <span className="font-mono tabular-nums">{activity.points}</span> pts
               </Badge>
               {/* Badges de evaluación pedagógica */}
               {(activity as any).assessmentType && (
@@ -542,13 +582,13 @@ function ActivityInner(props: ActivityInnerProps) {
               {(activity as any).maxAttempts !== undefined && (activity as any).maxAttempts > 0 && (
                 <Badge variant="outline" className="gap-1 border-transparent text-xs" title="Intentos permitidos">
                   <DynamicIcon name="RotateCcw" className="h-3 w-3" />
-                  {attemptCount}/{(activity as any).maxAttempts} intentos
+                  <span className="font-mono tabular-nums">{attemptCount}/{(activity as any).maxAttempts}</span> intentos
                 </Badge>
               )}
               {(activity as any).masteryThreshold !== undefined && (activity as any).masteryThreshold > 0 && (activity as any).masteryThreshold < 100 && (
                 <Badge variant="outline" className="gap-1 border-transparent text-xs" title="Umbral de aprobación">
                   <DynamicIcon name="Gauge" className="h-3 w-3" />
-                  Aprobar: {(activity as any).masteryThreshold}%
+                  Aprobar: <span className="font-mono tabular-nums">{(activity as any).masteryThreshold}%</span>
                 </Badge>
               )}
             </div>
@@ -557,7 +597,7 @@ function ActivityInner(props: ActivityInnerProps) {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex cursor-default items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                    <div className="flex cursor-default items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-mono text-xs tabular-nums text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
                       {formatDuration(elapsed)}
                     </div>
@@ -684,7 +724,7 @@ function MultipleChoiceActivity({
         onValueChange={(v) => {
           if (!submitted) setSelected(Number(v));
         }}
-        className="gap-2"
+        className="stagger-children gap-2"
       >
         {options.map((opt, i) => {
           const isSelected = selected === i;
@@ -694,18 +734,18 @@ function MultipleChoiceActivity({
               key={i}
               htmlFor={`opt-${i}`}
               className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 text-sm transition-all",
+                "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 text-sm transition-all duration-200 ease-out-expo",
                 "hover:border-primary/40 hover:bg-accent/40",
                 !submitted &&
                   isSelected &&
                   "border-primary bg-accent/60 ring-1 ring-primary/30",
                 submitted &&
                   isCorrect &&
-                  "border-amber-400 bg-[#003366]/5 dark:border-amber-700 dark:bg-[#003366]/20/40",
+                  "border-brand/40 bg-brand/5 dark:border-brand-gold/50 dark:bg-brand-gold/10",
                 submitted &&
                   isSelected &&
                   !isCorrect &&
-                  "border-rose-400 bg-rose-50 dark:border-rose-700 dark:bg-rose-950/40",
+                  "border-destructive/50 bg-destructive/5 dark:bg-destructive/10",
                 submitted &&
                   !isCorrect &&
                   !isSelected &&
@@ -720,10 +760,10 @@ function MultipleChoiceActivity({
               />
               <span className="flex-1 leading-relaxed">{opt}</span>
               {submitted && isCorrect && (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#003366]" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 animate-scale-in text-brand dark:text-brand-gold" />
               )}
               {submitted && isSelected && !isCorrect && (
-                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                <AlertTriangle className="h-4 w-4 shrink-0 animate-scale-in text-destructive" />
               )}
             </Label>
           );
@@ -734,12 +774,12 @@ function MultipleChoiceActivity({
       {hints.length > 0 && !submitted && (
         <div className="space-y-2">
           {showHint && hints[hintIndex] ? (
-            <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
-              <Lightbulb className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-800 dark:text-amber-300">
+            <Alert className="animate-fade-in-up border-brand-gold/40 bg-brand-gold/[0.08]">
+              <Lightbulb className="h-4 w-4 text-amber-600 dark:text-brand-gold" />
+              <AlertTitle className="text-amber-800 dark:text-brand-gold">
                 Pista {hintIndex + 1} de {hints.length}
               </AlertTitle>
-              <AlertDescription className="text-amber-800 dark:text-amber-300/90">
+              <AlertDescription className="text-amber-800/90 dark:text-foreground/80">
                 {hints[hintIndex]}
               </AlertDescription>
             </Alert>
@@ -751,10 +791,10 @@ function MultipleChoiceActivity({
                 variant="outline"
                 size="sm"
                 onClick={() => { setShowHint(true); onHintUsed?.(); }}
-                className="text-amber-700 dark:text-amber-300"
+                className="text-amber-700 dark:text-brand-gold"
               >
                 <Lightbulb className="mr-1.5 h-4 w-4" /> Ver pista
-                <span className="ml-1 text-xs text-muted-foreground">(0/{MAX_HINTS})</span>
+                <span className="ml-1 font-mono text-xs tabular-nums text-muted-foreground">(0/{MAX_HINTS})</span>
               </Button>
             ) : (
               hintIndex < hints.length - 1 && hintIndex < MAX_HINTS - 1 ? (
@@ -765,7 +805,7 @@ function MultipleChoiceActivity({
                   onClick={() => { setHintIndex((i) => i + 1); onHintUsed?.(); }}
                 >
                   <Lightbulb className="mr-1.5 h-4 w-4" /> Otra pista
-                  <span className="ml-1 text-xs text-muted-foreground">({hintIndex + 1}/{MAX_HINTS})</span>
+                  <span className="ml-1 font-mono text-xs tabular-nums text-muted-foreground">({hintIndex + 1}/{MAX_HINTS})</span>
                 </Button>
               ) : (
                 <span className="text-xs text-muted-foreground">
@@ -789,7 +829,7 @@ function MultipleChoiceActivity({
       )}
 
       {submitted && (
-        <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
+        <div className="animate-fade-in-up rounded-xl border border-border bg-muted/30 p-4 text-sm">
           <p className="font-medium">Explicación</p>
           <p className="mt-1 leading-relaxed text-muted-foreground">
             {data.explanation}
@@ -815,9 +855,18 @@ function GuidedProblemActivity({
   );
   const steps = data.steps ?? [];
 
-  const [answers, setAnswers] = useState<string[]>(() =>
-    steps.map(() => "")
-  );
+  // Autoguardado: las respuestas sobreviven a la navegación dentro de la app
+  const [answers, setAnswers, draft] = useDraftGuard<string[]>({
+    type: "guided_problem",
+    id: activity.id,
+    initialValue: () => steps.map(() => ""),
+    isEmpty: (v) => v.every((a) => a.trim().length === 0),
+    validate: (v) =>
+      Array.isArray(v) &&
+      v.length === steps.length &&
+      v.every((x) => typeof x === "string"),
+    disabled: submitted,
+  });
   const [revealedHints, setRevealedHints] = useState<Set<number>>(
     new Set()
   );
@@ -861,7 +910,7 @@ function GuidedProblemActivity({
         </div>
       )}
 
-      <ol className="space-y-4">
+      <ol className="stagger-children space-y-4">
         {steps.map((step, i) => {
           const given = answers[i] ?? "";
           const correct = submitted && isAnswerClose(step.answer, given);
@@ -870,15 +919,15 @@ function GuidedProblemActivity({
           return (
             <li key={i} className="space-y-2">
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-xs font-semibold tabular-nums text-primary">
                   {i + 1}
                 </span>
                 <p className="flex-1 text-sm leading-relaxed">{step.prompt}</p>
                 {submitted && correct && (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[#003366]" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 animate-scale-in text-brand dark:text-brand-gold" />
                 )}
                 {submitted && wrong && (
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                  <AlertTriangle className="h-4 w-4 shrink-0 animate-scale-in text-destructive" />
                 )}
               </div>
               <div className="pl-8">
@@ -895,10 +944,10 @@ function GuidedProblemActivity({
                   className={cn(
                     submitted &&
                       correct &&
-                      "border-amber-400 bg-[#003366]/5 dark:border-amber-700 dark:bg-[#003366]/20/30",
+                      "border-brand/40 bg-brand/5 dark:border-brand-gold/50 dark:bg-brand-gold/10",
                     submitted &&
                       wrong &&
-                      "border-rose-400 bg-rose-50 dark:border-rose-700 dark:bg-rose-950/30"
+                      "border-destructive/50 bg-destructive/5 dark:bg-destructive/10"
                   )}
                 />
                 {!submitted && (
@@ -909,7 +958,7 @@ function GuidedProblemActivity({
                       size="sm"
                       onClick={() => toggleHint(i)}
                       disabled={!revealedHints.has(i) && hintsLeft <= 0}
-                      className="h-7 px-2 text-xs text-amber-700 dark:text-amber-300 disabled:opacity-40"
+                      className="h-7 px-2 text-xs text-amber-700 disabled:opacity-40 dark:text-brand-gold"
                     >
                       {revealedHints.has(i) ? (
                         <>
@@ -925,24 +974,24 @@ function GuidedProblemActivity({
                       <span className="text-xs text-muted-foreground">({hintsUsedCount}/{GP_MAX_HINTS} usadas)</span>
                     )}
                     {revealedHints.has(i) && (
-                      <p className="rounded-md bg-amber-50 px-2.5 py-1 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                      <p className="animate-fade-in rounded-md bg-brand-gold/10 px-2.5 py-1 text-xs text-amber-800 dark:text-foreground/80">
                         {step.hint}
                       </p>
                     )}
                   </div>
                 )}
                 {submitted && revealedHints.has(i) && (
-                  <p className="mt-1 rounded-md bg-amber-50 px-2.5 py-1 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                  <p className="mt-1 rounded-md bg-brand-gold/10 px-2.5 py-1 text-xs text-amber-800 dark:text-foreground/80">
                     {step.hint}
                   </p>
                 )}
                 {submitted && (
                   <div
                     className={cn(
-                      "mt-1.5 rounded-md px-2.5 py-1.5 text-xs",
+                      "mt-1.5 animate-fade-in-up rounded-md px-2.5 py-1.5 text-xs",
                       correct
-                        ? "bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/30 dark:text-amber-400"
-                        : "bg-rose-50 text-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+                        ? "bg-brand/5 text-brand dark:bg-brand-gold/10 dark:text-brand-gold"
+                        : "bg-destructive/10 text-destructive"
                     )}
                   >
                     <span className="font-medium">
@@ -958,18 +1007,21 @@ function GuidedProblemActivity({
       </ol>
 
       {!submitted && (
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className="w-full sm:w-auto"
-        >
-          <Send className="mr-1.5 h-4 w-4" />
-          {submitting ? "Enviando..." : "Enviar respuestas"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="w-full sm:w-auto"
+          >
+            <Send className="mr-1.5 h-4 w-4" />
+            {submitting ? "Enviando..." : "Enviar respuestas"}
+          </Button>
+          <DraftSavedNote visible={draft.hasDraft} />
+        </div>
       )}
 
       {submitted && (
-        <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
+        <div className="animate-fade-in-up rounded-xl border border-border bg-muted/30 p-4 text-sm">
           <p className="font-medium">Respuesta final</p>
           <p className="mt-1 leading-relaxed text-muted-foreground">
             {data.finalAnswer}
@@ -999,9 +1051,18 @@ function CaseAnalysisActivity({
   );
   const questions = data.questions ?? [];
 
-  const [answers, setAnswers] = useState<string[]>(() =>
-    questions.map(() => "")
-  );
+  // Autoguardado: análisis largos protegidos ante navegación accidental
+  const [answers, setAnswers, draft] = useDraftGuard<string[]>({
+    type: "case_analysis",
+    id: activity.id,
+    initialValue: () => questions.map(() => ""),
+    isEmpty: (v) => v.every((a) => a.trim().length === 0),
+    validate: (v) =>
+      Array.isArray(v) &&
+      v.length === questions.length &&
+      v.every((x) => typeof x === "string"),
+    disabled: submitted,
+  });
 
   const minChars = 10;
   const allFilled = answers.every((a) => a.trim().length >= minChars);
@@ -1025,21 +1086,21 @@ function CaseAnalysisActivity({
         </div>
       )}
 
-      <ol className="space-y-5">
+      <ol className="stagger-children space-y-5">
         {questions.map((q, i) => {
           const given = answers[i] ?? "";
           const matched = submitted && isAnswerClose(q.answer, given);
           return (
             <li key={i} className="space-y-2">
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-xs font-semibold tabular-nums text-primary">
                   {i + 1}
                 </span>
                 <p className="flex-1 text-sm font-medium leading-relaxed">
                   {q.prompt}
                 </p>
                 {submitted && matched && (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[#003366]" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 animate-scale-in text-brand dark:text-brand-gold" />
                 )}
               </div>
               <div className="space-y-2 pl-8">
@@ -1057,7 +1118,7 @@ function CaseAnalysisActivity({
                   className={cn(
                     submitted &&
                       matched &&
-                      "border-amber-400 bg-[#003366]/5/50 dark:border-amber-700 dark:bg-[#003366]/20/20"
+                      "border-brand/40 bg-brand/5 dark:border-brand-gold/50 dark:bg-brand-gold/10"
                   )}
                 />
                 {!submitted &&
@@ -1070,17 +1131,17 @@ function CaseAnalysisActivity({
                 {submitted && (
                   <div
                     className={cn(
-                      "rounded-md p-3 text-xs",
+                      "animate-fade-in-up rounded-md p-3 text-xs",
                       matched
-                        ? "bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/30 dark:text-amber-200"
+                        ? "bg-brand/5 text-brand dark:bg-brand-gold/10 dark:text-brand-gold"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
                     <div className="mb-1 flex items-center gap-1.5 font-medium">
                       {matched ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-[#003366]" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-brand dark:text-brand-gold" />
                       ) : (
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-brand-gold" />
                       )}
                       Respuesta esperada
                     </div>
@@ -1099,28 +1160,23 @@ function CaseAnalysisActivity({
       </ol>
 
       {!submitted && (
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className="w-full sm:w-auto"
-        >
-          <Send className="mr-1.5 h-4 w-4" />
-          {submitting ? "Enviando..." : "Enviar análisis"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="w-full sm:w-auto"
+          >
+            <Send className="mr-1.5 h-4 w-4" />
+            {submitting ? "Enviando..." : "Enviar análisis"}
+          </Button>
+          <DraftSavedNote visible={draft.hasDraft} />
+        </div>
       )}
     </div>
   );
 }
 
 // ---------- progressive exercise ----------
-
-const progressiveGradients = [
-  "from-[#003366] to-[#0066AA]",
-  "from-[#004488] to-[#0066AA]",
-  "from-amber-500 to-orange-600",
-  "from-rose-500 to-pink-600",
-  "from-amber-400 to-amber-600",
-];
 
 function ProgressiveExerciseActivity({
   activity,
@@ -1134,9 +1190,18 @@ function ProgressiveExerciseActivity({
   );
   const levels = data.levels ?? [];
 
-  const [answers, setAnswers] = useState<string[]>(() =>
-    levels.map(() => "")
-  );
+  // Autoguardado de respuestas por nivel
+  const [answers, setAnswers, draft] = useDraftGuard<string[]>({
+    type: "progressive_exercise",
+    id: activity.id,
+    initialValue: () => levels.map(() => ""),
+    isEmpty: (v) => v.every((a) => a.trim().length === 0),
+    validate: (v) =>
+      Array.isArray(v) &&
+      v.length === levels.length &&
+      v.every((x) => typeof x === "string"),
+    disabled: submitted,
+  });
 
   const allFilled = answers.every((a) => a.trim().length > 0);
   const canSubmit = allFilled && !submitting;
@@ -1151,14 +1216,12 @@ function ProgressiveExerciseActivity({
       <p className="text-sm text-muted-foreground">
         Resuelve cada nivel. La dificultad aumenta progresivamente.
       </p>
-      <ol className="space-y-4">
+      <ol className="stagger-children space-y-4">
         {levels.map((level, i) => {
           const given = answers[i] ?? "";
           const correct = submitted && isAnswerClose(level.answer, given);
           const wrong =
             submitted && !correct && given.trim().length > 0;
-          const gradient =
-            progressiveGradients[i % progressiveGradients.length];
           return (
             <li
               key={i}
@@ -1166,10 +1229,7 @@ function ProgressiveExerciseActivity({
             >
               <div className="flex items-center gap-2">
                 <span
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-xs font-bold text-white",
-                    gradient
-                  )}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand font-mono text-xs font-bold text-primary-foreground"
                 >
                   N{i + 1}
                 </span>
@@ -1177,10 +1237,10 @@ function ProgressiveExerciseActivity({
                   Nivel {i + 1}
                 </span>
                 {submitted && correct && (
-                  <CheckCircle2 className="h-4 w-4 text-[#003366]" />
+                  <CheckCircle2 className="h-4 w-4 animate-scale-in text-brand dark:text-brand-gold" />
                 )}
                 {submitted && wrong && (
-                  <AlertTriangle className="h-4 w-4 text-rose-600" />
+                  <AlertTriangle className="h-4 w-4 animate-scale-in text-destructive" />
                 )}
               </div>
               <p className="text-sm leading-relaxed">{level.prompt}</p>
@@ -1197,18 +1257,18 @@ function ProgressiveExerciseActivity({
                 className={cn(
                   submitted &&
                     correct &&
-                    "border-amber-400 bg-[#003366]/5 dark:border-amber-700 dark:bg-[#003366]/20/30",
+                    "border-brand/40 bg-brand/5 dark:border-brand-gold/50 dark:bg-brand-gold/10",
                   submitted &&
                     wrong &&
-                    "border-rose-400 bg-rose-50 dark:border-rose-700 dark:bg-rose-950/30"
+                    "border-destructive/50 bg-destructive/5 dark:bg-destructive/10"
                 )}
               />
               {submitted && (
                 <div
                   className={cn(
-                    "rounded-md px-2.5 py-1.5 text-xs",
+                    "animate-fade-in-up rounded-md px-2.5 py-1.5 text-xs",
                     correct
-                      ? "bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/30 dark:text-amber-400"
+                      ? "bg-brand/5 text-brand dark:bg-brand-gold/10 dark:text-brand-gold"
                       : "bg-muted text-muted-foreground"
                   )}
                 >
@@ -1229,14 +1289,17 @@ function ProgressiveExerciseActivity({
       </ol>
 
       {!submitted && (
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className="w-full sm:w-auto"
-        >
-          <Send className="mr-1.5 h-4 w-4" />
-          {submitting ? "Enviando..." : "Enviar respuestas"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="w-full sm:w-auto"
+          >
+            <Send className="mr-1.5 h-4 w-4" />
+            {submitting ? "Enviando..." : "Enviar respuestas"}
+          </Button>
+          <DraftSavedNote visible={draft.hasDraft} />
+        </div>
       )}
     </div>
   );
@@ -1257,7 +1320,15 @@ function SelfAssessmentActivity({
   const rubric = data.rubric ?? [];
   const keywords = data.autoGradeKeywords ?? [];
 
-  const [reflection, setReflection] = useState("");
+  // Autoguardado: la reflexión es el texto más largo de la plataforma
+  const [reflection, setReflection, draft] = useDraftGuard<string>({
+    type: "self_assessment",
+    id: activity.id,
+    initialValue: "",
+    isEmpty: (v) => v.trim().length === 0,
+    validate: (v) => typeof v === "string",
+    disabled: submitted,
+  });
   const [confidence, setConfidence] = useState(3);
 
   const minChars = 40;
@@ -1318,10 +1389,10 @@ function SelfAssessmentActivity({
               disabled={submitted}
               aria-label={`Confianza ${n} de 5`}
               className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-lg border transition-all",
+                "flex h-10 w-10 items-center justify-center rounded-lg border transition-all duration-200 ease-out-expo",
                 n <= confidence
-                  ? "border-amber-400 bg-amber-50 text-amber-600 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                  : "border-border bg-background text-muted-foreground hover:border-amber-300",
+                  ? "border-brand-gold/60 bg-brand-gold/10 text-amber-600 dark:text-brand-gold"
+                  : "border-border bg-background text-muted-foreground hover:border-brand-gold/50",
                 submitted && "cursor-not-allowed opacity-80"
               )}
             >
@@ -1330,7 +1401,7 @@ function SelfAssessmentActivity({
               />
             </button>
           ))}
-          <span className="ml-2 text-sm font-medium">{confidence}/5</span>
+          <span className="ml-2 font-mono text-sm font-medium tabular-nums">{confidence}/5</span>
         </div>
       </div>
 
@@ -1348,9 +1419,10 @@ function SelfAssessmentActivity({
             Tu reflexión se evalúa por la presencia de conceptos clave
           </span>
           <span
-            className={
-              reflection.trim().length >= minChars ? "text-[#003366]" : ""
-            }
+            className={cn(
+              "font-mono tabular-nums",
+              reflection.trim().length >= minChars && "text-brand dark:text-brand-gold"
+            )}
           >
             {reflection.trim().length}/{minChars} mín.
           </span>
@@ -1358,20 +1430,23 @@ function SelfAssessmentActivity({
       </div>
 
       {!submitted && (
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className="w-full sm:w-auto"
-        >
-          <Send className="mr-1.5 h-4 w-4" />
-          {submitting ? "Enviando..." : "Enviar reflexión"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="w-full sm:w-auto"
+          >
+            <Send className="mr-1.5 h-4 w-4" />
+            {submitting ? "Enviando..." : "Enviar reflexión"}
+          </Button>
+          <DraftSavedNote visible={draft.hasDraft} />
+        </div>
       )}
 
       {submitted && (
-        <div className="rounded-xl border border-border bg-muted/30 p-4">
+        <div className="animate-fade-in-up rounded-xl border border-border bg-muted/30 p-4">
           <p className="flex items-center gap-1.5 text-sm font-medium">
-            <Sparkles className="h-4 w-4 text-amber-600" /> Conceptos clave
+            <Sparkles className="h-4 w-4 text-amber-600 dark:text-brand-gold" /> Conceptos clave
             detectados
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1381,7 +1456,7 @@ function SelfAssessmentActivity({
                 variant={present ? "default" : "outline"}
                 className={cn(
                   present
-                    ? "bg-[#003366]/10 text-[#003366] hover:bg-[#003366]/10 dark:bg-[#003366]/20 dark:text-amber-400"
+                    ? "bg-brand/10 text-brand hover:bg-brand/10 dark:bg-brand-gold/15 dark:text-brand-gold"
                     : "text-muted-foreground"
                 )}
               >
@@ -1449,29 +1524,29 @@ function ResultPanel({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
       <Card
         className={cn(
           "overflow-hidden border-2",
           correct
-            ? "border-amber-300 dark:border-[#003366]/30"
-            : "border-amber-300 dark:border-amber-800"
+            ? "border-brand/30 dark:border-brand-gold/40"
+            : "border-brand-gold/50"
         )}
       >
         <CardHeader
           className={cn(
             "pb-4",
             correct
-              ? "bg-[#003366]/5 dark:bg-[#003366]/20/30"
-              : "bg-amber-50 dark:bg-amber-950/30"
+              ? "bg-brand/5 dark:bg-brand-gold/10"
+              : "bg-brand-gold/[0.08]"
           )}
         >
           <div className="flex items-start gap-3">
             <div
               className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm",
-                correct ? "bg-[#003366]" : "bg-amber-600"
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm",
+                correct ? "bg-brand text-primary-foreground" : "bg-brand-gold text-brand-ink"
               )}
             >
               {correct ? (
@@ -1498,28 +1573,28 @@ function ResultPanel({
                   unitColor.text
                 )}
               >
-                <Sparkles className="h-3.5 w-3.5" />+{result.pointsAwarded} puntos
+                <Sparkles className="h-3.5 w-3.5" />+<span className="font-mono tabular-nums">{result.pointsAwarded}</span> puntos
               </Badge>
             )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           {/* Retroalimentación IA */}
-          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-800 dark:bg-amber-950/20">
+          <div className="rounded-xl border border-brand-gold/40 bg-brand-gold/[0.08] p-4">
             <div className="mb-1.5 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                <Bot className="h-3.5 w-3.5" /> Retroalimentación del tutor IA
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-brand-gold">
+                <Bot className="h-3.5 w-3.5" /> Retroalimentación de la IA
               </div>
               <button
                 onClick={() => onSetReportOpen(true)}
                 disabled={reported}
-                className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-rose-500 disabled:cursor-default disabled:opacity-100"
+                className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-destructive disabled:cursor-default disabled:opacity-100"
                 title="Reportar esta retroalimentación"
               >
                 {reported ? (
                   <>
-                    <CheckCircle2 className="h-3 w-3 text-[#003366]" />
-                    <span className="text-[#003366] dark:text-amber-400">Reportado</span>
+                    <CheckCircle2 className="h-3 w-3 text-brand dark:text-brand-gold" />
+                    <span className="text-brand dark:text-brand-gold">Reportado</span>
                   </>
                 ) : (
                   <>
@@ -1538,7 +1613,7 @@ function ResultPanel({
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Puntaje:</span>
-              <span className="font-bold">{result.score}</span>
+              <span className="font-mono text-base font-bold tabular-nums">{result.score}</span>
             </div>
             <div className="text-xs font-medium text-muted-foreground">
               {correct ? "Aprobado" : "Sin aprobar"}
@@ -1569,14 +1644,14 @@ function ResultPanel({
                       "h-2 w-2 rounded-full transition-colors",
                       i < attemptNumber
                         ? result.correct
-                          ? "bg-[#003366]"
-                          : "bg-amber-500"
+                          ? "bg-brand"
+                          : "bg-brand-gold"
                         : "bg-muted-foreground/20"
                     )}
                   />
                 ))}
               </div>
-              <span className="ml-1 font-medium tabular-nums">
+              <span className="ml-1 font-mono font-medium tabular-nums">
                 {attemptNumber}/{maxAttempts}
               </span>
             </div>
@@ -1586,7 +1661,7 @@ function ResultPanel({
               </span>
             )}
             {!correct && maxReached && (
-              <span className="text-xs font-medium text-rose-500">
+              <span className="text-xs font-medium text-destructive">
                 Sin intentos restantes
               </span>
             )}
@@ -1594,7 +1669,7 @@ function ResultPanel({
 
           <div className="flex flex-wrap gap-2 pt-1">
             {maxReached && !correct ? (
-              <div className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400">
+              <div className="flex w-full items-center gap-2 rounded-lg border border-brand-gold/40 bg-brand-gold/[0.08] px-3 py-2 text-xs text-amber-700 dark:text-brand-gold">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>Has agotado tus intentos. Revisa el material de la lección e intenta la siguiente actividad.</span>
               </div>
@@ -1631,7 +1706,7 @@ function ResultPanel({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Flag className="h-4 w-4 text-rose-500" />
+              <Flag className="h-4 w-4 text-destructive" />
               Reportar retroalimentación
             </DialogTitle>
             <DialogDescription>
@@ -1649,7 +1724,7 @@ function ResultPanel({
                     key={r.value}
                     className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors ${
                       reportReason === r.value
-                        ? "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30"
+                        ? "border-destructive/40 bg-destructive/5"
                         : "border-border hover:bg-accent"
                     }`}
                   >
@@ -1659,7 +1734,7 @@ function ResultPanel({
                       value={r.value}
                       checked={reportReason === r.value}
                       onChange={(e) => onSetReportReason(e.target.value)}
-                      className="h-3.5 w-3.5 accent-rose-500"
+                      className="h-3.5 w-3.5 accent-destructive"
                     />
                     {r.label}
                   </label>
@@ -1683,7 +1758,7 @@ function ResultPanel({
             <Button variant="outline" size="sm" onClick={() => onSetReportOpen(false)}>
               Cancelar
             </Button>
-            <Button size="sm" onClick={onSubmitReport} className="bg-rose-600 hover:bg-rose-700">
+            <Button size="sm" onClick={onSubmitReport} className="bg-destructive hover:bg-destructive/90">
               <Flag className="mr-1 h-3.5 w-3.5" />
               Enviar reporte
             </Button>
@@ -1714,7 +1789,7 @@ function ActivityNavFooter({
   onOpenLesson,
 }: ActivityNavFooterProps) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
       <Button
         variant="ghost"
         size="sm"
@@ -1724,7 +1799,7 @@ function ActivityNavFooter({
       >
         <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
       </Button>
-      <span className="text-xs font-medium text-muted-foreground">
+      <span className="font-mono text-xs font-medium tabular-nums text-muted-foreground">
         Actividad {activityIndex + 1} de {activityTotal}
       </span>
       {nextActivity ? (

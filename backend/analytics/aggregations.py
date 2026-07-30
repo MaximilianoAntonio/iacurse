@@ -42,7 +42,6 @@ def student_progress_analytics(user: User) -> dict:
     self_assess = list(
         SelfAssessment.objects.filter(user=user).select_related("unit").order_by("-created_at")[:50]
     )
-    chat_count = user.chat_messages.filter(role="user").count()
 
     # activityByDay (14 días)
     now = timezone.now()
@@ -120,7 +119,6 @@ def student_progress_analytics(user: User) -> dict:
             }
             for s in sessions
         ],
-        "chatCount": chat_count,
         "activityByDay": days,
         "selfAssess": [
             {
@@ -163,7 +161,6 @@ def teacher_dashboard(unit_filter=None) -> dict:
             s.attempts.filter(correct=True).values("activity_id").distinct().count()
         )
         sessions = list(s.study_sessions.all())
-        chat_count = s.chat_messages.filter(role="user").count()
         access_count = s.access_logs.count()
 
         total_time_min = sum(sess.duration for sess in sessions) // 60
@@ -192,7 +189,6 @@ def teacher_dashboard(unit_filter=None) -> dict:
             "correctAttempts": sum(1 for a in attempts if a.correct),
             "completedActivities": correct_activities,
             "totalTimeMin": total_time_min,
-            "chatCount": chat_count,
             "accessCount": access_count,  # NUEVO: número de accesos
             "lastActive": last_active.isoformat() if last_active else None,
             "avgScore": round(sum(scores) / len(scores)) if scores else 0,
@@ -217,7 +213,6 @@ def teacher_dashboard(unit_filter=None) -> dict:
             }
             for u in units
         ],
-        "totalChatQueries": sum(sd["chatCount"] for sd in students_data),
         "totalStudyHours": sum(sd["totalTimeMin"] for sd in students_data) // 60,
         "totalAccesses": sum(sd["accessCount"] for sd in students_data),  # NUEVO
     }
@@ -237,7 +232,6 @@ def student_detail(student: User) -> dict:
     progress = list(student.progress.select_related("unit").all())
     attempts = list(student.attempts.select_related("activity__lesson__unit").all())
     sessions = list(student.study_sessions.order_by("-started_at")[:20].all())
-    chat_count = student.chat_messages.filter(role="user").count()
     badges = list(student.user_badges.select_related("badge").all())
     accesses = student.access_logs.count()
 
@@ -313,7 +307,6 @@ def student_detail(student: User) -> dict:
             {"id": s.id, "duration": s.duration, "startedAt": s.started_at.isoformat()}
             for s in sessions
         ],
-        "chatCount": chat_count,
         "accessCount": accesses,  # NUEVO: número de accesos
         "badges": [
             {"id": b.badge.id, "slug": b.badge.slug, "name": b.badge.name,

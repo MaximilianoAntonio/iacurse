@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
-import { LoadingRows } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import {
   Card,
@@ -42,10 +41,10 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { initials, timeAgo } from "@/lib/course-utils";
+import type { ErrorReportItem } from "@/lib/types";
 import {
   Users,
   Target,
-  MessageSquare,
   Clock,
   Flame,
   CheckCircle2,
@@ -59,6 +58,8 @@ import {
   Download,
   Lightbulb,
   GitCompare,
+  AlertCircle,
+  RotateCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,7 +90,6 @@ interface Student {
   correctAttempts: number;
   completedActivities: number;
   totalTimeMin: number;
-  chatCount: number;
   lastActive: string | null;
   avgScore: number;
   totalHintsUsed: number;
@@ -114,7 +114,6 @@ interface Aggregate {
   totalStudents: number;
   totalAttempts: number;
   avgMasteryByUnit: AggregateMasteryByUnit[];
-  totalChatQueries: number;
   totalStudyHours: number;
 }
 
@@ -126,17 +125,27 @@ interface TeacherResponse {
 
 // ---------- Visual config ----------
 
+// Series de gráficos: tokens --chart-* del sistema (azul UV, dorado, verde
+// monitor, rojo alerta, violeta). Se pasan como var() para que recharts
+// respete el tema claro/oscuro sin duplicar hex.
 const chartColors: Record<string, string> = {
-  emerald: "#003366",
-  sky: "#0066AA",
-  amber: "#f59e0b",
-  violet: "#fbbf24",
-  rose: "#c0392b",
+  emerald: "var(--chart-1)",
+  sky: "var(--chart-2)",
+  amber: "var(--chart-3)",
+  violet: "var(--chart-5)",
+  rose: "var(--chart-4)",
 };
 
 function unitHex(color: string): string {
   return chartColors[color] ?? chartColors.emerald;
 }
+
+// Semáforo de niveles: verde monitor = éxito, ámbar = alerta, rojo = crítico.
+const levelColors = {
+  high: "var(--chart-3)",
+  mid: "var(--chart-2)",
+  low: "var(--chart-4)",
+} as const;
 
 function formatHoursMinutes(min: number): string {
   if (min <= 0) return "—";
@@ -147,17 +156,23 @@ function formatHoursMinutes(min: number): string {
 }
 
 function aciertoClass(pct: number): string {
-  if (pct >= 70) return "text-[#003366] dark:text-amber-400";
+  if (pct >= 70) return "text-chart-3";
   if (pct >= 40) return "text-amber-600 dark:text-amber-400";
-  return "text-rose-600 dark:text-rose-400";
+  return "text-destructive";
 }
 
 function aciertoBadge(pct: number): string {
-  if (pct >= 70)
-    return "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400";
+  if (pct >= 70) return "bg-chart-3/10 text-chart-3";
   if (pct >= 40)
     return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
-  return "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+  return "bg-destructive/10 text-destructive";
+}
+
+// Color del indicador de progreso según el nivel de dominio (semáforo).
+function masteryIndicator(pct: number): string {
+  if (pct >= 70) return "[&_[data-slot=progress-indicator]]:bg-chart-3";
+  if (pct >= 40) return "[&_[data-slot=progress-indicator]]:bg-amber-500";
+  return "[&_[data-slot=progress-indicator]]:bg-destructive";
 }
 
 // ---------- Main component ----------
@@ -172,48 +187,99 @@ export function TeacherView() {
       ? `/api/teacher`
       : `/api/teacher?unitId=${unitFilter}`;
 
-  const { data, loading } = useFetch<TeacherResponse>(url, [unitFilter]);
+  const { data, loading, error, refetch } = useFetch<TeacherResponse>(url, [unitFilter]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 lg:p-8">
       <PageHeader
         title="Panel docente"
         icon="Users"
-        iconGradient="from-[#003366] to-[#004488]"
+        iconGradient="from-brand to-brand-ink"
         description="Seguimiento del aprendizaje del estudiantado en el piloto de Electromedicina II."
       />
 
-      {loading || !data ? (
-        <div className="space-y-6">
-          <UnitFilterBar
-            units={[]}
-            value={unitFilter}
-            onChange={setUnitFilter}
-            disabled
-          />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}>
-                <CardContent className="space-y-3 pt-6">
-                  <div className="h-10 w-10 rounded-xl bg-muted animate-pulse" />
-                  <div className="h-6 w-20 rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-28 rounded bg-muted animate-pulse" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <Card>
-            <CardContent className="pt-6">
-              <LoadingRows count={5} />
-            </CardContent>
-          </Card>
-        </div>
+      {error && !data ? (
+        <PanelError detail={error} onRetry={refetch} />
+      ) : loading || !data ? (
+        <PanelSkeleton unitFilter={unitFilter} onUnitFilterChange={setUnitFilter} />
       ) : data.students.length === 0 ? (
         <EmptyState />
       ) : (
         <TeacherDashboard data={data} unitFilter={unitFilter} onUnitFilterChange={setUnitFilter} />
       )}
     </div>
+  );
+}
+
+// ---------- Estados de carga y error ----------
+
+function PanelSkeleton({
+  unitFilter,
+  onUnitFilterChange,
+}: {
+  unitFilter: string;
+  onUnitFilterChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Cargando panel docente">
+      <UnitFilterBar
+        units={[]}
+        value={unitFilter}
+        onChange={onUnitFilterChange}
+        disabled
+      />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="space-y-3">
+              <div className="skeleton h-9 w-9" />
+              <div className="skeleton h-7 w-20" />
+              <div className="skeleton h-3 w-28" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className="skeleton h-8 w-8 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-3 w-1/3" />
+                <div className="skeleton h-3 w-1/4" />
+              </div>
+              <div className="skeleton h-4 w-12" />
+              <div className="skeleton h-4 w-12" />
+              <div className="skeleton h-4 w-16" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function PanelError({ detail, onRetry }: { detail: string | null; onRetry: () => void }) {
+  return (
+    <Card className="border-destructive/30">
+      <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold">No se pudo cargar el panel docente</p>
+          <p className="max-w-md text-sm text-muted-foreground">
+            {detail
+              ? `Ocurrió un problema al comunicar con el servidor (${detail}).`
+              : "Ocurrió un problema al comunicar con el servidor. Verifica tu conexión e inténtalo de nuevo."}
+          </p>
+        </div>
+        <Button variant="outline" onClick={onRetry} className="gap-2">
+          <RotateCw className="h-4 w-4" />
+          Reintentar
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -278,44 +344,34 @@ function TeacherDashboard({
         onChange={onUnitFilterChange}
       />
 
-      {/* Section 1: Métricas agregadas */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Sección 1: métricas agregadas (datos en mono, cascada de entrada) */}
+      <section className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <AggregateKpi
-          icon={<Users className="h-5 w-5" />}
+          icon={<Users className="h-4 w-4" />}
           label="Estudiantes activos"
-          value={aggregate.totalStudents.toString()}
+          value={aggregate.totalStudents.toLocaleString("es-CL")}
           sub="Inscritos en el piloto"
-          tone="slate"
         />
         <AggregateKpi
-          icon={<Target className="h-5 w-5" />}
+          icon={<Target className="h-4 w-4" />}
           label="Intentos totales"
           value={aggregate.totalAttempts.toLocaleString("es-CL")}
           sub="Actividades resueltas"
-          tone="sky"
         />
         <AggregateKpi
-          icon={<MessageSquare className="h-5 w-5" />}
-          label="Consultas al tutor"
-          value={aggregate.totalChatQueries.toLocaleString("es-CL")}
-          sub="Preguntas al tutor IA"
-          tone="violet"
-        />
-        <AggregateKpi
-          icon={<Clock className="h-5 w-5" />}
+          icon={<Clock className="h-4 w-4" />}
           label="Horas de estudio"
           value={`${aggregate.totalStudyHours}h`}
           sub="Tiempo total invertido"
-          tone="emerald"
         />
       </section>
 
-      {/* Section 2: Dominio promedio por unidad */}
+      {/* Sección 2: dominio promedio por unidad */}
       {aggregate.avgMasteryByUnit.length > 0 && (
-        <Card>
+        <Card className="animate-fade-in-up">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
                 <BarChart3 className="h-4 w-4" />
               </div>
               <div>
@@ -337,25 +393,25 @@ function TeacherDashboard({
                   <CartesianGrid
                     strokeDasharray="3 3"
                     horizontal={false}
-                    stroke="hsl(var(--border))"
+                    stroke="var(--border)"
                   />
                   <XAxis
                     type="number"
                     domain={[0, 100]}
                     unit="%"
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    stroke="hsl(var(--border))"
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)", fontFamily: "var(--font-jetbrains)" }}
+                    stroke="var(--border)"
                   />
                   <YAxis
                     type="category"
                     dataKey="unitTitle"
                     width={190}
-                    tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
+                    tick={{ fontSize: 12, fill: "var(--foreground)" }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <Tooltip
-                    cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                    cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                     content={<MasteryTooltip />}
                   />
                   <Bar
@@ -378,8 +434,8 @@ function TeacherDashboard({
         </Card>
       )}
 
-      {/* Section 3: Tabla de estudiantes */}
-      <Card>
+      {/* Sección 3: tabla de estudiantes */}
+      <Card className="animate-fade-in-up">
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -435,22 +491,23 @@ function TeacherDashboard({
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/40">
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="min-w-[220px] pl-4">Estudiante</TableHead>
-                  <TableHead className="text-center border-l border-border/40">Actividades</TableHead>
-                  <TableHead className="text-center border-l border-border/40">Intentos</TableHead>
-                  <TableHead className="text-center border-l border-border/40">Acierto</TableHead>
-                  <TableHead className="min-w-[140px] border-l border-border/40">Dominio medio</TableHead>
-                  <TableHead className="text-center border-l border-border/40">Tiempo</TableHead>
-                  <TableHead className="text-center border-l border-border/40">Consultas IA</TableHead>
-                  <TableHead className="text-right pr-4">Última actividad</TableHead>
+                  <TableHead className="text-center">Actividades</TableHead>
+                  <TableHead className="text-center">Intentos</TableHead>
+                  <TableHead className="text-center">Acierto</TableHead>
+                  <TableHead className="min-w-[160px]">Dominio medio</TableHead>
+                  <TableHead className="text-center">Tiempo</TableHead>
+                  <TableHead className="pr-4 text-right">Última actividad</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredStudents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
-                      {studentSearch ? `Sin resultados para "${studentSearch}"` : "No hay estudiantes."}
+                    <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                      {studentSearch
+                        ? `Sin resultados para "${studentSearch}". Prueba con otro nombre o correo.`
+                        : "No hay estudiantes."}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -469,12 +526,12 @@ function TeacherDashboard({
         </CardContent>
       </Card>
 
-      {/* Section 4: Distribución de mastery por unidad */}
+      {/* Sección 4: distribución de dominio por unidad (semáforo) */}
       {distributionByUnit.length > 0 && (
-        <Card>
+        <Card className="animate-fade-in-up">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
                 <Activity className="h-4 w-4" />
               </div>
               <div>
@@ -497,46 +554,46 @@ function TeacherDashboard({
                   <CartesianGrid
                     strokeDasharray="3 3"
                     horizontal={false}
-                    stroke="hsl(var(--border))"
+                    stroke="var(--border)"
                   />
                   <XAxis
                     type="number"
                     allowDecimals={false}
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    stroke="hsl(var(--border))"
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)", fontFamily: "var(--font-jetbrains)" }}
+                    stroke="var(--border)"
                   />
                   <YAxis
                     type="category"
                     dataKey="unitTitle"
                     width={190}
-                    tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
+                    tick={{ fontSize: 12, fill: "var(--foreground)" }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <Tooltip
-                    cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                    cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                     content={<DistributionTooltip />}
                   />
-                  <Bar dataKey="low" stackId="a" name="Bajo (<40%)" fill="#c0392b" barSize={22} />
-                  <Bar dataKey="mid" stackId="a" name="Medio (40–69%)" fill="#f59e0b" barSize={22} />
-                  <Bar dataKey="high" stackId="a" name="Alto (≥70%)" fill="#003366" radius={[0, 6, 6, 0]} barSize={22} />
+                  <Bar dataKey="low" stackId="a" name="Bajo (<40%)" fill={levelColors.low} barSize={22} />
+                  <Bar dataKey="mid" stackId="a" name="Medio (40–69%)" fill={levelColors.mid} barSize={22} />
+                  <Bar dataKey="high" stackId="a" name="Alto (≥70%)" fill={levelColors.high} radius={[0, 6, 6, 0]} barSize={22} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
-              <LegendDot color="#003366" label="Alto (≥70%)" />
-              <LegendDot color="#f59e0b" label="Medio (40–69%)" />
-              <LegendDot color="#c0392b" label="Bajo (<40%)" />
+              <LegendDot color={levelColors.high} label="Alto (≥70%)" />
+              <LegendDot color={levelColors.mid} label="Medio (40–69%)" />
+              <LegendDot color={levelColors.low} label="Bajo (<40%)" />
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Section 4b: Analítica de uso de pistas */}
+      {/* Sección 4b: analítica de uso de pistas */}
       {students.some((s) => s.totalHintsUsed > 0) && (
-        <Card>
+        <Card className="animate-fade-in-up">
           <CardHeader>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
                 <Lightbulb className="h-4 w-4" />
               </div>
@@ -563,19 +620,16 @@ function TeacherDashboard({
                   layout="vertical"
                   margin={{ top: 8, right: 24, bottom: 8, left: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} stroke="hsl(var(--border))" />
-                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} content={<HintTooltip />} />
-                  <Bar dataKey="hints" name="Pistas usadas" fill="#f59e0b" radius={[0, 6, 6, 0]} barSize={20} />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)", fontFamily: "var(--font-jetbrains)" }} stroke="var(--border)" />
+                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fill: "var(--foreground)" }} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.4 }} content={<HintTooltip />} />
+                  <Bar dataKey="hints" name="Pistas usadas" fill="var(--chart-2)" radius={[0, 6, 6, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                Pistas usadas
-              </span>
+              <LegendDot color="var(--chart-2)" label="Pistas usadas" />
               <span>·</span>
               <span>Estudiantes sin pistas no se muestran</span>
             </div>
@@ -583,7 +637,7 @@ function TeacherDashboard({
         </Card>
       )}
 
-      {/* Section 5: Reportes de errores de IA */}
+      {/* Sección 5: reportes de errores (IA y contenido del curso) */}
       <ErrorReportsSection />
 
       {/* Modal de detalle de estudiante */}
@@ -601,33 +655,39 @@ function TeacherDashboard({
 
 // ---------- Error Reports Section ----------
 
-interface ErrorReportItem {
-  id: string;
-  source: string;
-  sourceId: string | null;
-  reason: string;
-  comment: string | null;
-  status: string;
-  createdAt: string;
-  user: { id: string; name: string; email: string; avatar: string | null };
-}
-
 const reasonLabels: Record<string, { label: string; color: string }> = {
-  incorrect: { label: "Respuesta incorrecta", color: "text-rose-600 bg-rose-50 dark:bg-rose-950/40" },
-  biased: { label: "Contenido sesgado", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40" },
-  offtopic: { label: "Fuera de tema", color: "text-sky-600 bg-sky-50 dark:bg-sky-950/40" },
-  harmful: { label: "Contenido inapropiado", color: "text-red-700 bg-red-50 dark:bg-red-950/40" },
-  other: { label: "Otro", color: "text-slate-600 bg-slate-50 dark:bg-slate-950/40" },
+  incorrect: { label: "Respuesta incorrecta", color: "bg-destructive/10 text-destructive" },
+  biased: { label: "Contenido sesgado", color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
+  offtopic: { label: "Fuera de tema", color: "bg-primary/10 text-primary" },
+  harmful: { label: "Contenido inapropiado", color: "bg-destructive/15 text-destructive" },
+  other: { label: "Otro", color: "bg-muted text-muted-foreground" },
 };
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   open: { label: "Pendiente", color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
-  reviewed: { label: "Revisado", color: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300" },
-  resolved: { label: "Resuelto", color: "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400" },
+  reviewed: { label: "Revisado", color: "bg-primary/10 text-primary" },
+  resolved: { label: "Resuelto", color: "bg-chart-3/10 text-chart-3" },
 };
 
+const sourceLabels: Record<string, string> = {
+  chat: "Chat tutor",
+  activity: "Actividad",
+  content: "Contenido del curso",
+};
+
+const STATUS_FILTERS = [
+  { value: "open", label: "Pendientes" },
+  { value: "reviewed", label: "Revisados" },
+  { value: "resolved", label: "Resueltos" },
+  { value: "all", label: "Todos" },
+] as const;
+
 function ErrorReportsSection() {
-  const { data, loading, refetch } = useFetch<{ reports: ErrorReportItem[] }>("/api/report?status=open", []);
+  const [statusFilter, setStatusFilter] = useState<string>("open");
+  const { data, loading, error, refetch } = useFetch<{ reports: ErrorReportItem[] }>(
+    `/api/report?status=${statusFilter}`,
+    [statusFilter]
+  );
 
   // Auto-refresh cada 30 segundos para reportes nuevos
   useEffect(() => {
@@ -649,95 +709,141 @@ function ErrorReportsSection() {
   const reports = data?.reports ?? [];
 
   return (
-    <Card>
+    <Card className="animate-fade-in-up">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
               <Flag className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Reportes de errores de IA</CardTitle>
+              <CardTitle className="text-base">Reportes de errores</CardTitle>
               <CardDescription>
-                Respuestas del tutor reportadas por el estudiantado para revisión docente.
+                Errores reportados por el estudiantado en la retroalimentación IA y el contenido del curso.
               </CardDescription>
             </div>
           </div>
-          {reports.length > 0 && (
-            <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-              {reports.length} pendiente{reports.length !== 1 ? "s" : ""}
-            </Badge>
-          )}
+          <div className="flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  statusFilter === f.value
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="space-y-2">
+        {loading && !data ? (
+          <div className="space-y-2" aria-busy="true">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+              <div key={i} className="skeleton h-16" />
             ))}
+          </div>
+        ) : error && !data ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium">No se pudieron cargar los reportes</p>
+            <p className="text-xs text-muted-foreground">Revisa tu conexión e inténtalo nuevamente.</p>
+            <Button variant="outline" size="sm" onClick={refetch} className="gap-1.5">
+              <RotateCw className="h-3.5 w-3.5" />
+              Reintentar
+            </Button>
           </div>
         ) : reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#003366]/5 text-[#003366] dark:bg-[#003366]/20/40 dark:text-amber-400">
+            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-chart-3/10 text-chart-3">
               <Inbox className="h-5 w-5" />
             </div>
-            <p className="text-sm font-medium">Sin reportes pendientes</p>
-            <p className="text-xs text-muted-foreground">No hay respuestas de IA reportadas para revisar.</p>
+            <p className="text-sm font-medium">
+              {statusFilter === "open" ? "Sin reportes pendientes" : "Sin reportes en este estado"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {statusFilter === "open"
+                ? "No hay errores reportados para revisar."
+                : "Prueba con otro filtro de estado."}
+            </p>
           </div>
         ) : (
-          <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
+          <div className="stagger-children max-h-96 space-y-2 overflow-y-auto pr-1">
             {reports.map((r) => {
               const reason = reasonLabels[r.reason] ?? reasonLabels.other;
               const status = statusLabels[r.status] ?? statusLabels.open;
               return (
                 <div
                   key={r.id}
-                  className="rounded-xl border border-border p-3 transition-colors hover:bg-accent/30"
+                  className="rounded-lg border border-border p-3 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-7 w-7">
-                        <AvatarFallback className="bg-gradient-to-br from-[#003366] to-[#0066AA] text-xs font-bold text-white">
-                          {initials(r.user.name)}
+                        <AvatarFallback className="bg-brand-ink text-xs font-semibold text-white">
+                          {initials(r.reporterName)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="leading-tight">
-                        <p className="text-xs font-semibold">{r.user.name}</p>
+                        <p className="text-xs font-semibold">{r.reporterName}</p>
                         <p className="text-xs text-muted-foreground">{timeAgo(r.createdAt)}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${reason.color}`}>
+                    <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {sourceLabels[r.source] ?? r.source}
+                      </span>
+                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", reason.color)}>
                         {reason.label}
                       </span>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.color}`}>
+                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", status.color)}>
                         {status.label}
                       </span>
                     </div>
                   </div>
                   {r.comment && (
-                    <p className="mt-2 rounded-lg bg-muted/50 p-2 text-xs italic text-muted-foreground">
+                    <p className="mt-2 whitespace-pre-line rounded-md bg-muted/60 p-2 text-xs italic text-muted-foreground">
                       &ldquo;{r.comment}&rdquo;
                     </p>
                   )}
                   <div className="mt-2 flex items-center gap-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => handleStatus(r.id, "reviewed")}
-                    >
-                      Marcar revisado
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-xs text-[#003366] hover:bg-[#003366]/5 hover:text-[#003366]"
-                      onClick={() => handleStatus(r.id, "resolved")}
-                    >
-                      <CheckCircle2 className="mr-1 h-3 w-3" /> Resolver
-                    </Button>
+                    {r.status === "open" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => handleStatus(r.id, "reviewed")}
+                      >
+                        Marcar revisado
+                      </Button>
+                    )}
+                    {r.status !== "resolved" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs text-chart-3 hover:bg-chart-3/10 hover:text-chart-3"
+                        onClick={() => handleStatus(r.id, "resolved")}
+                      >
+                        <CheckCircle2 className="mr-1 h-3 w-3" /> Resolver
+                      </Button>
+                    )}
+                    {r.status !== "open" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs text-muted-foreground"
+                        onClick={() => handleStatus(r.id, "open")}
+                      >
+                        Reabrir
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
@@ -791,40 +897,26 @@ function UnitFilterBar({
   );
 }
 
-const kpiTones: Record<string, string> = {
-  slate: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  sky: "bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400",
-  violet: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
-  emerald: "bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-amber-400",
-};
-
 function AggregateKpi({
   icon,
   label,
   value,
   sub,
-  tone,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub: string;
-  tone: string;
 }) {
   return (
     <Card>
       <CardContent className="space-y-3">
-        <div
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-xl",
-            kpiTones[tone]
-          )}
-        >
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
           {icon}
         </div>
         <div>
-          <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
-          <div className="text-xs font-medium text-muted-foreground">{label}</div>
+          <div className="font-mono text-2xl font-semibold tracking-tight">{value}</div>
+          <div className="text-xs font-medium">{label}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
         </div>
       </CardContent>
@@ -860,7 +952,7 @@ function StudentRow({
   return (
     <TableRow
       onClick={onSelect}
-      className={cn("transition-colors", onSelect && "cursor-pointer hover:bg-accent/50")}
+      className={cn("transition-colors", onSelect && "cursor-pointer hover:bg-muted/50")}
     >
       <TableCell className="pl-4">
         <div className="flex items-center gap-3">
@@ -875,19 +967,19 @@ function StudentRow({
           </div>
         </div>
       </TableCell>
-      <TableCell className="text-center border-l border-border/40">
-        <span className="inline-flex items-center gap-1 text-sm tabular-nums">
+      <TableCell className="text-center">
+        <span className="inline-flex items-center gap-1 font-mono text-sm">
           <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
           {student.completedActivities}
         </span>
       </TableCell>
-      <TableCell className="text-center text-sm tabular-nums border-l border-border/40">
+      <TableCell className="text-center font-mono text-sm">
         {student.totalAttempts}
       </TableCell>
-      <TableCell className="text-center border-l border-border/40">
+      <TableCell className="text-center">
         <span
           className={cn(
-            "inline-flex min-w-[3rem] justify-center rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums",
+            "inline-flex min-w-[3rem] justify-center rounded-md px-2 py-0.5 font-mono text-xs font-semibold",
             aciertoBadge(acierto)
           )}
         >
@@ -896,20 +988,17 @@ function StudentRow({
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <Progress value={mastery} className="h-2 w-20 bg-muted/50" />
-          <span className={cn("text-xs font-semibold tabular-nums", aciertoClass(mastery))}>
+          <Progress
+            value={mastery}
+            className={cn("h-1.5 w-20 bg-muted", masteryIndicator(mastery))}
+          />
+          <span className={cn("font-mono text-xs font-semibold", aciertoClass(mastery))}>
             {mastery}%
           </span>
         </div>
       </TableCell>
-      <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
+      <TableCell className="text-center font-mono text-sm text-muted-foreground">
         {formatHoursMinutes(student.totalTimeMin)}
-      </TableCell>
-      <TableCell className="text-center border-l border-border/40">
-        <span className="inline-flex items-center gap-1 text-sm tabular-nums">
-          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-          {student.chatCount}
-        </span>
       </TableCell>
       <TableCell className="pr-4 text-right">
         {student.lastActive ? (
@@ -929,12 +1018,12 @@ function EmptyState() {
   return (
     <Card>
       <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-          <Users className="h-6 w-6 text-muted-foreground" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Users className="h-6 w-6" />
         </div>
         <div className="space-y-1">
           <p className="text-sm font-medium">Aún no hay estudiantes con actividad</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="max-w-md text-xs text-muted-foreground">
             Cuando el estudiantado comience a resolver actividades del piloto, verás aquí
             sus métricas de aprendizaje y progreso por unidad.
           </p>
@@ -978,7 +1067,7 @@ function MasteryTooltip(props: {
       </div>
       <div className="mt-1 text-muted-foreground">
         Dominio promedio:{" "}
-        <span className="font-semibold text-foreground">{row.avgMastery}%</span>
+        <span className="font-mono font-semibold text-foreground">{row.avgMastery}%</span>
       </div>
     </div>
   );
@@ -1009,13 +1098,13 @@ function DistributionTooltip(props: {
       </div>
       <div className="mt-1.5 space-y-0.5 text-muted-foreground">
         <div>
-          Alto (≥70%): <span className="font-semibold text-[#003366] dark:text-amber-400">{row.high}</span>
+          Alto (≥70%): <span className="font-mono font-semibold text-chart-3">{row.high}</span>
         </div>
         <div>
-          Medio (40–69%): <span className="font-semibold text-amber-600 dark:text-amber-400">{row.mid}</span>
+          Medio (40–69%): <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">{row.mid}</span>
         </div>
         <div>
-          Bajo (&lt;40%): <span className="font-semibold text-rose-600 dark:text-rose-400">{row.low}</span>
+          Bajo (&lt;40%): <span className="font-mono font-semibold text-destructive">{row.low}</span>
         </div>
       </div>
     </div>
@@ -1039,14 +1128,14 @@ function HintTooltip(props: {
   return (
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
       <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--chart-2)" }} />
         <span className="font-medium">{row.name}</span>
       </div>
       <div className="mt-1 text-muted-foreground">
-        Pistas usadas: <span className="font-semibold text-foreground">{row.hints}</span>
+        Pistas usadas: <span className="font-mono font-semibold text-foreground">{row.hints}</span>
       </div>
       <div className="text-muted-foreground">
-        Intentos totales: <span className="font-semibold text-foreground">{row.attempts}</span>
+        Intentos totales: <span className="font-mono font-semibold text-foreground">{row.attempts}</span>
       </div>
     </div>
   );
@@ -1066,7 +1155,6 @@ function exportStudentsCSV(students: Student[]) {
     "Tasa de acierto (%)",
     "Dominio medio (%)",
     "Tiempo total (min)",
-    "Consultas IA",
     "Última actividad",
   ];
 
@@ -1086,7 +1174,6 @@ function exportStudentsCSV(students: Student[]) {
       acierto,
       mastery,
       s.totalTimeMin,
-      s.chatCount,
       s.lastActive ?? "—",
     ];
   });

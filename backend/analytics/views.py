@@ -2,8 +2,8 @@
 Vistas del Panel Docente — analytics con telemetría REAL.
 
 Endpoints:
-- GET /api/teacher           — métricas agregadas de todos los estudiantes
-- GET /api/teacher/student/<id> — detalle de un estudiante
+- GET /api/teacher           — métricas agregadas de todos los estudiantes (solo docentes)
+- GET /api/teacher/student/<id> — detalle de un estudiante (solo docentes)
 - GET /api/progress          — analítica del estudiante autenticado
 - GET /api/leaderboard       — ranking por puntos
 
@@ -14,26 +14,25 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.models import User
+from accounts.permissions import IsTeacher
 from . import aggregations
 
 
 class TeacherView(views.APIView):
-    """GET /api/teacher — Panel docente con métricas agregadas."""
+    """GET /api/teacher — Panel docente con métricas agregadas (solo docentes)."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsTeacher]
 
     def get(self, request):
-        # Accesible a cualquier usuario autenticado; las vistas del frontend
-        # filtran por rol (los estudiantes no navegan a la vista docente).
         unit_filter = request.query_params.get("unitId")
         data = aggregations.teacher_dashboard(unit_filter=unit_filter)
         return Response(data)
 
 
 class TeacherStudentDetailView(views.APIView):
-    """GET /api/teacher/student/<id> — detalle de un estudiante."""
+    """GET /api/teacher/student/<id> — detalle de un estudiante (solo docentes)."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsTeacher]
 
     def get(self, request, student_id):
         try:

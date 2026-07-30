@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { resolveMediaSrc, videoEmbedUrl } from "@/lib/markdown-media";
 
 /**
  * Renderizador ligero de Markdown a HTML para vistas previas.
@@ -107,7 +108,8 @@ function renderMarkdown(src: string): string {
     if (line.startsWith("> ")) {
       closeList();
       if (!inQuote) {
-        out.push('<blockquote class="border-l-4 border-[#003366]/40 pl-3 my-2 italic text-muted-foreground text-sm">');
+        // Uso legítimo de blockquote: el borde izquierdo grueso es la convención de citas, no una alerta.
+        out.push('<blockquote class="border-l-4 border-brand/40 pl-3 my-2 italic text-muted-foreground text-sm">');
         inQuote = true;
       }
       out.push(`<p>${inline(line.slice(2))}</p>`);
@@ -174,16 +176,25 @@ function renderMarkdown(src: string): string {
 
 function inline(s: string): string {
   let r = escapeHtml(s);
+  // Imágenes ![alt](src) — antes que enlaces; /media/... se resuelve al backend
+  r = r.replace(
+    /!\[([^\]]*)\]\(([^)]+)\)/g,
+    (_m, alt, src) =>
+      `<img src="${resolveMediaSrc(src)}" alt="${alt}" class="my-3 max-w-full rounded-lg border border-border" loading="lazy" />`
+  );
   // Código en línea
   r = r.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1 py-0.5 text-xs font-mono">$1</code>');
   // Negrita
   r = r.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   // Cursiva
   r = r.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  // Enlaces [texto](url)
-  r = r.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" class="text-[#003366] underline hover:text-[#004488]" target="_blank" rel="noopener noreferrer">$1</a>'
-  );
+  // Enlaces [texto](url): los videos de YouTube/Vimeo se embeben en 16:9
+  r = r.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, href) => {
+    const embed = videoEmbedUrl(href);
+    if (embed) {
+      return `<span class="my-3 block aspect-video overflow-hidden rounded-lg border border-border bg-black"><iframe src="${embed}" title="${text}" class="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></span>`;
+    }
+    return `<a href="${href}" class="text-primary underline underline-offset-2 hover:text-primary/80" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  });
   return r;
 }

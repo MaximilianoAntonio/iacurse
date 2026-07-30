@@ -1,13 +1,15 @@
 """
-Vistas de reportes de error de IA (lineamiento: 'Reportar error').
+Vistas de reportes de error (lineamiento: 'Reportar error').
 
 Reproduce src/app/api/report/route.ts (POST crear, GET listar, PATCH estado).
-Todas requieren sesión real (sin modo demo).
+Todas requieren sesión real (sin modo demo). Crear reportes lo puede hacer
+cualquier usuario autenticado; listarlos y moderarlos es solo de docentes.
 """
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from accounts.permissions import IsTeacher
 from learning.models import ErrorReport
 
 VALID_SOURCES = {"chat", "activity", "content"}
@@ -16,9 +18,16 @@ VALID_STATUSES = {"open", "reviewed", "resolved"}
 
 
 class ReportView(views.APIView):
-    """POST /api/report — crea un reporte de error de IA."""
+    """POST /api/report — crea un reporte de error (cualquier usuario).
+    GET /api/report — lista reportes (solo docentes).
+    PATCH /api/report — cambia el estado de un reporte (solo docentes).
+    """
 
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        # La moderación de reportes es exclusiva del docente; crearlos no.
+        if self.request.method in ("GET", "PATCH"):
+            return [IsAuthenticated(), IsTeacher()]
+        return [IsAuthenticated()]
 
     def post(self, request):
         source = request.data.get("source")
@@ -36,11 +45,14 @@ class ReportView(views.APIView):
         return Response({"ok": True, "reportId": report.id}, status=status.HTTP_201_CREATED)
 
     def get(self, request):
-        """Lista reportes para el panel docente."""
+        """Lista reportes para el panel docente (filtros: status, source)."""
         status_param = request.query_params.get("status", "open")
+        source_param = request.query_params.get("source")
         qs = ErrorReport.objects.select_related("user").order_by("-created_at")
         if status_param != "all":
             qs = qs.filter(status=status_param)
+        if source_param in VALID_SOURCES:
+            qs = qs.filter(source=source_param)
         return Response({
             "reports": [
                 {

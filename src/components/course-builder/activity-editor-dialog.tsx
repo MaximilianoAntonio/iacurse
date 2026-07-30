@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MarkdownPreview } from "./markdown-preview";
-import { Save, Plus, Trash2, ListChecks, AlertCircle, Target, Award, GraduationCap } from "lucide-react";
+import { Save, Plus, Trash2, ListChecks, AlertCircle, Target, Award, GraduationCap, Loader2 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 
 export interface ActivityFormData {
@@ -162,8 +162,11 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unit
     [authorId, open]
   );
 
-  // Sincronizar el formulario cuando cambia `initial` o se abre
-  React.useEffect(() => {
+  // Sincronizar el formulario cuando cambia `initial` o se abre el diálogo
+  // (patrón "ajustar estado durante el render").
+  const [prevSync, setPrevSync] = React.useState<{ open: boolean; initial: typeof initial }>({ open: false, initial: null });
+  if (open !== prevSync.open || initial !== prevSync.initial) {
+    setPrevSync({ open, initial });
     if (open) {
       if (initial) {
         setType(initial.type);
@@ -200,7 +203,7 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unit
       }
       setError(null);
     }
-  }, [open, initial]);
+  }
 
   const handleTypeChange = (newType: string) => {
     setType(newType);
@@ -502,7 +505,7 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unit
             <div>
               <Label className="text-xs font-semibold">Rúbrica de evaluación (opcional)</Label>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Para respuestas abiertas (casos, autoevaluación). El tutor IA usará la rúbrica para retroalimentar.
+                Para respuestas abiertas (casos, autoevaluación). La IA usará la rúbrica al generar la retroalimentación.
               </p>
               <select
                 value={rubricId || ""}
@@ -540,7 +543,7 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unit
                       key={o.id}
                       className={`flex items-start gap-2 rounded-md border p-2 cursor-pointer transition-all ${
                         objectiveIds.includes(o.id)
-                          ? "border-[#003366]/40 bg-[#003366]/5"
+                          ? "border-primary/40 bg-primary/5"
                           : "border-border bg-background hover:bg-accent/40"
                       }`}
                     >
@@ -554,7 +557,7 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unit
                             setObjectiveIds(objectiveIds.filter((x) => x !== o.id));
                           }
                         }}
-                        className="mt-0.5 h-4 w-4 accent-[#003366]"
+                        className="mt-0.5 h-4 w-4 accent-primary"
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -598,7 +601,7 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unit
         </Tabs>
 
         {error && (
-          <div className="flex items-center gap-2 rounded-md border border-rose-300 bg-rose-50 p-2.5 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300">
+          <div className="flex animate-fade-in items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm text-destructive">
             <AlertCircle className="h-4 w-4 shrink-0" />
             {error}
           </div>
@@ -606,8 +609,13 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unit
 
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button size="sm" onClick={handleSave} disabled={saving} className="bg-[#003366] hover:bg-[#004488]">
-            <Save className="mr-1.5 h-3.5 w-3.5" /> {saving ? "Guardando..." : initial ? "Guardar" : "Crear"}
+          <Button size="sm" onClick={handleSave} disabled={saving} className="bg-primary transition-colors hover:bg-primary/90">
+            {saving ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {saving ? "Guardando…" : initial ? "Guardar" : "Crear"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -648,7 +656,7 @@ function MultipleChoiceEditor({ data, onChange }: { data: any; onChange: (d: any
                 type="radio"
                 checked={data.correctIndex === i}
                 onChange={() => update({ correctIndex: i })}
-                className="h-4 w-4 accent-[#003366]"
+                className="h-4 w-4 accent-primary"
                 aria-label={`Marcar como correcta: ${opt}`}
               />
               <Input
@@ -663,7 +671,7 @@ function MultipleChoiceEditor({ data, onChange }: { data: any; onChange: (d: any
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 text-rose-600"
+                className="h-7 w-7 p-0 text-destructive"
                 onClick={() => {
                   const newOpts = data.options.filter((_: string, j: number) => j !== i);
                   const newCorrect = data.correctIndex >= newOpts.length ? 0 : data.correctIndex > i ? data.correctIndex - 1 : data.correctIndex;
@@ -722,7 +730,7 @@ function HintsEditor({ hints, onChange }: { hints: string[]; onChange: (h: strin
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 text-rose-600"
+              className="h-7 w-7 p-0 text-destructive"
               onClick={() => onChange(hints.filter((_, j) => j !== i))}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -766,7 +774,7 @@ function GuidedProblemEditor({ data, onChange }: { data: any; onChange: (d: any)
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 text-rose-600"
+                  className="h-6 w-6 p-0 text-destructive"
                   onClick={() => update({ steps: data.steps.filter((_: any, j: number) => j !== i) })}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -858,7 +866,7 @@ function CaseAnalysisEditor({ data, onChange }: { data: any; onChange: (d: any) 
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 text-rose-600"
+                  className="h-6 w-6 p-0 text-destructive"
                   onClick={() => update({ questions: data.questions.filter((_: any, j: number) => j !== i) })}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -926,7 +934,7 @@ function ProgressiveExerciseEditor({ data, onChange }: { data: any; onChange: (d
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 text-rose-600"
+                  className="h-6 w-6 p-0 text-destructive"
                   onClick={() => update({ levels: data.levels.filter((_: any, j: number) => j !== i) })}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -1010,7 +1018,7 @@ function SelfAssessmentEditor({ data, onChange }: { data: any; onChange: (d: any
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 text-rose-600"
+                className="h-7 w-7 p-0 text-destructive"
                 onClick={() => update({ rubric: data.rubric.filter((_: string, j: number) => j !== i) })}
               >
                 <Trash2 className="h-3.5 w-3.5" />

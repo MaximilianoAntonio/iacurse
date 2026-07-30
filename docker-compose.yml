@@ -40,6 +40,7 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.${DJANGO_MODE:-prod}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-0}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-insecure-key-change-in-prod}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
       DATABASE_URL: postgres://${POSTGRES_USER:-electromed}:${POSTGRES_PASSWORD:-electromed}@db:5432/${POSTGRES_DB:-electromed}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
@@ -48,17 +49,31 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-electromed}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-1}
+      CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-1}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-None}
+      CSRF_COOKIE_SAMESITE: ${CSRF_COOKIE_SAMESITE:-None}
       AI_PROVIDER: ${AI_PROVIDER:-openai}
       AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       TIME_ZONE: ${TIME_ZONE:-America/Santiago}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Imágenes subidas por docentes (Course Builder). Sin este volumen se
+      # pierden al recrear el contenedor.
+      - media_data:/app/media
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   # ===========================================================================
@@ -77,8 +92,10 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  media_data:

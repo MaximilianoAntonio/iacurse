@@ -272,7 +272,6 @@ class BadgeProgressView(views.APIView):
         )
         visited = user.progress.filter(last_visited__isnull=False).count()
         streak = user.streak
-        chat_count = user.chat_messages.filter(role="user").count()
 
         ecg = UnitModel.objects.filter(slug=ECG_UNIT_SLUG).first()
         ecg_mastery = 0
@@ -301,7 +300,6 @@ class BadgeProgressView(views.APIView):
             ("racha-7", streak, 7, min(100, round(streak / 7 * 100)), None),
             ("maestro-ecg", ecg_mastery, 80, min(100, round(ecg_mastery / 80 * 100)), "Electrocardiografía (ECG)"),
             ("centinela", safety_completed, safety_total or 7, min(100, round(safety_completed / (safety_total or 7) * 100)) if (safety_total or 7) else 0, None),
-            ("tutor-activo", chat_count, 10, min(100, chat_count * 10), None),
         ]
         progress_data = [
             {
@@ -391,6 +389,26 @@ class NotificationsView(views.APIView):
         threshold_24h = timezone.now() - timedelta(hours=24)
 
         if user.is_student:
+            # Alarma de uso diario (lineamiento: dependencia tecnológica).
+            # Si el estudiante sobrepasa el umbral configurado, se le sugiere
+            # una pausa (notificación tipo "info" en la campanita).
+            from telemetry.services import check_daily_usage_alert
+
+            usage = check_daily_usage_alert(user)
+            if usage["exceeded"]:
+                notifications.append({
+                    "id": f"usage-{timezone.now().date().isoformat()}",
+                    "type": "info",
+                    "title": "Uso diario elevado",
+                    "description": (
+                        f"Llevas {usage['minutesToday']} min hoy "
+                        f"(umbral {usage['thresholdMin']} min). Considera tomar un descanso."
+                    ),
+                    "icon": "AlarmClock",
+                    "createdAt": timezone.now().isoformat(),
+                    "actionView": "progress",
+                })
+
             # Insignias recientes (7 días)
             threshold_7d = timezone.now() - timedelta(days=7)
             for ub in user.user_badges.filter(awarded_at__gte=threshold_7d).select_related("badge"):

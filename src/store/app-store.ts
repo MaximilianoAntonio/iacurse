@@ -16,19 +16,12 @@ interface AppState {
   currentUnitId: string | null;
   currentLessonId: string | null;
   currentActivityId: string | null;
-  tutorContextUnit: string | null;
   navigate: (view: ViewKey) => void;
   openUnit: (unitId: string) => void;
   openLesson: (lessonId: string) => void;
   openActivity: (activityId: string) => void;
-  setTutorContext: (unitTitle: string | null) => void;
   hydrateFromUrl: () => void;
-  setNavFromUrl: (nav: Partial<Pick<AppState, "view" | "currentUnitId" | "currentLessonId" | "currentActivityId" | "tutorContextUnit">>) => void;
-
-  // Panel de chat (barra lateral derecha)
-  chatOpen: boolean;
-  setChatOpen: (open: boolean) => void;
-  toggleChat: () => void;
+  setNavFromUrl: (nav: Partial<Pick<AppState, "view" | "currentUnitId" | "currentLessonId" | "currentActivityId">>) => void;
 
   // Panel de navegación (barra lateral izquierda) — colapsable en desktop
   navCollapsed: boolean;
@@ -114,7 +107,6 @@ export const useAppStore = create<AppState>()(
               currentUnitId: targetUnitId,
               currentLessonId: targetLessonId,
               currentActivityId: targetActivityId,
-              tutorContextUnit: null,
             };
           }
           return {
@@ -129,7 +121,6 @@ export const useAppStore = create<AppState>()(
       currentUnitId: null,
       currentLessonId: null,
       currentActivityId: null,
-      tutorContextUnit: null,
 
       navigate: (view) => {
         set({ view, currentUnitId: null, currentLessonId: null, currentActivityId: null });
@@ -164,7 +155,7 @@ export const useAppStore = create<AppState>()(
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
       },
-      setTutorContext: (unitTitle) => set({ tutorContextUnit: unitTitle }),
+      setNavFromUrl: (nav) => set(nav),
 
       hydrateFromUrl: () => {
         const parsed = parseUrl();
@@ -178,11 +169,6 @@ export const useAppStore = create<AppState>()(
           currentActivityId: view === "dashboard" ? null : parsed.activityId,
         });
       },
-      setNavFromUrl: (nav) => set(nav),
-
-      chatOpen: false,
-      setChatOpen: (open) => set({ chatOpen: open }),
-      toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
 
       navCollapsed: false,
       setNavCollapsed: (collapsed) => set({ navCollapsed: collapsed }),
@@ -202,7 +188,6 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         currentUser: state.currentUser,
         role: state.role,
-        chatOpen: state.chatOpen,
         navCollapsed: state.navCollapsed,
       }),
     }

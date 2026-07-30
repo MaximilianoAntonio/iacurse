@@ -25,7 +25,10 @@ class OpenAIProvider(AIProvider):
             from openai import OpenAI
         except ImportError as e:
             raise AIServiceError("SDK openai no instalado") from e
-        self.client = OpenAI(api_key=api_key)
+        # Base URL opcional: permite APIs OpenAI-compatibles (Kimi/Moonshot,
+        # Azure, proxies locales, etc.). Vacío = API oficial de OpenAI.
+        base_url = getattr(settings, "OPENAI_BASE_URL", "") or None
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = getattr(settings, "AI_MODEL", "gpt-4o-mini")
 
     def chat(self, messages, system_prompt=None):

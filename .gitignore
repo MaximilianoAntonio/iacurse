@@ -72,3 +72,6 @@ server.log
 # Directorios vacios de scaffolding que no aportan al repo
 /mini-services/
 /upload/
+.agents
+.impeccable
+.zscripts

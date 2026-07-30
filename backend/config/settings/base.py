@@ -214,6 +214,12 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Archivos subidos por docentes (imágenes del editor de contenido).
+# En dev se sirven con static() desde config/urls.py; en producción deben
+# servirse detrás del servidor web (Caddy/Nginx) o un storage dedicado.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -242,9 +248,12 @@ REST_FRAMEWORK = {
 # IA generativa — capa abstracta configurable (lineamiento)
 # ---------------------------------------------------------------------------
 # settings.AI_PROVIDER: "openai" | "gemini"
+# Con OPENAI_BASE_URL se puede apuntar a cualquier API OpenAI-compatible
+# (p. ej. Kimi/Moonshot: https://api.kimi.com/coding/v1).
 AI_PROVIDER = os.environ.get("AI_PROVIDER", "openai")
 AI_MODEL = os.environ.get("AI_MODEL", "gpt-4o-mini")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
 # Si no hay API key, los servicios de IA usan fallbacks (no bloquean el piloto)
