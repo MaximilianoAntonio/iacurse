@@ -145,7 +145,7 @@ def teacher_dashboard(unit_filter=None) -> dict:
     Ahora con StudySession real (tiempo de interacción) y AccessLog (accesos).
     """
     students = list(
-        User.objects.filter(role=User.ROLE_STUDENT).order_by("name")
+        User.objects.filter(role=User.ROLE_STUDENT).order_by("student_code")
     )
     units = list(Unit.objects.order_by("order"))
 
@@ -174,7 +174,8 @@ def teacher_dashboard(unit_filter=None) -> dict:
         hints = [a.hints_used for a in attempts]
 
         students_data.append({
-            "id": s.id, "name": s.name, "email": s.email, "avatar": s.avatar or "",
+            # Estudiantes anonimizados: se identifican solo por su código
+            "id": s.id, "studentCode": s.student_code, "avatar": s.avatar or "",
             "points": s.points, "streak": s.streak,
             "progressByUnit": [
                 {
@@ -284,7 +285,7 @@ def student_detail(student: User) -> dict:
 
     return {
         "student": {
-            "id": student.id, "name": student.name, "email": student.email,
+            "id": student.id, "studentCode": student.student_code,
             "avatar": student.avatar or None,
             "points": student.points, "streak": student.streak,
             "lastActive": student.last_active.isoformat() if student.last_active else None,

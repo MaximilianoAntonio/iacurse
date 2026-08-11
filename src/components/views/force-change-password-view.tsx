@@ -1,53 +1,56 @@
 "use client";
 
 /**
- * Pantalla de login — Módulo de acceso del lineamiento.
+ * Cambio de contraseña obligatorio — primer login o tras reset del docente.
  *
- * Autenticación real contra el backend Django (sesión por cookie).
- * No hay modo demo ni registro público: el docente crea las cuentas de
- * estudiantes (anonimizadas, por código) y resetea sus contraseñas.
- *
- * Rediseño 2026 ("instrumento de precisión"): layout dividido con panel de
- * marca en tinta azul (retícula técnica + señal ámbar) y formulario sobre
- * porcelana. La entrada es una sola secuencia: el panel aparece y el
- * formulario entra en cascada.
+ * Pantalla completa (sin AppShell) con la misma estética del login: panel de
+ * marca en tinta azul y formulario sobre porcelana. El estudiante no puede
+ * usar la app hasta establecer una contraseña personal; al éxito se invoca
+ * ``onPasswordChanged`` y el gate de ``page.tsx`` deja pasar a la app.
  */
 
 import { useState } from "react";
-import { HeartPulse, Loader2, XCircle } from "lucide-react";
+import { HeartPulse, KeyRound, Loader2, XCircle } from "lucide-react";
 import { postJSON } from "@/hooks/use-fetch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { User } from "@/lib/types";
 
-interface LoginViewProps {
-  onLogin: (user: User) => void;
+interface ForceChangePasswordViewProps {
+  onPasswordChanged: () => void;
 }
 
-export function LoginView({ onLogin }: LoginViewProps) {
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
+export function ForceChangePasswordView({
+  onPasswordChanged,
+}: ForceChangePasswordViewProps) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    // Validación cliente mínima (el backend aplica los validadores de Django)
+    if (newPassword.length < 8) {
+      setError("La nueva contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Las contraseñas nuevas no coinciden.");
+      return;
+    }
     setLoading(true);
     try {
-      const data = await postJSON<{ user: User }>("/api/auth/login", {
-        identifier: identifier.trim(),
-        password,
+      await postJSON("/api/auth/change-password", {
+        currentPassword,
+        newPassword,
       });
-      onLogin(data.user);
+      onPasswordChanged();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error al iniciar sesión";
-      // Distinguir errores de red (backend caído) de errores de la API
-      if (/fetch|network|failed to/i.test(msg)) {
-        setError("No se pudo conectar con el servidor. Verifica que el backend esté corriendo.");
-      } else {
-        setError("Credenciales inválidas. Verifica tu código o correo y contraseña.");
-      }
+      setError(
+        err instanceof Error ? err.message : "No se pudo cambiar la contraseña."
+      );
     } finally {
       setLoading(false);
     }
@@ -78,32 +81,15 @@ export function LoginView({ onLogin }: LoginViewProps) {
         </div>
 
         <div className="relative space-y-6">
-          {/* Señal ámbar: única marca de acento del panel */}
           <div className="h-1 w-12 rounded-full bg-brand-gold" />
           <h1 className="max-w-md font-display text-4xl font-bold leading-[1.1] tracking-tight text-balance xl:text-5xl">
-            Instrumento de precisión para tu aprendizaje
+            Protege tu cuenta antes de continuar
           </h1>
           <p className="max-w-md text-base leading-relaxed text-sidebar-foreground/75">
-            Plataforma de aprendizaje adaptativo para Electromedicina II:
-            contenido que se ajusta a tu nivel tras un diagnóstico inicial,
-            actividades con retroalimentación inmediata y telemetría de tu
-            progreso.
+            Tu contraseña actual es temporal. Por seguridad debes establecer
+            una contraseña personal antes de continuar: solo tú la conocerás
+            y nadie más podrá entrar con tu código.
           </p>
-          {/* Ficha de datos del piloto (mono = códigos e identificadores) */}
-          <dl className="flex flex-wrap gap-x-8 gap-y-3 border-t border-sidebar-foreground/15 pt-6 font-mono text-xs text-sidebar-foreground/60">
-            <div>
-              <dt className="sr-only">Asignatura</dt>
-              <dd>Electromedicina II</dd>
-            </div>
-            <div>
-              <dt className="sr-only">Código del proyecto</dt>
-              <dd>UVA24991</dd>
-            </div>
-            <div>
-              <dt className="sr-only">Unidad académica</dt>
-              <dd>Facultad de Ingeniería</dd>
-            </div>
-          </dl>
         </div>
 
         <p className="relative text-xs text-sidebar-foreground/50">
@@ -114,7 +100,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
       {/* ---------- Panel del formulario (porcelana) ---------- */}
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-sm space-y-8 animate-fade-in-up">
-          {/* Marca compacta para móvil (el panel lateral está oculto) */}
+          {/* Marca compacta para móvil */}
           <div className="flex items-center gap-3 lg:hidden">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-gold text-brand-ink shadow-sm">
               <HeartPulse className="h-4.5 w-4.5" strokeWidth={2.25} />
@@ -125,12 +111,15 @@ export function LoginView({ onLogin }: LoginViewProps) {
           </div>
 
           <div className="space-y-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+              <KeyRound className="h-5 w-5" />
+            </div>
             <h2 className="font-display text-title font-semibold">
-              Acceso a la plataforma
+              Establece tu contraseña personal
             </h2>
             <p className="text-sm text-muted-foreground">
-              Ingresa con tu código de estudiante o correo docente para
-              continuar tu progreso.
+              Por seguridad debes establecer una contraseña personal antes de
+              continuar. Mínimo 8 caracteres.
             </p>
           </div>
 
@@ -139,31 +128,44 @@ export function LoginView({ onLogin }: LoginViewProps) {
             className="stagger-children space-y-5 rounded-xl border border-border bg-card p-6 shadow-sm"
           >
             <div className="space-y-1.5">
-              <label htmlFor="identifier" className="text-sm font-medium">
-                Código de estudiante o correo docente
+              <label htmlFor="current-password" className="text-sm font-medium">
+                Contraseña actual (temporal)
               </label>
               <Input
-                id="identifier"
-                type="text"
+                id="current-password"
+                type="password"
                 required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="EM-0001 o nombre@uv.cl"
-                autoComplete="username"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="password" className="text-sm font-medium">
-                Contraseña
+              <label htmlFor="new-password" className="text-sm font-medium">
+                Nueva contraseña
               </label>
               <Input
-                id="password"
+                id="new-password"
                 type="password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="confirm-password" className="text-sm font-medium">
+                Confirmar nueva contraseña
+              </label>
+              <Input
+                id="confirm-password"
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
               />
             </div>
 
@@ -186,17 +188,13 @@ export function LoginView({ onLogin }: LoginViewProps) {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Verificando credenciales…
+                  Guardando contraseña…
                 </>
               ) : (
-                "Ingresar"
+                "Guardar y continuar"
               )}
             </Button>
           </form>
-
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            ¿Olvidaste tu contraseña? Solicita al docente que la reinicie.
-          </p>
         </div>
       </main>
     </div>

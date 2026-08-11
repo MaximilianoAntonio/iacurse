@@ -21,10 +21,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.models import User
-from curriculum.models import Activity, Unit
+from curriculum.models import Activity, CourseConfig, Unit
 from .badges import check_and_award_badges
 from .grading import grade
-from .models import Attempt, Badge, Bookmark, Progress, UserBadge
+from .models import (
+    Attempt,
+    Badge,
+    Bookmark,
+    CourseDiagnosticResult,
+    FinalExamAttempt,
+    Progress,
+    UserBadge,
+)
+from .services import all_units_completed
 from .streak import update_streak
 
 
@@ -439,3 +448,223 @@ class NotificationsView(views.APIView):
         return Response({"notifications": notifications, "unreadCount": unread})
 
 
+
+
+# ---------------------------------------------------------------------------
+# Diagnóstico general del curso + prueba de cierre
+# ---------------------------------------------------------------------------
+class CourseStatusView(views.APIView):
+    """GET /api/course/status — estado del diagnóstico general y de la prueba
+    de cierre para el usuario actual.
+
+    A los docentes no les aplica el gate del diagnóstico: para ellos
+    ``diagnosticCompleted`` es siempre true.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        config = CourseConfig.load()
+
+        diagnostic_completed = (
+            True
+            if user.is_teacher
+            else CourseDiagnosticResult.objects.filter(user=user).exists()
+        )
+
+        attempts = FinalExamAttempt.objects.filter(user=user)
+        final_questions = config.final_exam_questions or []
+
+        body = {
+            "diagnosticCompleted": diagnostic_completed,
+            "allUnitsCompleted": all_units_completed(user),
+            "finalExam": {
+                "configured": len(final_questions) > 0,
+                "passed": attempts.filter(passed=True).exists(),
+                "bestScore": attempts.aggregate(m=Max("score"))["m"],
+                "attemptsUsed": attempts.count(),
+                "maxAttempts": config.final_exam_max_attempts,
+                "passScore": config.final_exam_pass_score,
+            },
+        }
+        # Las preguntas solo se exponen mientras el diagnóstico está pendiente.
+        if not diagnostic_completed:
+            body["diagnosticQuestions"] = config.diagnostic_questions or []
+        return Response(body)
+
+
+class CourseDiagnosticView(views.APIView):
+    """POST /api/course/diagnostic — guarda las respuestas del diagnóstico
+    general del curso (obligatorio para estudiantes al primer uso)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if not user.is_student:
+            return Response(
+                {"error": "El diagnóstico general es solo para estudiantes"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        config = CourseConfig.load()
+        if not config.diagnostic_questions:
+            return Response(
+                {"error": "El curso no tiene preguntas de diagnóstico configuradas"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        answers = request.data.get("answers")  # [{'question': '...', 'answer': '...'}]
+
+        # Validación de forma: lista no vacía de pares pregunta/respuesta.
+        if not isinstance(answers, list) or not answers:
+            return Response(
+                {"error": "Faltan las respuestas del diagnóstico"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(answers) > 50:
+            return Response(
+                {"error": "Demasiadas respuestas (máx. 50)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        clean_answers = []
+        for item in answers:
+            if not isinstance(item, dict):
+                return Response(
+                    {"error": "Formato de respuestas inválido"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            q = str(item.get("question", "")).strip()
+            a = str(item.get("answer", "")).strip()
+            if not q or not a:
+                return Response(
+                    {"error": "Todas las preguntas deben tener respuesta"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            clean_answers.append({"question": q[:500], "answer": a[:4000]})
+
+        # update_or_create: si el docente cambió las preguntas y el estudiante
+        # repite el diagnóstico, se reemplaza la respuesta anterior.
+        CourseDiagnosticResult.objects.update_or_create(
+            user=user, defaults={"answers": clean_answers}
+        )
+        return Response({"ok": True, "diagnosticCompleted": True})
+
+
+# Puntos fijos otorgados al aprobar la prueba de cierre (no gatilla insignias).
+FINAL_EXAM_PASS_POINTS = 100
+
+
+class FinalExamView(views.APIView):
+    """GET /api/course/final-exam — preguntas de la prueba de cierre (sin
+    respuestas correctas), solo cuando el estudiante completó todas las
+    unidades y aún tiene intentos disponibles.
+    POST /api/course/final-exam — corrige las respuestas server-side y
+    registra el intento.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _gate(self, user, config):
+        """Devuelve (error_response | None). Centraliza las reglas de acceso:
+        unidades completas, no aprobada aún y con intentos disponibles."""
+        if not all_units_completed(user):
+            return Response(
+                {"error": "Debes completar todas las unidades del curso antes de rendir la prueba de cierre"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        attempts = FinalExamAttempt.objects.filter(user=user)
+        if attempts.filter(passed=True).exists():
+            return Response(
+                {"error": "Ya aprobaste la prueba de cierre"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if attempts.count() >= config.final_exam_max_attempts:
+            return Response(
+                {"error": "Agotaste los intentos disponibles para la prueba de cierre"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def get(self, request):
+        config = CourseConfig.load()
+        questions = config.final_exam_questions or []
+        if not questions:
+            return Response(
+                {"error": "La prueba de cierre no está configurada"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        gate = self._gate(request.user, config)
+        if gate is not None:
+            return gate
+        attempts_used = FinalExamAttempt.objects.filter(user=request.user).count()
+        return Response({
+            # Nunca exponer correctIndex al cliente.
+            "questions": [
+                {"question": q["question"], "options": q["options"]}
+                for q in questions
+            ],
+            "passScore": config.final_exam_pass_score,
+            "maxAttempts": config.final_exam_max_attempts,
+            "attemptsUsed": attempts_used,
+        })
+
+    def post(self, request):
+        user = request.user
+        config = CourseConfig.load()
+        questions = config.final_exam_questions or []
+        if not questions:
+            return Response(
+                {"error": "La prueba de cierre no está configurada"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        gate = self._gate(user, config)
+        if gate is not None:
+            return gate
+
+        answers = request.data.get("answers")  # [índices elegidos]
+        if not isinstance(answers, list) or len(answers) != len(questions):
+            return Response(
+                {"error": "Debes responder todas las preguntas de la prueba"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        for idx, chosen in enumerate(answers):
+            if (
+                not isinstance(chosen, int)
+                or isinstance(chosen, bool)
+                or chosen < 0
+                or chosen >= len(questions[idx]["options"])
+            ):
+                return Response(
+                    {"error": "Respuestas inválidas: índice fuera de rango"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Corrección server-side: score = correctas/total*100 redondeado.
+        total = len(questions)
+        correct_count = sum(
+            1 for idx, chosen in enumerate(answers)
+            if chosen == questions[idx]["correctIndex"]
+        )
+        score = round(correct_count / total * 100)
+        passed = score >= config.final_exam_pass_score
+
+        FinalExamAttempt.objects.create(
+            user=user, answers=answers, score=score, passed=passed
+        )
+
+        if passed:
+            # Bonificación fija por aprobar la prueba de cierre. No se
+            # evalúan insignias aquí (regla de gamificación separada).
+            User.objects.filter(pk=user.pk).update(points=F("points") + FINAL_EXAM_PASS_POINTS)
+
+        attempts_used = FinalExamAttempt.objects.filter(user=user).count()
+        return Response({
+            "score": score,
+            "passed": passed,
+            "correctCount": correct_count,
+            "totalQuestions": total,
+            "attemptsUsed": attempts_used,
+            "maxAttempts": config.final_exam_max_attempts,
+        })

@@ -1,7 +1,8 @@
 """
-Serializers de cuentas — login, registro, perfil.
+Serializers de cuentas — login, cambio de contraseña, perfil.
 
-Módulo de acceso del lineamiento: "registro y autenticación de estudiantes".
+Módulo de acceso del lineamiento. El registro público fue eliminado: el
+docente crea las cuentas de estudiantes (ver ``accounts/admin_views.py``).
 """
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -30,19 +31,29 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    """Login por email + password (sesión Django por cookie)."""
+    """Login por identificador + password (sesión Django por cookie).
 
-    email = serializers.EmailField()
+    El ``identifier`` es el correo institucional del docente o el código
+    anonimizado del estudiante (si contiene ``@`` se busca por email, si no
+    por ``student_code``).
+    """
+
+    identifier = serializers.CharField()
     password = serializers.CharField(write_only=True, style={"input_type": "password"})
 
     def validate(self, attrs):
-        email = attrs.get("email", "").strip().lower()
+        identifier = attrs.get("identifier", "").strip()
         password = attrs.get("password", "")
 
+        if "@" in identifier:
+            lookup = {"email__iexact": identifier.lower()}
+        else:
+            lookup = {"student_code__iexact": identifier}
+
         try:
-            user = User.objects.get(email__iexact=email)
+            user = User.objects.get(**lookup)
         except User.DoesNotExist:
-            raise serializers.ValidationError({"email": "Credenciales inválidas."})
+            raise serializers.ValidationError({"identifier": "Credenciales inválidas."})
 
         # check_password directo (USERNAME_FIELD=email, authenticate espera email kwarg)
         if not user.check_password(password):
@@ -53,48 +64,26 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-class RegisterSerializer(serializers.ModelSerializer):
-    """Registro de nuevos estudiantes (rol student por defecto)."""
+class ChangePasswordSerializer(serializers.Serializer):
+    """Cambio de contraseña (obligatorio tras el primer login o un reset)."""
 
-    password = serializers.CharField(
-        write_only=True, required=True, validators=[validate_password],
-        style={"input_type": "password"},
+    currentPassword = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
     )
-    password2 = serializers.CharField(
-        write_only=True, required=True, style={"input_type": "password"},
-        label="Confirmar contraseña",
+    newPassword = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
     )
 
-    class Meta:
-        model = User
-        fields = ["email", "name", "password", "password2"]
-        extra_kwargs = {"name": {"required": False}}
+    def validate_currentPassword(self, value: str) -> str:
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("La contraseña actual es incorrecta.")
+        return value
 
-    def validate_email(self, value: str) -> str:
-        if User.objects.filter(email__iexact=value.strip()).exists():
-            raise serializers.ValidationError("Ya existe una cuenta con este correo.")
-        return value.strip().lower()
-
-    def validate(self, attrs):
-        if attrs.get("password") != attrs.get("password2"):
-            raise serializers.ValidationError({"password2": "Las contraseñas no coinciden."})
-        return attrs
-
-    def create(self, validated_data: dict) -> User:
-        validated_data.pop("password2")
-        password = validated_data.pop("password")
-        email = validated_data["email"]
-        # username derivado del email (Django lo requiere, pero login es por email)
-        username = email.split("@")[0]
-        # Evitar colisión de username
-        base, n = username, 1
-        while User.objects.filter(username=username).exists():
-            n += 1
-            username = f"{base}{n}"
-        user = User(username=username, role=User.ROLE_STUDENT, **validated_data)
-        user.set_password(password)
-        user.save()
-        return user
+    def validate_newPassword(self, value: str) -> str:
+        # Validadores de Django (longitud mínima, contraseñas comunes, etc.)
+        validate_password(value, user=self.context["request"].user)
+        return value
 
 
 class WeeklyGoalSerializer(serializers.ModelSerializer):

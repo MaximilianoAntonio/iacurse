@@ -50,7 +50,6 @@ interface CurriculumUnit {
   color: string;
   order: number;
   content?: string;
-  diagnosticQuestions?: string[];
   lessonCount: number;
   activityCount: number;
   sourceCourseId: string | null;
@@ -66,7 +65,6 @@ interface CurriculumUnitDetail {
   color: string;
   order: number;
   content?: string;
-  diagnosticQuestions?: string[];
   objectives: { id: string; code: string; description: string; bloomLevel: string }[];
   lessons: {
     id: string;
@@ -119,7 +117,6 @@ export function CurriculumTab() {
     color: "sky",
     icon: "BookOpen",
     content: "",
-    diagnosticQuestions: "",
   });
 
   const units = data?.units ?? [];
@@ -130,15 +127,9 @@ export function CurriculumTab() {
       return;
     }
     try {
-      await postJSON("/api/admin/units", {
-        ...unitForm,
-        diagnosticQuestions: unitForm.diagnosticQuestions
-          .split("\n")
-          .map((q) => q.trim())
-          .filter((q) => q.length > 0),
-      });
+      await postJSON("/api/admin/units", unitForm);
       setCreateUnitOpen(false);
-      setUnitForm({ title: "", summary: "", description: "", color: "sky", icon: "BookOpen", content: "", diagnosticQuestions: "" });
+      setUnitForm({ title: "", summary: "", description: "", color: "sky", icon: "BookOpen", content: "" });
       refetch();
       toast({ title: "Unidad creada", description: "La unidad se agregó al currículo" });
     } catch (e) {
@@ -277,10 +268,6 @@ export function CurriculumTab() {
               <Label className="text-xs font-semibold">Contenido Base (Markdown)</Label>
               <MarkdownEditor value={unitForm.content} onChange={(val) => setUnitForm({ ...unitForm, content: val })} />
             </div>
-            <div>
-              <Label className="text-xs font-semibold">Preguntas de Diagnóstico (una por línea)</Label>
-              <Textarea value={unitForm.diagnosticQuestions} onChange={(e) => setUnitForm({ ...unitForm, diagnosticQuestions: e.target.value })} placeholder="¿Qué es un transductor?&#10;¿Cómo se define el ruido eléctrico?" className="mt-1 min-h-[100px]" />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-semibold">Color</Label>
@@ -326,7 +313,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
   const [lessonDialog, setLessonDialog] = React.useState<{ open: boolean; initial: LessonFormData | null }>({ open: false, initial: null });
   const [activityDialog, setActivityDialog] = React.useState<{ open: boolean; lessonId: string | null; initial: ActivityFormData | null }>({ open: false, lessonId: null, initial: null });
   const [expandedLessons, setExpandedLessons] = React.useState<Set<string>>(new Set());
-  const [unitForm, setUnitForm] = React.useState({ title: "", summary: "", description: "", icon: "BookOpen", color: "sky", content: "", diagnosticQuestions: "" });
+  const [unitForm, setUnitForm] = React.useState({ title: "", summary: "", description: "", icon: "BookOpen", color: "sky", content: "" });
   const [newObjOpen, setNewObjOpen] = React.useState(false);
   const [objForm, setObjForm] = React.useState({ code: "", description: "", bloomLevel: "apply" });
 
@@ -343,7 +330,6 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
       icon: unit.icon,
       color: unit.color,
       content: unit.content || "",
-      diagnosticQuestions: (unit.diagnosticQuestions || []).join("\n"),
     });
     setEditUnitOpen(true);
   };
@@ -367,10 +353,6 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
         icon: unitForm.icon,
         color: unitForm.color,
         content: unitForm.content,
-        diagnosticQuestions: unitForm.diagnosticQuestions
-          .split("\n")
-          .map((q) => q.trim())
-          .filter((q) => q.length > 0),
       });
       setEditUnitOpen(false);
       refetch();
@@ -789,14 +771,6 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Contenido Base (Markdown)</Label>
               <MarkdownEditor value={unitForm.content} onChange={(val) => setUnitForm({ ...unitForm, content: val })} />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold">Preguntas de Diagnóstico (una por línea)</Label>
-              <Textarea value={unitForm.diagnosticQuestions} onChange={(e) => setUnitForm({ ...unitForm, diagnosticQuestions: e.target.value })} placeholder="¿Qué es un transductor?&#10;¿Cómo se define el ruido eléctrico?" className="mt-1 min-h-[100px]" />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Al guardar cambios en las preguntas se reinician las adaptaciones ya generadas
-                por los estudiantes: cada uno repetirá el diagnóstico con la nueva pauta.
-              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

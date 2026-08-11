@@ -5,13 +5,11 @@ import { useAppStore } from "@/store/app-store";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
 import { FetchError } from "@/components/app/loading";
-import { DynamicIcon } from "@/components/app/dynamic-icon";
-import { getUnitColor } from "@/lib/course-utils";
+import { UnitCard, unitProgressStatus } from "@/components/views/unit-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Sparkles, BookOpen, CheckCircle2, ArrowRight } from "lucide-react";
-import type { Unit, User } from "@/lib/types";
+import { Sparkles, BookOpen, CheckCircle2, ArrowRight, GraduationCap, Lock } from "lucide-react";
+import type { CourseStatus, Unit, User } from "@/lib/types";
 
 /** Skeleton de carga del panel: replica la estructura hero + grid con shimmer. */
 function DashboardSkeleton() {
@@ -50,6 +48,13 @@ export function DashboardView() {
     []
   );
 
+  // Estado de la prueba de cierre (solo aplica a estudiantes).
+  const isStudent = currentUser?.role === "student";
+  const { data: courseStatus } = useFetch<CourseStatus>(
+    isStudent ? "/api/course/status" : null,
+    [isStudent]
+  );
+
   if (error) {
     return (
       <div className="mx-auto max-w-7xl space-y-8 p-4 lg:p-8 animate-fade-in-up">
@@ -69,10 +74,11 @@ export function DashboardView() {
 
   const units = data.units;
   const totalUnits = units.length;
-  const isAdapted = (u: (typeof units)[number]) =>
-    Boolean(u.hasAdaptedContent && !u.diagnosticSkipped);
-  const totalAdapted = units.filter(isAdapted).length;
-  const pctGlobal = totalUnits > 0 ? Math.round((totalAdapted / totalUnits) * 100) : 0;
+  const completedUnits = units.filter((u) => unitProgressStatus(u) === "completed").length;
+  // Progreso global real: actividades completadas sobre el total del curso
+  const totalActivities = units.reduce((acc, u) => acc + (u.progress?.total ?? u.activityCount ?? 0), 0);
+  const completedActivities = units.reduce((acc, u) => acc + (u.progress?.completed ?? 0), 0);
+  const pctGlobal = totalActivities > 0 ? Math.round((completedActivities / totalActivities) * 100) : 0;
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-4 lg:p-8">
@@ -102,9 +108,9 @@ export function DashboardView() {
           {/* Stats compactas — mono solo para los datos medidos */}
           <dl className="grid shrink-0 grid-cols-2 gap-3">
             <div className="rounded-lg border border-border bg-muted/50 px-4 py-3">
-              <dt className="text-xs text-muted-foreground">Unidades adaptadas</dt>
+              <dt className="text-xs text-muted-foreground">Unidades completadas</dt>
               <dd className="mt-1 font-mono text-2xl font-semibold tabular-nums">
-                {totalAdapted}<span className="text-muted-foreground">/{totalUnits}</span>
+                {completedUnits}<span className="text-muted-foreground">/{totalUnits}</span>
               </dd>
             </div>
             <div className="rounded-lg border border-border bg-muted/50 px-4 py-3">
@@ -114,6 +120,54 @@ export function DashboardView() {
           </dl>
         </div>
       </section>
+
+      {/* CTA de la prueba de cierre (solo estudiantes, si está configurada) */}
+      {isStudent && courseStatus?.finalExam.configured && (
+        <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 shadow-sm animate-fade-in-up sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+              courseStatus.finalExam.passed
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : courseStatus.allUnitsCompleted
+                  ? "bg-brand-gold/15 text-brand-ink dark:text-brand-gold"
+                  : "bg-muted text-muted-foreground"
+            }`}>
+              {courseStatus.finalExam.passed ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : courseStatus.allUnitsCompleted ? (
+                <GraduationCap className="h-5 w-5" />
+              ) : (
+                <Lock className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <h2 className="font-semibold">
+                {courseStatus.finalExam.passed
+                  ? "Prueba de cierre aprobada"
+                  : courseStatus.allUnitsCompleted
+                    ? "¡Prueba de cierre disponible!"
+                    : "Prueba de cierre"}
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {courseStatus.finalExam.passed
+                  ? `Completaste el curso con un puntaje de ${courseStatus.finalExam.bestScore}/100.`
+                  : courseStatus.allUnitsCompleted
+                    ? `Completaste todas las unidades. Aprueba con ${courseStatus.finalExam.passScore}/100 o más.`
+                    : "Se desbloquea al completar todas las unidades del curso."}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant={courseStatus.allUnitsCompleted && !courseStatus.finalExam.passed ? "default" : "outline"}
+            size="sm"
+            onClick={() => navigate("final-exam")}
+            className="shrink-0"
+          >
+            {courseStatus.finalExam.passed ? "Ver resultado" : courseStatus.allUnitsCompleted ? "Rendir prueba" : "Ver progreso"}
+            <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        </section>
+      )}
 
       {/* Grid de unidades del estudiante */}
       <section className="space-y-4">
@@ -125,43 +179,9 @@ export function DashboardView() {
         </div>
 
         <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {units.map((u) => {
-            const color = getUnitColor(u.color);
-            const adapted = isAdapted(u);
-
-            return (
-              <button
-                key={u.id}
-                onClick={() => openUnit(u.id)}
-                className="hover-lift group relative overflow-hidden rounded-xl border border-border bg-card p-5 text-left shadow-xs hover:border-brand/30"
-              >
-                <div className="flex items-start justify-between">
-                  <div className={`flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br ${color.gradient} text-white shadow-sm transition-transform duration-200 ease-out-expo group-hover:scale-105`}>
-                    <DynamicIcon name={u.icon} className="h-5 w-5" />
-                  </div>
-                  {adapted ? (
-                    <Badge className="border-none bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      <CheckCircle2 className="mr-1 h-3 w-3" /> Adaptada
-                    </Badge>
-                  ) : u.diagnosticSkipped ? (
-                    <Badge variant="outline" className="border-brand-gold/50 text-amber-700 dark:text-brand-gold">
-                      Diagnóstico saltado
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline">Pendiente</Badge>
-                  )}
-                </div>
-                <h3 className="mt-3 font-semibold leading-tight transition-colors duration-200 group-hover:text-brand dark:group-hover:text-brand-gold">{u.title}</h3>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.summary}</p>
-                <div className="mt-4 space-y-1.5 border-t border-border pt-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Nivelación: {adapted ? "Completada" : u.diagnosticSkipped ? "Saltada" : "Por iniciar"}</span>
-                  </div>
-                  <Progress value={adapted ? 100 : 0} className="h-1.5 bg-muted" />
-                </div>
-              </button>
-            );
-          })}
+          {units.map((u) => (
+            <UnitCard key={u.id} unit={u} onOpen={openUnit} />
+          ))}
         </div>
       </section>
 
@@ -173,7 +193,7 @@ export function DashboardView() {
         <div>
           <p className="text-sm font-medium text-brand dark:text-brand-gold">¿Qué debes hacer?</p>
           <p className="text-xs text-muted-foreground">
-            Selecciona una unidad temática para comenzar. Contesta las preguntas de diagnóstico abierto para que la IA adapte los contenidos a tu nivel actual — o sáltalas y complétalas después.
+            Selecciona una unidad temática para comenzar. En cada una puedes personalizar el contenido con IA según tu diagnóstico inicial del curso, o estudiar el contenido base. Al completar todas las unidades se desbloquea la prueba de cierre.
           </p>
         </div>
       </div>

@@ -9,9 +9,13 @@ import { FetchError } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { ReportErrorDialog } from "@/components/app/report-error-dialog";
 import { ReadingProgress } from "@/components/app/reading-progress";
-import { LessonToc, slugifyHeading } from "@/components/app/lesson-toc";
+import { LessonToc } from "@/components/app/lesson-toc";
 import { getUnitColor, activityTypeMeta, difficultyMeta } from "@/lib/course-utils";
-import { resolveMediaSrc, videoEmbedUrl, VideoEmbed } from "@/lib/markdown-media";
+import {
+  splitContentSections,
+  PROSE_CLASSES,
+  markdownComponents,
+} from "@/lib/course-content";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,128 +61,19 @@ interface LessonResponse {
       order: number;
     }[];
   };
+  /** Lecciones hermanas de la unidad (publicadas, ordenadas) para prev/next. */
+  siblingLessons: { id: string; slug: string; title: string; order: number; durationMin: number }[];
   attemptsByActivity: Record<string, { completed: boolean; bestScore: number | null; attempts: number; lastAnswer?: string }>;
 }
 
-// ---------- parsing del contenido ----------
-
-interface LessonSection {
-  title: string;
-  id: string; // slug del H2, asignado al AccordionItem (ancla del TOC)
-  body: string;
-  headingIds: string[]; // id del H2 + ids de los H3 internos
-}
-
-/**
- * Divide el markdown de la lección por cabeceras H2 (mismo patrón que
- * unit-detail-view): el texto previo al primer H2 se renderiza directo como
- * introducción y cada sección H2 se convierte en un ítem del acordeón.
- * Un H1 inicial se descarta: el título de la lección ya lo muestra el
- * PageHeader, y repetirlo dentro de la tarjeta compite con él.
- */
-function splitLessonContent(markdown: string): { intro: string; sections: LessonSection[] } {
-  const withoutH1 = markdown.replace(/^\s*#\s+[^\n]*(\n|$)/, "");
-  const chunks = withoutH1.split(/(?=^##\s+[^#\n]+)/m);
-  let intro = "";
-  const sections: LessonSection[] = [];
-
-  for (const chunk of chunks) {
-    if (chunk.trim().startsWith("## ")) {
-      const lines = chunk.split("\n");
-      const title = lines[0].replace(/^##\s+/, "").replace(/[*_`~]/g, "").trim();
-      const body = lines.slice(1).join("\n").trim();
-      const id = slugifyHeading(title);
-      const headingIds = [id];
-      // Recoger los H3 internos para que el TOC pueda expandir la sección
-      let inCodeBlock = false;
-      for (const line of body.split("\n")) {
-        if (line.trim().startsWith("```")) {
-          inCodeBlock = !inCodeBlock;
-          continue;
-        }
-        if (inCodeBlock) continue;
-        const h3 = line.match(/^###\s+(.+)/);
-        if (h3) headingIds.push(slugifyHeading(h3[1].replace(/[*_`~]/g, "").trim()));
-      }
-      sections.push({ title, id, body, headingIds });
-    } else {
-      intro += chunk;
-    }
-  }
-  return { intro: intro.trim(), sections };
-}
-
-// Clases prose compartidas (intro, secciones y fallback sin secciones)
-const PROSE_CLASSES =
-  "prose prose-sm sm:prose-base max-w-none dark:prose-invert " +
-  "prose-headings:scroll-mt-24 prose-h2:mt-8 prose-h2:mb-3 prose-h2:text-xl " +
-  "prose-h3:mt-5 prose-h3:mb-2 prose-h3:text-lg prose-p:my-4 prose-p:leading-7 " +
-  "prose-li:my-1.5 prose-strong:font-semibold " +
-  "prose-code:rounded-md prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 " +
-  "prose-code:font-mono prose-code:text-[0.85em] prose-code:font-medium " +
-  "prose-code:text-brand dark:prose-code:text-brand-gold " +
-  "prose-code:before:content-none prose-code:after:content-none";
-
-// Texto plano de un heading (por si contiene formato inline como *cursiva*)
-function headingText(children: React.ReactNode): string {
-  return React.Children.toArray(children)
-    .map((c) =>
-      typeof c === "string" || typeof c === "number"
-        ? String(c)
-        : headingText((c as { props?: { children?: React.ReactNode } })?.props?.children)
-    )
-    .join("");
-}
-
-// Componentes markdown: ids de ancla en h2/h3 (misma función slug que el TOC)
-// y cajas destacadas con JetBrains Mono para código/fórmulas.
-const markdownComponents = {
-  h2: ({ children }: { children?: React.ReactNode }) => {
-    const id = slugifyHeading(headingText(children));
-    return <h2 id={id}>{children}</h2>;
-  },
-  h3: ({ children }: { children?: React.ReactNode }) => {
-    const id = slugifyHeading(headingText(children));
-    return <h3 id={id}>{children}</h3>;
-  },
-  // Bloque de código/fórmula: panel de lectura de instrumento en tinta azul
-  pre: ({ children }: { children?: React.ReactNode }) => (
-    <pre className="my-4 overflow-x-auto rounded-xl border border-brand-ink/60 bg-brand-ink p-4 font-mono text-[13px] leading-relaxed text-primary-foreground shadow-sm [&_code]:rounded-none [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit">
-      {children}
-    </pre>
-  ),
-  // Cita/nota: caja ámbar suave, sin borde lateral grueso (regla del sistema)
-  blockquote: ({ children }: { children?: React.ReactNode }) => (
-    <blockquote className="my-4 rounded-lg bg-accent/50 px-4 py-3 text-sm text-accent-foreground [&_p]:my-1">
-      {children}
-    </blockquote>
-  ),
-  // Enlaces de video (YouTube/Vimeo) se embeben; el resto abre en pestaña nueva
-  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
-    if (href && videoEmbedUrl(href)) {
-      return <VideoEmbed href={href} title={typeof children === "string" ? children : undefined} />;
-    }
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand underline dark:text-brand-gold">
-        {children}
-      </a>
-    );
-  },
-  // Imágenes: las subidas al backend (/media/...) se resuelven contra API_BASE
-  img: ({ src, alt }: any) => (
-    <img
-      src={resolveMediaSrc(typeof src === "string" ? src : undefined)}
-      alt={alt || ""}
-      className="my-4 max-w-full rounded-xl border border-border shadow-sm"
-      loading="lazy"
-    />
-  ),
-};
+// El parsing del contenido (split por H2, clases prose y componentes markdown
+// con anclas) vive en @/lib/course-content, compartido con unit-detail-view.
 
 export function LessonView() {
   const currentLessonId = useAppStore((s) => s.currentLessonId);
   const navigate = useAppStore((s) => s.navigate);
   const openUnit = useAppStore((s) => s.openUnit);
+  const openLesson = useAppStore((s) => s.openLesson);
   const openActivity = useAppStore((s) => s.openActivity);
 
   const { data, loading, error, refetch } = useFetch<LessonResponse>(
@@ -240,11 +135,16 @@ export function LessonView() {
     );
   }
 
-  const { lesson, attemptsByActivity } = data;
+  const { lesson, attemptsByActivity, siblingLessons } = data;
   const color = getUnitColor(lesson.unit.color);
   const completedCount = lesson.activities.filter((a) => attemptsByActivity[a.id]?.completed).length;
   const totalActivities = lesson.activities.length;
   const lessonPct = totalActivities > 0 ? Math.round((completedCount / totalActivities) * 100) : 0;
+
+  // Lecciones hermanas (misma unidad) para la navegación anterior/siguiente
+  const lessonIdx = (siblingLessons ?? []).findIndex((s) => s.id === lesson.id);
+  const prevLesson = lessonIdx > 0 ? siblingLessons[lessonIdx - 1] : null;
+  const nextLesson = lessonIdx >= 0 && lessonIdx < (siblingLessons?.length ?? 0) - 1 ? siblingLessons[lessonIdx + 1] : null;
 
   return (
     <>
@@ -292,10 +192,45 @@ export function LessonView() {
         />
       </div>
 
-      <div className="flex justify-between pt-2">
-        <Button variant="ghost" size="sm" onClick={() => openUnit(lesson.unitId)}>
+      {/* Pie de navegación: lección anterior/siguiente + volver a la unidad */}
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+        <div className="sm:max-w-[38%]">
+          {prevLesson && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openLesson(prevLesson.id)}
+              className="h-auto max-w-full justify-start px-3 py-2 text-muted-foreground hover:text-foreground"
+              title={prevLesson.title}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4 shrink-0" />
+              <span className="min-w-0 text-left">
+                <span className="block text-xs">Lección anterior</span>
+                <span className="block truncate font-medium text-foreground">{prevLesson.title}</span>
+              </span>
+            </Button>
+          )}
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => openUnit(lesson.unitId)} className="shrink-0">
           <ArrowLeft className="mr-1 h-4 w-4" /> Volver a la unidad
         </Button>
+        <div className="flex sm:max-w-[38%] sm:justify-end">
+          {nextLesson && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openLesson(nextLesson.id)}
+              className="h-auto max-w-full justify-end px-3 py-2 text-muted-foreground hover:text-foreground"
+              title={nextLesson.title}
+            >
+              <span className="min-w-0 text-right">
+                <span className="block text-xs">Lección siguiente</span>
+                <span className="block truncate font-medium text-foreground">{nextLesson.title}</span>
+              </span>
+              <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
+            </Button>
+          )}
+        </div>
       </div>
       </div>
     </>
@@ -321,7 +256,7 @@ function LessonContent({ lesson, attemptsByActivity, onOpenActivity }: LessonCon
   const totalActivities = lesson.activities.length;
 
   // Contenido sin el H1 inicial (el título lo muestra el PageHeader;
-  // splitLessonContent también lo descarta, así el fallback sin secciones
+  // splitContentSections también lo descarta, así el fallback sin secciones
   // y el acordeón comparten la misma fuente).
   const content = React.useMemo(
     () => (lesson.content ?? "").replace(/^\s*#\s+[^\n]*(\n|$)/, ""),
@@ -330,13 +265,14 @@ function LessonContent({ lesson, attemptsByActivity, onOpenActivity }: LessonCon
 
   // Secciones H2 del contenido (acordeón)
   const parsed = React.useMemo(
-    () => splitLessonContent(content),
+    () => splitContentSections(content),
     [content]
   );
 
-  // Acordeón controlado: primera sección abierta por defecto
+  // Acordeón controlado en modo lectura: todas las secciones abiertas por
+  // defecto (el TOC sticky sirve para saltar entre ellas; se pueden plegar).
   const [openSections, setOpenSections] = React.useState<string[]>(() =>
-    parsed.sections.length > 0 ? ["sec-0"] : []
+    parsed.sections.map((_, idx) => `sec-${idx}`)
   );
 
   // Navegación del TOC: expande la sección del acordeón antes de hacer scroll

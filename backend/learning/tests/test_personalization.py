@@ -1,33 +1,36 @@
 """
-Tests del flujo diagnóstico → personalización y de reportes de error.
+Tests del flujo diagnóstico general → personalización y de reportes de error.
 
 Cubre:
-- POST /api/units/<slug> con respuestas → crea PersonalizedUnit (con el
-  provider fallback de test, el contenido adaptado es el contenido base).
-- Validación de forma del body (400 ante respuestas vacías o mal formadas).
-- Opción "Saltar diagnóstico" (skipped=True, contenido base).
+- POST /api/units/<slug> con {action: "adapt"} → crea PersonalizedUnit usando
+  las respuestas del diagnóstico general del curso (con el provider fallback
+  de test, el contenido adaptado es el contenido base). 400 sin diagnóstico.
+- POST /api/units/<slug> con {action: "skip"} → contenido base (skipped=True).
 - GET /api/units y /api/units/<slug> exponen flags de adaptación y progreso real.
 - Permisos de /api/report: cualquier autenticado crea; solo docentes listan/moderan.
 - Permisos del CRUD admin del currículo: solo docentes.
-- Al editar las preguntas de diagnóstico se invalidan las adaptaciones previas.
 """
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from curriculum.models import Activity, Lesson, Unit
-from learning.models import ErrorReport, PersonalizedUnit
+from learning.models import CourseDiagnosticResult, ErrorReport, PersonalizedUnit
 
 User = get_user_model()
 
 UNIT_CONTENT = "## Sección 1\n\nContenido base de la unidad."
-DIAGNOSTIC_QUESTIONS = ["¿Qué sabes de bioseñales?", "¿Has usado electrodos?"]
+DIAGNOSTIC_ANSWERS = [
+    {"question": "¿Qué sabes de bioseñales?", "answer": "Son señales del cuerpo."},
+    {"question": "¿Has usado electrodos?", "answer": "Sí, en el lab de fisiología."},
+]
 
 
 @pytest.fixture
 def student(db):
     return User.objects.create_user(
-        username="s", email="s@uv.cl", password="X", role=User.ROLE_STUDENT
+        username="s", email="s@uv.cl", password="X", role=User.ROLE_STUDENT,
+        student_code="EM-9001",
     )
 
 
@@ -54,10 +57,9 @@ def teacher_client(teacher):
 
 @pytest.fixture
 def unit(db):
-    """Unidad con contenido base, diagnóstico y una actividad publicada."""
+    """Unidad con contenido base y una actividad publicada."""
     unit = Unit.objects.create(
-        slug="u1", title="Bioseñales", order=1,
-        content=UNIT_CONTENT, diagnostic_questions=DIAGNOSTIC_QUESTIONS,
+        slug="u1", title="Bioseñales", order=1, content=UNIT_CONTENT,
     )
     lesson = Lesson.objects.create(unit=unit, slug="l1", title="Lección 1", order=1)
     Activity.objects.create(
@@ -67,47 +69,49 @@ def unit(db):
     return unit
 
 
-VALID_ANSWERS = [
-    {"question": DIAGNOSTIC_QUESTIONS[0], "answer": "Son señales del cuerpo."},
-    {"question": DIAGNOSTIC_QUESTIONS[1], "answer": "Sí, en el lab de fisiología."},
-]
+@pytest.fixture
+def course_diagnostic(student):
+    """Diagnóstico general del curso ya respondido por el estudiante."""
+    return CourseDiagnosticResult.objects.create(user=student, answers=DIAGNOSTIC_ANSWERS)
 
 
 @pytest.mark.django_db
-class TestDiagnosticPost:
-    def test_submit_answers_creates_personalized_unit(self, student_client, student, unit):
+class TestAdaptationPost:
+    def test_adapt_creates_personalized_unit(self, student_client, student, unit, course_diagnostic):
         resp = student_client.post(
-            f"/api/units/{unit.slug}", {"answers": VALID_ANSWERS}, format="json"
+            f"/api/units/{unit.slug}", {"action": "adapt"}, format="json"
         )
         assert resp.status_code == 200
         body = resp.json()
         assert body["hasAdaptedContent"] is True
         assert body["diagnosticSkipped"] is False
-        assert body["diagnosticAnswers"] == VALID_ANSWERS
         # Con AI_PROVIDER=fallback (settings de test) se usa el contenido base.
         assert body["adaptedContent"] == UNIT_CONTENT
 
         pu = PersonalizedUnit.objects.get(user=student, unit=unit)
         assert pu.skipped is False
-        assert pu.diagnostic_answers == VALID_ANSWERS
+        assert pu.diagnostic_answers == DIAGNOSTIC_ANSWERS
         assert pu.adapted_content == UNIT_CONTENT
 
-    def test_resubmit_overwrites_previous(self, student_client, student, unit):
-        student_client.post(f"/api/units/{unit.slug}", {"answers": VALID_ANSWERS}, format="json")
-        new_answers = [{"question": q, "answer": "Otra respuesta"} for q in DIAGNOSTIC_QUESTIONS]
+    def test_adapt_requires_course_diagnostic(self, student_client, unit):
         resp = student_client.post(
-            f"/api/units/{unit.slug}", {"answers": new_answers}, format="json"
+            f"/api/units/{unit.slug}", {"action": "adapt"}, format="json"
         )
+        assert resp.status_code == 400
+        assert PersonalizedUnit.objects.count() == 0
+
+    def test_re_adapt_overwrites_previous(self, student_client, student, unit, course_diagnostic):
+        student_client.post(f"/api/units/{unit.slug}", {"action": "adapt"}, format="json")
+        resp = student_client.post(f"/api/units/{unit.slug}", {"action": "adapt"}, format="json")
         assert resp.status_code == 200
         assert PersonalizedUnit.objects.filter(user=student, unit=unit).count() == 1
-        assert PersonalizedUnit.objects.get(user=student, unit=unit).diagnostic_answers == new_answers
+        assert PersonalizedUnit.objects.get(user=student, unit=unit).skipped is False
 
     @pytest.mark.parametrize("payload", [
-        {},                                        # sin answers
-        {"answers": []},                           # lista vacía
-        {"answers": ["no-es-un-dict"]},            # forma inválida
-        {"answers": [{"question": "Q", "answer": ""}]},   # respuesta vacía
-        {"answers": [{"question": "", "answer": "A"}]},   # pregunta vacía
+        {},                              # sin action
+        {"action": "respuestas"},        # acción inválida
+        {"skip": True},                  # body antiguo (ya no soportado)
+        {"answers": [{"question": "Q", "answer": "A"}]},  # body antiguo
     ])
     def test_invalid_payloads_return_400(self, student_client, unit, payload):
         resp = student_client.post(f"/api/units/{unit.slug}", payload, format="json")
@@ -115,7 +119,7 @@ class TestDiagnosticPost:
         assert PersonalizedUnit.objects.count() == 0
 
     def test_skip_marks_skipped_and_uses_base_content(self, student_client, student, unit):
-        resp = student_client.post(f"/api/units/{unit.slug}", {"skip": True}, format="json")
+        resp = student_client.post(f"/api/units/{unit.slug}", {"action": "skip"}, format="json")
         assert resp.status_code == 200
         body = resp.json()
         assert body["diagnosticSkipped"] is True
@@ -124,23 +128,25 @@ class TestDiagnosticPost:
 
     def test_requires_auth(self, unit):
         resp = APIClient().post(
-            f"/api/units/{unit.slug}", {"answers": VALID_ANSWERS}, format="json"
+            f"/api/units/{unit.slug}", {"action": "skip"}, format="json"
         )
         assert resp.status_code in (401, 403)
 
 
 @pytest.mark.django_db
 class TestUnitEndpointsExposeAdaptation:
-    def test_unit_detail_reflects_personalization(self, student_client, student, unit):
-        student_client.post(f"/api/units/{unit.slug}", {"answers": VALID_ANSWERS}, format="json")
+    def test_unit_detail_reflects_personalization(self, student_client, student, unit, course_diagnostic):
+        student_client.post(f"/api/units/{unit.slug}", {"action": "adapt"}, format="json")
         resp = student_client.get(f"/api/units/{unit.slug}")
         assert resp.status_code == 200
         u = resp.json()["unit"]
         assert u["hasAdaptedContent"] is True
         assert u["adaptedContent"] == UNIT_CONTENT
         assert u["diagnosticSkipped"] is False
-        assert u["diagnosticAnswers"] == VALID_ANSWERS
-        assert u["diagnosticQuestions"] == DIAGNOSTIC_QUESTIONS
+        assert u["hasCourseDiagnostic"] is True
+        # El diagnóstico por unidad ya no se expone en el detalle.
+        assert "diagnosticQuestions" not in u
+        assert "diagnosticAnswers" not in u
         # Progreso real: 0 actividades completadas de 1
         progress = resp.json()["progress"]
         assert progress["completed"] == 0
@@ -152,6 +158,7 @@ class TestUnitEndpointsExposeAdaptation:
         assert u["hasAdaptedContent"] is False
         assert u["adaptedContent"] == ""
         assert u["diagnosticSkipped"] is False
+        assert u["hasCourseDiagnostic"] is False
 
     def test_units_list_flags_and_counts(self, student_client, unit):
         resp = student_client.get("/api/units")
@@ -162,7 +169,7 @@ class TestUnitEndpointsExposeAdaptation:
         assert u["activityCount"] == 1
         assert u["progress"]["total"] == 1
 
-        student_client.post(f"/api/units/{unit.slug}", {"skip": True}, format="json")
+        student_client.post(f"/api/units/{unit.slug}", {"action": "skip"}, format="json")
         (u,) = student_client.get("/api/units").json()["units"]
         assert u["hasAdaptedContent"] is True
         assert u["diagnosticSkipped"] is True
@@ -183,6 +190,19 @@ class TestReportPermissions:
         assert resp.status_code == 201
         assert ErrorReport.objects.filter(user=student, source="content").count() == 1
 
+    def test_student_can_create_platform_report(self, student_client, student):
+        """El FAB global envía source='platform' con sourceId de contexto de navegación."""
+        resp = student_client.post(
+            "/api/report",
+            {"source": "platform", "sourceId": "page:lesson;lesson:abc", "reason": "bug",
+             "comment": "La página no carga"},
+            format="json",
+        )
+        assert resp.status_code == 201
+        report = ErrorReport.objects.get(user=student, source="platform")
+        assert report.reason == "bug"
+        assert report.source_id == "page:lesson;lesson:abc"
+
     def test_student_cannot_list_or_moderate(self, student_client):
         self._create_report(student_client)
         assert student_client.get("/api/report").status_code == 403
@@ -200,7 +220,7 @@ class TestReportPermissions:
         reports = resp.json()["reports"]
         assert len(reports) == 1
         assert reports[0]["source"] == "content"
-        assert reports[0]["reporterEmail"] == "s@uv.cl"
+        assert reports[0]["reporterCode"] == "EM-9001"
 
         resp = teacher_client.patch(
             "/api/report", {"reportId": reports[0]["id"], "status": "reviewed"}, format="json"
@@ -224,7 +244,6 @@ class TestUploadSecurity:
     )
 
     def test_teacher_uploads_valid_png(self, teacher_client):
-        from io import BytesIO
         from django.core.files.uploadedfile import SimpleUploadedFile
         f = SimpleUploadedFile("pixel.png", self.PNG_BYTES, content_type="image/png")
         resp = teacher_client.post("/api/uploads", {"file": f}, format="multipart")
@@ -267,30 +286,9 @@ class TestAdminCurriculumPermissions:
     def test_teacher_edits_unit(self, teacher_client, unit):
         resp = teacher_client.patch(
             "/api/admin/units",
-            {"unitId": unit.id, "content": "## Nuevo", "diagnosticQuestions": ["¿Nueva?"]},
+            {"unitId": unit.id, "content": "## Nuevo"},
             format="json",
         )
         assert resp.status_code == 200
         unit.refresh_from_db()
         assert unit.content == "## Nuevo"
-        assert unit.diagnostic_questions == ["¿Nueva?"]
-
-    def test_editing_questions_invalidates_adaptations(
-        self, student_client, teacher_client, student, unit
-    ):
-        student_client.post(f"/api/units/{unit.slug}", {"answers": VALID_ANSWERS}, format="json")
-        assert PersonalizedUnit.objects.filter(unit=unit).count() == 1
-
-        # Cambiar solo el contenido mantiene las adaptaciones
-        teacher_client.patch(
-            "/api/admin/units", {"unitId": unit.id, "content": "## Editado"}, format="json"
-        )
-        assert PersonalizedUnit.objects.filter(unit=unit).count() == 1
-
-        # Cambiar las preguntas las invalida (el diagnóstico anterior quedó obsoleto)
-        teacher_client.patch(
-            "/api/admin/units",
-            {"unitId": unit.id, "diagnosticQuestions": ["¿Pregunta distinta?"]},
-            format="json",
-        )
-        assert PersonalizedUnit.objects.filter(unit=unit).count() == 0

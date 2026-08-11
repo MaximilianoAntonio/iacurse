@@ -65,8 +65,8 @@ interface ActivityBreakdown {
 interface StudentDetailResponse {
   student: {
     id: string;
-    name: string;
-    email: string;
+    /** Código anonimizado del estudiante (sin email ni nombre real). */
+    studentCode: string | null;
     avatar: string | null;
     points: number;
     streak: number;
@@ -184,12 +184,11 @@ function StudentDetailContent({ data }: { data: StudentDetailResponse }) {
         <div className="flex items-start gap-4">
           <Avatar className="h-14 w-14">
             <AvatarFallback className="bg-gradient-to-br from-brand to-brand-ink text-sm font-bold text-white">
-              {initials(student.name)}
+              {initials(student.studentCode ?? "?")}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h2 className="text-lg font-bold">{student.name}</h2>
-            <p className="text-xs text-muted-foreground">{student.email}</p>
+            <h2 className="font-mono text-lg font-bold">{student.studentCode ?? "—"}</h2>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
               <span className="flex items-center gap-1 font-medium">
                 <Sparkles className="h-3.5 w-3.5 text-brand-gold" />

@@ -145,8 +145,25 @@ export async function patchJSON<T>(url: string, body: unknown): Promise<T> {
   return r.json() as Promise<T>;
 }
 
-export async function deleteURL(url: string): Promise<void> {
+export async function putJSON<T>(url: string, body: unknown): Promise<T> {
   await ensureCsrf();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const csrf = getCsrfToken();
+  if (csrf) headers["X-CSRFToken"] = csrf;
+  const r = await fetch(resolveUrl(url), {
+    method: "PUT",
+    credentials: "include",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: r.statusText }));
+    throw new Error(err.error ?? `Error ${r.status}`);
+  }
+  return r.json() as Promise<T>;
+}
+
+export async function deleteURL(url: string): Promise<void> {  await ensureCsrf();
   const headers: Record<string, string> = {};
   const csrf = getCsrfToken();
   if (csrf) headers["X-CSRFToken"] = csrf;

@@ -5,11 +5,12 @@ Crea datos demo para el piloto de Electromedicina II:
 - Usuarios: Prof. Hermes Mora (teacher) + 4 estudiantes @uv.cl
 - Unidad temática de prueba: "El Arte del Rickroll" — demo completa del
   potencial de la plataforma: texto base extenso para la adaptación por IA,
-  diagnóstico de 6 preguntas, 6 lecciones con markdown rico (video embebido,
-  código, citas, listas), 10 actividades que cubren los 5 tipos con metadatos
-  variados (dificultad, Bloom, límites de intentos/tiempo, evaluación
-  formativa/sumativa/reflexiva), 4 objetivos de aprendizaje y una rúbrica
-  vinculada a la autoevaluación.
+  6 lecciones con markdown rico (video embebido, código, citas, listas),
+  10 actividades que cubren los 5 tipos con metadatos variados (dificultad,
+  Bloom, límites de intentos/tiempo, evaluación formativa/sumativa/reflexiva),
+  4 objetivos de aprendizaje y una rúbrica vinculada a la autoevaluación.
+- Configuración del curso: diagnóstico general de 4 preguntas (perfil del
+  estudiante) y prueba de cierre demo de 5 preguntas de alternativa.
 - Insignias canónicas y sesiones de estudio demo (para el panel docente).
 
 Uso:
@@ -23,10 +24,73 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from curriculum.models import Activity, LearningObjective, Lesson, Rubric, Unit
+from curriculum.models import Activity, CourseConfig, LearningObjective, Lesson, Rubric, Unit
 from learning.models import Badge, StudySession
 
 User = get_user_model()
+
+# Preguntas del diagnóstico GENERAL del curso (perfil del estudiante: sirven
+# para nivelar la adaptación por IA de todas las unidades).
+COURSE_DIAGNOSTIC_QUESTIONS = [
+    "¿Qué experiencia previa tienes trabajando con equipos biomédicos o de electromedicina (en prácticas, laboratorios o trabajo)?",
+    "¿Cómo evaluarías tu dominio de los conceptos básicos de electrónica (ley de Ohm, circuitos, amplificadores, filtros)?",
+    "¿Qué sabes sobre bioseñales y su medición (ECG, EEG, EMG)?",
+    "¿Qué esperas aprender en este curso y en qué te gustaría profundizar?",
+]
+
+# Prueba de cierre demo: 5 preguntas de alternativa de electromedicina.
+FINAL_EXAM_QUESTIONS = [
+    {
+        "question": "¿Cuál es la función principal de un electrocardiógrafo (ECG)?",
+        "options": [
+            "Medir la presión arterial de forma invasiva",
+            "Registrar la actividad eléctrica del corazón mediante electrodos en la piel",
+            "Administrar descargas eléctricas al corazón",
+            "Medir la saturación de oxígeno en sangre",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "question": "¿Qué es un transductor en el contexto de la instrumentación biomédica?",
+        "options": [
+            "Un dispositivo que convierte una forma de energía (presión, temperatura, etc.) en una señal eléctrica",
+            "Un amplificador de señales digitales",
+            "Un filtro que elimina el ruido de 50 Hz",
+            "Una fuente de poder para equipos médicos",
+        ],
+        "correctIndex": 0,
+    },
+    {
+        "question": "¿Para qué se utiliza un filtro notch en un equipo de electromedicina?",
+        "options": [
+            "Para amplificar la señal biopotencial",
+            "Para eliminar la interferencia de la red eléctrica (50/60 Hz)",
+            "Para convertir la señal analógica en digital",
+            "Para aislar el paciente de la corriente de fuga",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "question": "¿Cuál es el propósito de un desfibrilador?",
+        "options": [
+            "Monitorear el ritmo cardíaco de forma continua",
+            "Estimar el gasto cardíaco por impedancia",
+            "Administrar una descarga eléctrica controlada para restablecer el ritmo cardíaco normal",
+            "Medir la actividad eléctrica cerebral",
+        ],
+        "correctIndex": 2,
+    },
+    {
+        "question": "En seguridad eléctrica de equipos médicos, ¿qué es la corriente de fuga?",
+        "options": [
+            "La corriente que circula por el paciente durante una descarga de desfibrilación",
+            "La corriente que fluye por caminos no intencionados hacia el chasis o el paciente y puede ser peligrosa",
+            "La corriente consumida por el equipo en modo de espera",
+            "La corriente de carga de las baterías de respaldo",
+        ],
+        "correctIndex": 1,
+    },
+]
 
 UNITS_DATA = [
     {
@@ -95,14 +159,6 @@ UNITS_DATA = [
             "rickroll perfecto se cierra con risas, no con enojo. Y la regla de oro: si "
             "te rickrollean, reconócelo con elegancia… y empieza a preparar tu venganza."
         ),
-        "diagnostic": [
-            "¿Alguna vez has sido víctima de un rickroll? Cuénta cómo fue.",
-            "¿Qué sabes de Rick Astley o de la canción \"Never Gonna Give You Up\"?",
-            "¿Qué crees que hace que un meme sobreviva tantos años en internet?",
-            "¿Sabes identificar cuándo un enlace puede ser una trampa? ¿Qué señales miras?",
-            "¿Te animarías a rickrollear a alguien? Describe tu estrategia.",
-            "¿Dónde crees que está el límite entre una broma en línea y una mala práctica?",
-        ],
         "objectives": [
             {"code": "O1", "description": "Explicar el origen y la evolución del rickroll como fenómeno de internet.", "bloom": "understand"},
             {"code": "O2", "description": "Identificar las señales técnicas de un enlace-cebo antes de hacer clic.", "bloom": "analyze"},
@@ -653,20 +709,20 @@ class Command(BaseCommand):
         teacher.set_password("demo1234")
         teacher.save()
 
-        students_data = [
-            ("camila.rojas@uv.cl", "Camila Rojas"),
-            ("matias.soto@uv.cl", "Matías Soto"),
-            ("francisca.diaz@uv.cl", "Francisca Díaz"),
-            ("ignacio.munoz@uv.cl", "Ignacio Muñoz"),
-        ]
+        # Estudiantes anonimizados: login por código, email placeholder no
+        # identificable y nombre neutral. must_change_password=False para
+        # poder probar la demo sin pasar por el cambio obligatorio.
+        student_codes = ["EM-0001", "EM-0002", "EM-0003", "EM-0004"]
         students = []
-        for email, name in students_data:
+        for code in student_codes:
             s, _ = User.objects.get_or_create(
-                email=email,
+                student_code=code,
                 defaults={
-                    "username": email.split("@")[0],
-                    "name": name,
+                    "username": code,
+                    "email": f"{code.lower()}@students.local",
+                    "name": f"Estudiante {code}",
                     "role": User.ROLE_STUDENT,
+                    "must_change_password": False,
                 },
             )
             s.set_password("demo1234")
@@ -674,6 +730,16 @@ class Command(BaseCommand):
             students.append(s)
 
         self.stdout.write(self.style.SUCCESS(f"Usuarios: 1 docente + {len(students)} estudiantes."))
+
+        # --- Configuración del curso: diagnóstico general + prueba de cierre ---
+        # Solo se siembra si no hay nada configurado (no pisa ediciones del docente).
+        config = CourseConfig.load()
+        if not config.diagnostic_questions:
+            config.diagnostic_questions = COURSE_DIAGNOSTIC_QUESTIONS
+        if not config.final_exam_questions:
+            config.final_exam_questions = FINAL_EXAM_QUESTIONS
+        config.save()
+        self.stdout.write(self.style.SUCCESS("Configuración del curso: diagnóstico general + prueba de cierre."))
 
         # --- Unidades, lecciones, actividades ---
         if Unit.objects.exists() and not reset:
@@ -685,7 +751,6 @@ class Command(BaseCommand):
                     color=ud["color"], summary=ud["summary"],
                     description=ud["summary"], order=idx,
                     content=ud["content"],
-                    diagnostic_questions=ud["diagnostic"],
                 )
 
                 # Objetivos de aprendizaje de la unidad
@@ -768,5 +833,5 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("Creadas sesiones de estudio demo."))
 
         self.stdout.write(self.style.SUCCESS("\n✅ Seed demo completo."))
-        self.stdout.write("  Login docente:   hermes.mora@uv.cl / demo1234")
-        self.stdout.write("  Login estudiante: camila.rojas@uv.cl / demo1234")
+        self.stdout.write("  Login docente:    hermes.mora@uv.cl / demo1234")
+        self.stdout.write("  Login estudiante: EM-0001 / demo1234 (código, también EM-0002…EM-0004)")

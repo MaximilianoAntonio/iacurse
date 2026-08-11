@@ -12,8 +12,8 @@ from rest_framework.response import Response
 from accounts.permissions import IsTeacher
 from learning.models import ErrorReport
 
-VALID_SOURCES = {"chat", "activity", "content"}
-VALID_REASONS = {"incorrect", "biased", "offtopic", "harmful", "other"}
+VALID_SOURCES = {"chat", "activity", "content", "platform"}
+VALID_REASONS = {"incorrect", "biased", "offtopic", "harmful", "bug", "other"}
 VALID_STATUSES = {"open", "reviewed", "resolved"}
 
 
@@ -45,7 +45,11 @@ class ReportView(views.APIView):
         return Response({"ok": True, "reportId": report.id}, status=status.HTTP_201_CREATED)
 
     def get(self, request):
-        """Lista reportes para el panel docente (filtros: status, source)."""
+        """Lista reportes para el panel docente (filtros: status, source).
+
+        Los reportantes estudiantes se identifican solo por su código
+        anonimizado; los docentes mantienen su nombre.
+        """
         status_param = request.query_params.get("status", "open")
         source_param = request.query_params.get("source")
         qs = ErrorReport.objects.select_related("user").order_by("-created_at")
@@ -58,7 +62,10 @@ class ReportView(views.APIView):
                 {
                     "id": r.id, "source": r.source, "sourceId": r.source_id,
                     "reason": r.reason, "comment": r.comment, "status": r.status,
-                    "reporterName": r.user.name, "reporterEmail": r.user.email,
+                    "reporterCode": (
+                        r.user.student_code if r.user.is_student else None
+                    ),
+                    "reporterName": r.user.name if r.user.is_teacher else None,
                     "createdAt": r.created_at.isoformat(),
                 }
                 for r in qs

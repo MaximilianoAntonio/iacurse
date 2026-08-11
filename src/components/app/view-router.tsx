@@ -12,6 +12,7 @@ import { AchievementsView } from "@/components/views/achievements-view";
 import { TeacherView } from "@/components/views/teacher-view";
 import { AboutView } from "@/components/views/about-view";
 import { CourseBuilderView } from "@/components/views/course-builder-view";
+import { FinalExamView } from "@/components/views/final-exam-view";
 
 export function ViewRouter() {
   const view = useAppStore((s) => s.view);
@@ -43,6 +44,8 @@ export function ViewRouter() {
       return <TeacherView />;
     case "course-builder":
       return <CourseBuilderView />;
+    case "final-exam":
+      return <FinalExamView />;
     case "about":
       return <AboutView />;
     default:

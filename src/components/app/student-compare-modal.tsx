@@ -18,8 +18,8 @@ import { initials, getUnitColor } from "@/lib/course-utils";
 
 interface CompareStudent {
   id: string;
-  name: string;
-  email: string;
+  /** Código anonimizado del estudiante (sin email ni nombre real). */
+  studentCode: string | null;
   points: number;
   streak: number;
   totalAttempts: number;
@@ -73,7 +73,7 @@ export function StudentCompareModal({ open, onOpenChange }: StudentCompareModalP
                 <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Estudiante A" /></SelectTrigger>
                 <SelectContent>
                   {students.map((s) => (
-                    <SelectItem key={s.id} value={s.id} disabled={s.id === studentBId}>{s.name}</SelectItem>
+                    <SelectItem key={s.id} value={s.id} disabled={s.id === studentBId}>{s.studentCode ?? "—"}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -81,7 +81,7 @@ export function StudentCompareModal({ open, onOpenChange }: StudentCompareModalP
                 <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Estudiante B" /></SelectTrigger>
                 <SelectContent>
                   {students.map((s) => (
-                    <SelectItem key={s.id} value={s.id} disabled={s.id === studentAId}>{s.name}</SelectItem>
+                    <SelectItem key={s.id} value={s.id} disabled={s.id === studentAId}>{s.studentCode ?? "—"}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -211,12 +211,11 @@ function StudentHeader({ student, side }: { student: CompareStudent; side: "a" |
     <div className="flex items-center gap-2">
       <Avatar className="h-8 w-8">
         <AvatarFallback className={cn("bg-gradient-to-br text-xs font-bold text-white", gradient)}>
-          {initials(student.name)}
+          {initials(student.studentCode ?? "?")}
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold">{student.name}</p>
-        <p className="truncate text-xs text-muted-foreground">{student.email}</p>
+        <p className="truncate font-mono text-sm font-semibold">{student.studentCode ?? "—"}</p>
       </div>
     </div>
   );

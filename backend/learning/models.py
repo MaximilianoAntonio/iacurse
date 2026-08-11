@@ -205,22 +205,26 @@ class ErrorReport(models.Model):
     SOURCE_CHAT = "chat"
     SOURCE_ACTIVITY = "activity"
     SOURCE_CONTENT = "content"
+    SOURCE_PLATFORM = "platform"
     SOURCE_CHOICES = [
         (SOURCE_CHAT, "Chat"),
         (SOURCE_ACTIVITY, "Actividad"),
         (SOURCE_CONTENT, "Contenido"),
+        (SOURCE_PLATFORM, "Plataforma / general"),
     ]
 
     REASON_INCORRECT = "incorrect"
     REASON_BIASED = "biased"
     REASON_OFFTOPIC = "offtopic"
     REASON_HARMFUL = "harmful"
+    REASON_BUG = "bug"
     REASON_OTHER = "other"
     REASON_CHOICES = [
         (REASON_INCORRECT, "Incorrecta"),
         (REASON_BIASED, "Sesgada"),
         (REASON_OFFTOPIC, "Fuera de tema"),
         (REASON_HARMFUL, "Dañina"),
+        (REASON_BUG, "Falla técnica"),
         (REASON_OTHER, "Otra"),
     ]
 
@@ -236,7 +240,9 @@ class ErrorReport(models.Model):
     id = models.CharField(primary_key=True, max_length=40, default=_cuid_default, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="error_reports")
     source = models.CharField("origen", max_length=16, choices=SOURCE_CHOICES)
-    source_id = models.CharField("ID origen", max_length=40, blank=True, default="")
+    # max_length holgado: los reportes de plataforma concatenan contexto de
+    # navegación ("page:<view>;unit:<id>;lesson:<id>;activity:<id>").
+    source_id = models.CharField("ID origen", max_length=128, blank=True, default="")
     reason = models.CharField("razón", max_length=16, choices=REASON_CHOICES)
     comment = models.TextField("comentario", blank=True, default="")
     status = models.CharField("estado", max_length=16, choices=STATUS_CHOICES, default=STATUS_OPEN)
@@ -250,6 +256,49 @@ class ErrorReport(models.Model):
             models.Index(fields=["user"]),
             models.Index(fields=["status"]),
         ]
+
+
+class CourseDiagnosticResult(models.Model):
+    """Resultado del diagnóstico GENERAL del curso (obligatorio al primer uso).
+
+    Una sola respuesta por estudiante (OneToOne): si el docente cambia las
+    preguntas, los resultados se borran y el estudiante lo repite.
+    Las respuestas alimentan la adaptación por IA de cada unidad.
+    """
+
+    id = models.CharField(primary_key=True, max_length=40, default=_cuid_default, editable=False)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="course_diagnostic"
+    )
+    answers = models.JSONField("respuestas", default=list)  # [{'question': '...', 'answer': '...'}]
+    created_at = models.DateTimeField("fecha/hora", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "resultado de diagnóstico del curso"
+        verbose_name_plural = "resultados de diagnóstico del curso"
+
+    def __str__(self) -> str:
+        return f"Diagnóstico general de {self.user}"
+
+
+class FinalExamAttempt(models.Model):
+    """Intento de un estudiante en la prueba de cierre del curso."""
+
+    id = models.CharField(primary_key=True, max_length=40, default=_cuid_default, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="final_exam_attempts")
+    answers = models.JSONField("respuestas (índices elegidos)", default=list)
+    score = models.IntegerField("puntaje (0-100)")
+    passed = models.BooleanField("¿aprobada?")
+    created_at = models.DateTimeField("fecha/hora", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "intento de prueba de cierre"
+        verbose_name_plural = "intentos de prueba de cierre"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user"])]
+
+    def __str__(self) -> str:
+        return f"{self.user} → prueba de cierre ({self.score})"
 
 
 class PersonalizedUnit(TimeStampedModel):

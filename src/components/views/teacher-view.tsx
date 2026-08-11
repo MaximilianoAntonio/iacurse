@@ -60,12 +60,24 @@ import {
   GitCompare,
   AlertCircle,
   RotateCw,
+  Copy,
+  UserPlus,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { StudentDetailModal } from "@/components/app/student-detail-modal";
 import { StudentCompareModal } from "@/components/app/student-compare-modal";
-import { patchJSON } from "@/hooks/use-fetch";
+import { patchJSON, postJSON } from "@/hooks/use-fetch";
 
 // ---------- Types ----------
 
@@ -78,10 +90,10 @@ interface StudentProgressByUnit {
   mastery: number;
 }
 
+// Estudiante anonimizado: se identifica solo por su código (sin email/name)
 interface Student {
   id: string;
-  name: string;
-  email: string;
+  studentCode: string | null;
   avatar: string | null;
   points: number;
   streak: number;
@@ -179,8 +191,16 @@ function masteryIndicator(pct: number): string {
 
 const ALL_UNITS = "all";
 
+type TeacherTab = "analitica" | "estudiantes";
+
+const TEACHER_TABS: { value: TeacherTab; label: string }[] = [
+  { value: "analitica", label: "Analítica" },
+  { value: "estudiantes", label: "Estudiantes" },
+];
+
 export function TeacherView() {
   const [unitFilter, setUnitFilter] = useState<string>(ALL_UNITS);
+  const [tab, setTab] = useState<TeacherTab>("analitica");
 
   const url =
     unitFilter === ALL_UNITS
@@ -198,7 +218,27 @@ export function TeacherView() {
         description="Seguimiento del aprendizaje del estudiantado en el piloto de Electromedicina II."
       />
 
-      {error && !data ? (
+      {/* Pestañas: analítica de aprendizaje / gestión de cuentas */}
+      <div className="flex w-fit items-center gap-1 rounded-full border border-border bg-muted/40 p-1">
+        {TEACHER_TABS.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setTab(t.value)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              tab === t.value
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "estudiantes" ? (
+        <StudentsAdminSection />
+      ) : error && !data ? (
         <PanelError detail={error} onRetry={refetch} />
       ) : loading || !data ? (
         <PanelSkeleton unitFilter={unitFilter} onUnitFilterChange={setUnitFilter} />
@@ -299,13 +339,12 @@ function TeacherDashboard({
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
 
-  // Filtrar estudiantes por nombre/email
+  // Filtrar estudiantes por código anonimizado
   const filteredStudents = useMemo(() => {
     const q = studentSearch.trim().toLowerCase();
     if (!q) return students;
     return students.filter((s) =>
-      s.name.toLowerCase().includes(q) ||
-      s.email.toLowerCase().includes(q)
+      (s.studentCode ?? "").toLowerCase().includes(q)
     );
   }, [students, studentSearch]);
 
@@ -452,7 +491,7 @@ function TeacherDashboard({
                 <Input
                   value={studentSearch}
                   onChange={(e) => setStudentSearch(e.target.value)}
-                  placeholder="Buscar estudiante..."
+                  placeholder="Buscar por código..."
                   className="h-8 pl-8 pr-8 text-sm"
                 />
                 {studentSearch && (
@@ -506,7 +545,7 @@ function TeacherDashboard({
                   <TableRow>
                     <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
                       {studentSearch
-                        ? `Sin resultados para "${studentSearch}". Prueba con otro nombre o correo.`
+                        ? `Sin resultados para "${studentSearch}". Prueba con otro código.`
                         : "No hay estudiantes."}
                     </TableCell>
                   </TableRow>
@@ -612,7 +651,7 @@ function TeacherDashboard({
                   data={students
                     .filter((s) => s.totalHintsUsed > 0 || s.totalAttempts > 0)
                     .map((s) => ({
-                      name: s.name.split(" ")[0] + " " + (s.name.split(" ")[1]?.[0] ?? "") + ".",
+                      name: s.studentCode ?? "—",
                       hints: s.totalHintsUsed,
                       attempts: s.totalAttempts,
                     }))
@@ -660,6 +699,7 @@ const reasonLabels: Record<string, { label: string; color: string }> = {
   biased: { label: "Contenido sesgado", color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
   offtopic: { label: "Fuera de tema", color: "bg-primary/10 text-primary" },
   harmful: { label: "Contenido inapropiado", color: "bg-destructive/15 text-destructive" },
+  bug: { label: "Falla técnica", color: "bg-destructive/10 text-destructive" },
   other: { label: "Otro", color: "bg-muted text-muted-foreground" },
 };
 
@@ -673,6 +713,7 @@ const sourceLabels: Record<string, string> = {
   chat: "Chat tutor",
   activity: "Actividad",
   content: "Contenido del curso",
+  platform: "Plataforma",
 };
 
 const STATUS_FILTERS = [
@@ -788,11 +829,13 @@ function ErrorReportsSection() {
                     <div className="flex items-center gap-2">
                       <Avatar className="h-7 w-7">
                         <AvatarFallback className="bg-brand-ink text-xs font-semibold text-white">
-                          {initials(r.reporterName)}
+                          {initials(r.reporterCode ?? r.reporterName ?? "?")}
                         </AvatarFallback>
                       </Avatar>
                       <div className="leading-tight">
-                        <p className="text-xs font-semibold">{r.reporterName}</p>
+                        <p className="text-xs font-semibold">
+                          {r.reporterCode ?? r.reporterName ?? "Desconocido"}
+                        </p>
                         <p className="text-xs text-muted-foreground">{timeAgo(r.createdAt)}</p>
                       </div>
                     </div>
@@ -958,12 +1001,13 @@ function StudentRow({
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8 border">
             <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">
-              {initials(student.name)}
+              {initials(student.studentCode ?? "?")}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{student.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{student.email}</p>
+            <p className="truncate font-mono text-sm font-medium">
+              {student.studentCode ?? "—"}
+            </p>
           </div>
         </div>
       </TableCell>
@@ -1141,12 +1185,335 @@ function HintTooltip(props: {
   );
 }
 
+// ---------- Gestión de estudiantes (pestaña "Estudiantes") ----------
+
+/** Fila de GET /api/admin/students. */
+interface AdminStudentRow {
+  id: string;
+  studentCode: string;
+  mustChangePassword: boolean;
+  lastActive: string | null;
+  createdAt: string;
+  points: number;
+  streak: number;
+}
+
+/** Credencial temporal recién generada (se muestra UNA sola vez). */
+interface TemporaryCredential {
+  studentCode: string;
+  temporaryPassword: string;
+}
+
+interface BulkCreateResponse {
+  created: TemporaryCredential[];
+  errors: { studentCode: string; error: string }[];
+}
+
+function StudentsAdminSection() {
+  const { data, loading, error, refetch } = useFetch<{ students: AdminStudentRow[] }>(
+    "/api/admin/students"
+  );
+  const [createOpen, setCreateOpen] = useState(false);
+  // Credenciales temporales a mostrar una sola vez (creación o reset)
+  const [credentials, setCredentials] = useState<TemporaryCredential[] | null>(null);
+  const [resetLoadingId, setResetLoadingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const students = data?.students ?? [];
+
+  const handleReset = async (row: AdminStudentRow) => {
+    setActionError(null);
+    setResetLoadingId(row.id);
+    try {
+      const cred = await postJSON<TemporaryCredential>(
+        `/api/admin/students/${row.id}/reset-password`,
+        {}
+      );
+      setCredentials([cred]);
+      refetch();
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "No se pudo reiniciar la contraseña."
+      );
+    } finally {
+      setResetLoadingId(null);
+    }
+  };
+
+  return (
+    <Card className="animate-fade-in-up">
+      <CardHeader>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+              <UserPlus className="h-4 w-4" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Cuentas de estudiantes</CardTitle>
+              <CardDescription>
+                Crea cuentas anonimizadas por código y reinicia contraseñas.
+                Las contraseñas temporales se muestran una sola vez.
+              </CardDescription>
+            </div>
+          </div>
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => setCreateOpen(true)}>
+            <UserPlus className="h-3.5 w-3.5" />
+            Crear estudiantes
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {actionError && (
+          <p role="alert" className="px-4 pb-3 text-sm text-destructive">
+            {actionError}
+          </p>
+        )}
+        {loading && !data ? (
+          <div className="space-y-2 p-4" aria-busy="true">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="skeleton h-10" />
+            ))}
+          </div>
+        ) : error && !data ? (
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
+            <p className="text-sm font-medium">No se pudo cargar la lista de estudiantes</p>
+            <Button variant="outline" size="sm" onClick={refetch} className="gap-1.5">
+              <RotateCw className="h-3.5 w-3.5" />
+              Reintentar
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="pl-4">Código</TableHead>
+                  <TableHead className="text-center">Puntos</TableHead>
+                  <TableHead className="text-center">Racha</TableHead>
+                  <TableHead className="text-center">Contraseña</TableHead>
+                  <TableHead>Última actividad</TableHead>
+                  <TableHead className="pr-4 text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {students.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                      Aún no hay cuentas de estudiantes. Usa &ldquo;Crear estudiantes&rdquo; para generarlas en lote.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  students.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="pl-4 font-mono text-sm font-medium">
+                        {s.studentCode}
+                      </TableCell>
+                      <TableCell className="text-center font-mono text-sm">
+                        {s.points}
+                      </TableCell>
+                      <TableCell className="text-center font-mono text-sm">
+                        {s.streak}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {s.mustChangePassword ? (
+                          <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                            <KeyRound className="h-3 w-3" />
+                            Debe cambiarla
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Personal</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {s.lastActive ? timeAgo(s.lastActive) : "—"}
+                      </TableCell>
+                      <TableCell className="pr-4 text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1.5 px-2 text-xs"
+                          disabled={resetLoadingId === s.id}
+                          onClick={() => handleReset(s)}
+                        >
+                          <RotateCw
+                            className={cn("h-3 w-3", resetLoadingId === s.id && "animate-spin")}
+                          />
+                          Reiniciar contraseña
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+
+      {/* Diálogo de creación en lote */}
+      <CreateStudentsDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={(created) => {
+          setCredentials(created);
+          refetch();
+        }}
+      />
+
+      {/* Diálogo con credenciales temporales (se muestran UNA sola vez) */}
+      <CredentialsDialog
+        credentials={credentials}
+        onClose={() => setCredentials(null)}
+      />
+    </Card>
+  );
+}
+
+function CreateStudentsDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: (created: TemporaryCredential[]) => void;
+}) {
+  const [codesText, setCodesText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [serverErrors, setServerErrors] = useState<string[]>([]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setServerErrors([]);
+    const codes = codesText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (codes.length === 0) {
+      setError("Ingresa al menos un código (uno por línea).");
+      return;
+    }
+    setLoading(true);
+    try {
+      const resp = await postJSON<BulkCreateResponse>("/api/admin/students", { codes });
+      if (resp.errors.length > 0) {
+        setServerErrors(resp.errors.map((e2) => `${e2.studentCode}: ${e2.error}`));
+      }
+      if (resp.created.length > 0) {
+        setCodesText("");
+        onOpenChange(false);
+        onCreated(resp.created);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudieron crear las cuentas.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Crear estudiantes</DialogTitle>
+          <DialogDescription>
+            Ingresa un código por línea (máx. 200). Cada cuenta se crea con una
+            contraseña temporal que el estudiante deberá cambiar en su primer
+            inicio de sesión.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Textarea
+            value={codesText}
+            onChange={(e) => setCodesText(e.target.value)}
+            placeholder={"EM-0001\nEM-0002\nEM-0003"}
+            rows={8}
+            className="font-mono text-sm"
+            aria-label="Códigos de estudiantes, uno por línea"
+          />
+          {error && (
+            <p role="alert" className="text-sm text-destructive">{error}</p>
+          )}
+          {serverErrors.length > 0 && (
+            <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <p className="font-medium">Algunos códigos no se crearon:</p>
+              <ul className="mt-1 list-inside list-disc">
+                {serverErrors.map((msg) => (
+                  <li key={msg}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="submit" disabled={loading} className="gap-1.5">
+              {loading && <RotateCw className="h-3.5 w-3.5 animate-spin" />}
+              Crear cuentas
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CredentialsDialog({
+  credentials,
+  onClose,
+}: {
+  credentials: TemporaryCredential[] | null;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const text = (credentials ?? [])
+    .map((c) => `${c.studentCode},${c.temporaryPassword}`)
+    .join("\n");
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // portapapeles no disponible: el texto sigue seleccionable en pantalla
+    }
+  };
+
+  return (
+    <Dialog open={credentials !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Contraseñas temporales</DialogTitle>
+          <DialogDescription>
+            Entrega estas credenciales a cada estudiante. Se muestran{" "}
+            <strong>una sola vez</strong>: al cerrar este diálogo no podrás
+            recuperarlas (si se pierden, reinicia la contraseña).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-72 overflow-y-auto rounded-md border border-border bg-muted/40 p-3">
+          <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed">
+            {text}
+          </pre>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleCopy} className="gap-1.5">
+            <Copy className="h-3.5 w-3.5" />
+            {copied ? "¡Copiado!" : "Copiar todo"}
+          </Button>
+          <Button onClick={onClose}>Entendido, ya las guardé</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ---------- CSV Export helper ----------
 
 function exportStudentsCSV(students: Student[]) {
   const headers = [
-    "Nombre",
-    "Email",
+    "Código",
     "Puntos",
     "Racha (días)",
     "Actividades completadas",
@@ -1164,8 +1531,7 @@ function exportStudentsCSV(students: Student[]) {
       ? Math.round(s.progressByUnit.reduce((a, p) => a + p.mastery, 0) / s.progressByUnit.length)
       : 0;
     return [
-      s.name,
-      s.email,
+      s.studentCode ?? "—",
       s.points,
       s.streak,
       s.completedActivities,

@@ -40,7 +40,6 @@ class Unit(TimeStampedModel):
     color = models.CharField("color", max_length=32, default="sky")
     order = models.IntegerField("orden", default=0)
     content = models.TextField("contenido base (markdown)", blank=True, default="")
-    diagnostic_questions = models.JSONField("preguntas de diagnóstico", default=list)
 
     class Meta:
         verbose_name = "unidad"
@@ -49,6 +48,35 @@ class Unit(TimeStampedModel):
 
     def __str__(self) -> str:
         return self.title
+
+
+class CourseConfig(models.Model):
+    """Configuración global del curso (singleton: siempre pk=1).
+
+    - ``diagnostic_questions``: preguntas del diagnóstico GENERAL del curso
+      (lista de strings). Es obligatorio para estudiantes al primer uso y sus
+      respuestas alimentan la adaptación por IA de cada unidad.
+    - ``final_exam_questions``: preguntas de la prueba de cierre, lista de
+      ``{"question": str, "options": [str, ...], "correctIndex": int}``.
+    """
+
+    diagnostic_questions = models.JSONField("preguntas del diagnóstico general", default=list)
+    final_exam_questions = models.JSONField("preguntas de la prueba de cierre", default=list)
+    final_exam_pass_score = models.IntegerField("puntaje mínimo de aprobación (%)", default=70)
+    final_exam_max_attempts = models.IntegerField("intentos máximos de la prueba de cierre", default=3)
+
+    class Meta:
+        verbose_name = "configuración del curso"
+        verbose_name_plural = "configuración del curso"
+
+    @classmethod
+    def load(cls) -> "CourseConfig":
+        """Devuelve la única fila de configuración (la crea si no existe)."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self) -> str:
+        return "Configuración del curso"
 
 
 class Lesson(TimeStampedModel):

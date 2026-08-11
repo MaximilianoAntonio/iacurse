@@ -300,6 +300,7 @@ export function ActivityView() {
       activityIndex={activityIndex}
       activityTotal={lesson.activities.length}
       attemptCount={attemptCount}
+      attemptsByActivity={data.attemptsByActivity}
       onNavigateUnits={() => navigate("units")}
       onOpenUnit={() => openUnit(lesson.unitId)}
       onOpenLesson={() => openLesson(lesson.id)}
@@ -322,6 +323,7 @@ interface ActivityInnerProps {
   activityIndex: number;
   activityTotal: number;
   attemptCount: number;
+  attemptsByActivity: LessonResponse["attemptsByActivity"];
   onNavigateUnits: () => void;
   onOpenUnit: () => void;
   onOpenLesson: () => void;
@@ -341,6 +343,7 @@ function ActivityInner(props: ActivityInnerProps) {
     activityIndex,
     activityTotal,
     attemptCount,
+    attemptsByActivity,
     onNavigateUnits,
     onOpenUnit,
     onOpenLesson,
@@ -349,7 +352,8 @@ function ActivityInner(props: ActivityInnerProps) {
 
   const { toast } = useToast();
 
-  const MAX_ATTEMPTS = 3;
+  // Intentos permitidos: los define la propia actividad (0 = ilimitado)
+  const maxAttempts = activity.maxAttempts && activity.maxAttempts > 0 ? activity.maxAttempts : null;
   const totalAttempts = attemptCount; // from API (previous attempts)
 
   const [submitted, setSubmitted] = useState(false);
@@ -369,8 +373,8 @@ function ActivityInner(props: ActivityInnerProps) {
   const startTimeRef = useRef<number>(Date.now());
 
   const currentAttemptNumber = totalAttempts + sessionAttempts;
-  const attemptsLeft = Math.max(0, MAX_ATTEMPTS - currentAttemptNumber);
-  const maxReached = currentAttemptNumber >= MAX_ATTEMPTS;
+  const attemptsLeft = maxAttempts === null ? Infinity : Math.max(0, maxAttempts - currentAttemptNumber);
+  const maxReached = maxAttempts !== null && currentAttemptNumber >= maxAttempts;
 
   // Reset del cronómetro al cambiar de actividad o reintentar (patrón
   // "ajustar estado durante el render"; el intervalo queda en el effect).
@@ -557,38 +561,38 @@ function ActivityInner(props: ActivityInnerProps) {
                 <span className="font-mono tabular-nums">{activity.points}</span> pts
               </Badge>
               {/* Badges de evaluación pedagógica */}
-              {(activity as any).assessmentType && (
+              {activity.assessmentType && (
                 <Badge
                   variant="outline"
                   className={cn(
                     "gap-1 border-transparent capitalize",
-                    (activity as any).assessmentType === "diagnostic" && "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-                    (activity as any).assessmentType === "formative" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-                    (activity as any).assessmentType === "summative" && "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-                    (activity as any).assessmentType === "self_reflection" && "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+                    activity.assessmentType === "diagnostic" && "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+                    activity.assessmentType === "formative" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+                    activity.assessmentType === "summative" && "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+                    activity.assessmentType === "self_reflection" && "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
                   )}
                   title="Tipo de evaluación"
                 >
                   <DynamicIcon name="Award" className="h-3 w-3" />
-                  {{ diagnostic: "Diagnóstica", formative: "Formativa", summative: "Sumativa", self_reflection: "Auto-reflexión" }[(activity as any).assessmentType] ?? (activity as any).assessmentType}
+                  {{ diagnostic: "Diagnóstica", formative: "Formativa", summative: "Sumativa", self_reflection: "Auto-reflexión" }[activity.assessmentType] ?? activity.assessmentType}
                 </Badge>
               )}
-              {(activity as any).bloomLevel && (
+              {activity.bloomLevel && (
                 <Badge variant="outline" className="gap-1 border-transparent capitalize text-xs" title="Nivel cognitivo de Bloom">
                   <DynamicIcon name="GraduationCap" className="h-3 w-3" />
-                  {{ remember: "Recordar", understand: "Comprender", apply: "Aplicar", analyze: "Analizar", evaluate: "Evaluar", create: "Crear" }[(activity as any).bloomLevel] ?? (activity as any).bloomLevel}
+                  {{ remember: "Recordar", understand: "Comprender", apply: "Aplicar", analyze: "Analizar", evaluate: "Evaluar", create: "Crear" }[activity.bloomLevel] ?? activity.bloomLevel}
                 </Badge>
               )}
-              {(activity as any).maxAttempts !== undefined && (activity as any).maxAttempts > 0 && (
+              {maxAttempts !== null && (
                 <Badge variant="outline" className="gap-1 border-transparent text-xs" title="Intentos permitidos">
                   <DynamicIcon name="RotateCcw" className="h-3 w-3" />
-                  <span className="font-mono tabular-nums">{attemptCount}/{(activity as any).maxAttempts}</span> intentos
+                  <span className="font-mono tabular-nums">{attemptCount}/{maxAttempts}</span> intentos
                 </Badge>
               )}
-              {(activity as any).masteryThreshold !== undefined && (activity as any).masteryThreshold > 0 && (activity as any).masteryThreshold < 100 && (
+              {activity.masteryThreshold !== undefined && activity.masteryThreshold > 0 && activity.masteryThreshold < 100 && (
                 <Badge variant="outline" className="gap-1 border-transparent text-xs" title="Umbral de aprobación">
                   <DynamicIcon name="Gauge" className="h-3 w-3" />
-                  Aprobar: <span className="font-mono tabular-nums">{(activity as any).masteryThreshold}%</span>
+                  Aprobar: <span className="font-mono tabular-nums">{activity.masteryThreshold}%</span>
                 </Badge>
               )}
             </div>
@@ -645,7 +649,7 @@ function ActivityInner(props: ActivityInnerProps) {
           onSetReportComment={setReportComment}
           onSubmitReport={submitReport}
           attemptNumber={currentAttemptNumber}
-          maxAttempts={MAX_ATTEMPTS}
+          maxAttempts={maxAttempts}
           attemptsLeft={attemptsLeft}
           maxReached={maxReached}
         />
@@ -653,6 +657,9 @@ function ActivityInner(props: ActivityInnerProps) {
 
       {/* Navegación entre actividades */}
       <ActivityNavFooter
+        activities={lesson.activities}
+        attemptsByActivity={attemptsByActivity}
+        currentActivityId={activity.id}
         activityIndex={activityIndex}
         activityTotal={activityTotal}
         prevActivity={prevActivity}
@@ -1488,7 +1495,8 @@ interface ResultPanelProps {
   onSetReportComment: (comment: string) => void;
   onSubmitReport: () => void;
   attemptNumber: number;
-  maxAttempts: number;
+  /** Tope de intentos de la actividad; null cuando es ilimitado. */
+  maxAttempts: number | null;
   attemptsLeft: number;
   maxReached: boolean;
 }
@@ -1636,26 +1644,28 @@ function ResultPanel({
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-2.5">
             <div className="flex items-center gap-2 text-xs">
               <span className="text-muted-foreground">Intentos:</span>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: maxAttempts }).map((_, i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      "h-2 w-2 rounded-full transition-colors",
-                      i < attemptNumber
-                        ? result.correct
-                          ? "bg-brand"
-                          : "bg-brand-gold"
-                        : "bg-muted-foreground/20"
-                    )}
-                  />
-                ))}
-              </div>
+              {maxAttempts !== null && (
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: maxAttempts }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-2 w-2 rounded-full transition-colors",
+                        i < attemptNumber
+                          ? result.correct
+                            ? "bg-brand"
+                            : "bg-brand-gold"
+                          : "bg-muted-foreground/20"
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
               <span className="ml-1 font-mono font-medium tabular-nums">
-                {attemptNumber}/{maxAttempts}
+                {maxAttempts !== null ? `${attemptNumber}/${maxAttempts}` : attemptNumber}
               </span>
             </div>
-            {!correct && attemptsLeft > 0 && (
+            {!correct && attemptsLeft > 0 && maxAttempts !== null && (
               <span className="text-xs text-muted-foreground">
                 {attemptsLeft} intento{attemptsLeft !== 1 ? "s" : ""} restante{attemptsLeft !== 1 ? "s" : ""}
               </span>
@@ -1772,6 +1782,9 @@ function ResultPanel({
 // ---------- navigation footer ----------
 
 interface ActivityNavFooterProps {
+  activities: Activity[];
+  attemptsByActivity: LessonResponse["attemptsByActivity"];
+  currentActivityId: string;
   activityIndex: number;
   activityTotal: number;
   prevActivity: Activity | null;
@@ -1781,6 +1794,9 @@ interface ActivityNavFooterProps {
 }
 
 function ActivityNavFooter({
+  activities,
+  attemptsByActivity,
+  currentActivityId,
   activityIndex,
   activityTotal,
   prevActivity,
@@ -1789,39 +1805,69 @@ function ActivityNavFooter({
   onOpenLesson,
 }: ActivityNavFooterProps) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={!prevActivity}
-        onClick={() => prevActivity && onOpenActivity(prevActivity.id)}
-        className="text-muted-foreground"
-      >
-        <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
-      </Button>
-      <span className="font-mono text-xs font-medium tabular-nums text-muted-foreground">
-        Actividad {activityIndex + 1} de {activityTotal}
-      </span>
-      {nextActivity ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onOpenActivity(nextActivity.id)}
-          className="text-primary"
-        >
-          Siguiente <ChevronRight className="ml-1 h-4 w-4" />
-        </Button>
-      ) : (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onOpenLesson}
-          className="text-primary"
-        >
-          Terminar lección{" "}
-          <CheckCircle2 className="ml-1 h-4 w-4" />
-        </Button>
+    <div className="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
+      {/* Mini-mapa de la lección: chips numerados con estado de cada actividad */}
+      {activityTotal > 1 && (
+        <div className="flex flex-wrap items-center justify-center gap-1.5" role="navigation" aria-label="Actividades de la lección">
+          {activities.map((a, idx) => {
+            const isCurrent = a.id === currentActivityId;
+            const isCompleted = attemptsByActivity[a.id]?.completed;
+            return (
+              <button
+                key={a.id}
+                onClick={() => !isCurrent && onOpenActivity(a.id)}
+                disabled={isCurrent}
+                title={a.title}
+                aria-current={isCurrent ? "step" : undefined}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full border font-mono text-xs font-semibold tabular-nums transition-all duration-200 ease-out-expo",
+                  isCurrent
+                    ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                    : isCompleted
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+                      : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                )}
+              >
+                {isCompleted && !isCurrent ? <CheckCircle2 className="h-4 w-4" /> : idx + 1}
+              </button>
+            );
+          })}
+        </div>
       )}
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!prevActivity}
+          onClick={() => prevActivity && onOpenActivity(prevActivity.id)}
+          className="text-muted-foreground"
+        >
+          <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+        </Button>
+        <span className="font-mono text-xs font-medium tabular-nums text-muted-foreground">
+          Actividad {activityIndex + 1} de {activityTotal}
+        </span>
+        {nextActivity ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenActivity(nextActivity.id)}
+            className="text-primary"
+          >
+            Siguiente <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenLesson}
+            className="text-primary"
+          >
+            Terminar lección{" "}
+            <CheckCircle2 className="ml-1 h-4 w-4" />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

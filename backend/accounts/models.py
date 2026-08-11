@@ -25,10 +25,21 @@ class User(AbstractUser):
         (ROLE_TEACHER, "Docente"),
     ]
 
-    # El email es el identificador de login (lineamiento: @uv.cl)
+    # El email es el identificador de login del docente (lineamiento: @uv.cl).
+    # Los estudiantes usan un email placeholder no identificable (<code>@students.local).
     email = models.EmailField("correo electrónico", unique=True)
 
-    # display name (ej. "Hermes Mora")
+    # Código anonimizado asignado externamente (identificador de login del
+    # estudiante). Solo los estudiantes lo tienen; los docentes entran por email.
+    student_code = models.CharField(
+        "código de estudiante", max_length=32, unique=True, null=True, blank=True
+    )
+
+    # Fuerza el cambio de contraseña en el próximo inicio de sesión (cuentas
+    # nuevas y resets del docente usan una contraseña temporal).
+    must_change_password = models.BooleanField("debe cambiar contraseña", default=False)
+
+    # display name (ej. "Hermes Mora"; vacío o neutral para estudiantes anonimizados)
     name = models.CharField("nombre", max_length=200, blank=True)
 
     role = models.CharField(

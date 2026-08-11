@@ -19,7 +19,10 @@ interface AppState {
   navigate: (view: ViewKey) => void;
   openUnit: (unitId: string) => void;
   openLesson: (lessonId: string) => void;
-  openActivity: (activityId: string) => void;
+  /** Si se pasa lessonId, fija el contexto de la lección explícitamente
+   *  (evita depender del currentLessonId previo, p.ej. al abrir una actividad
+   *  directamente desde el detalle de la unidad). */
+  openActivity: (activityId: string, lessonId?: string) => void;
   hydrateFromUrl: () => void;
   setNavFromUrl: (nav: Partial<Pick<AppState, "view" | "currentUnitId" | "currentLessonId" | "currentActivityId">>) => void;
 
@@ -35,7 +38,7 @@ interface AppState {
 }
 
 // Vistas permitidas por rol
-const STUDENT_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "progress", "achievements", "about"];
+const STUDENT_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "progress", "achievements", "final-exam", "about"];
 const TEACHER_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "teacher", "course-builder", "about"];
 
 function isViewAllowed(view: ViewKey, role: Role): boolean {
@@ -146,12 +149,12 @@ export const useAppStore = create<AppState>()(
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
       },
-      openActivity: (activityId) => {
-        const lessonId = get().currentLessonId;
-        set({ currentActivityId: activityId, view: "activity" });
+      openActivity: (activityId, lessonId) => {
+        const resolvedLessonId = lessonId ?? get().currentLessonId;
+        set({ currentActivityId: activityId, currentLessonId: resolvedLessonId, view: "activity" });
         if (typeof window !== "undefined") {
-          const url = buildUrl("activity", undefined, lessonId, activityId);
-          window.history.pushState({ view: "activity", activityId, lessonId }, "", url);
+          const url = buildUrl("activity", undefined, resolvedLessonId, activityId);
+          window.history.pushState({ view: "activity", activityId, lessonId: resolvedLessonId }, "", url);
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
       },

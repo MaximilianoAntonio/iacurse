@@ -14,18 +14,34 @@ import { AppShell } from "@/components/app/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
 import { LoginView } from "@/components/views/login-view";
-import type { User } from "@/lib/types";
+import { ForceChangePasswordView } from "@/components/views/force-change-password-view";
+import { CourseDiagnosticView } from "@/components/views/course-diagnostic-view";
+import type { CourseStatus, User } from "@/lib/types";
 
 type AuthState = "loading" | "authenticated" | "anonymous";
 
 export default function Home() {
   const setUser = useAppStore((s) => s.setUser);
   const [authState, setAuthState] = useState<AuthState>("loading");
+  // Gate de cambio de contraseña obligatorio: true una vez completado en esta sesión
+  const [passwordChanged, setPasswordChanged] = useState(false);
+  // Gate del diagnóstico general del curso: true una vez enviado en esta sesión
+  const [diagnosticDone, setDiagnosticDone] = useState(false);
 
   // Pedir /api/me solo cuando hay indicios de sesión (flag en localStorage;
   // la cookie sessionid es HttpOnly y no se puede leer desde JS).
   const meUrl = authState === "authenticated" ? "/api/me" : null;
   const { data: meData, error } = useFetch<{ user: User }>(meUrl, [authState]);
+
+  // Estado del curso (diagnóstico general): solo para estudiantes autenticados.
+  // Los docentes saltan este gate.
+  const isStudent = meData?.user?.role === "student";
+  const statusUrl =
+    authState === "authenticated" && isStudent ? "/api/course/status" : null;
+  const { data: courseStatus, loading: statusLoading } = useFetch<CourseStatus>(
+    statusUrl,
+    [authState, isStudent]
+  );
 
   // Al montar: comprobar si hay sesión previa para reanudarla.
   useEffect(() => {
@@ -68,6 +84,8 @@ export default function Home() {
       localStorage.removeItem("electromed-session");
     }
     setUser(null);
+    setPasswordChanged(false);
+    setDiagnosticDone(false);
     setAuthState("anonymous");
   };
 
@@ -79,6 +97,35 @@ export default function Home() {
   if (authState === "authenticated") {
     // Sesión confirmada: mostrar la app.
     if (meData?.user) {
+      // Cambio de contraseña obligatorio (primer login o reset del docente):
+      // bloquea la app hasta completarlo, tanto en login fresco como en
+      // sesión reanudada (ambos flujos pasan por /api/me).
+      if (meData.user.mustChangePassword && !passwordChanged) {
+        return (
+          <ForceChangePasswordView
+            onPasswordChanged={() => {
+              setUser({ ...meData.user, mustChangePassword: false });
+              setPasswordChanged(true);
+            }}
+          />
+        );
+      }
+      // Diagnóstico general del curso (obligatorio, sin opción de saltar):
+      // solo estudiantes, después del cambio de contraseña y antes de la app.
+      // Si /api/course/status falla no se bloquea el acceso (fail-open).
+      if (meData.user.role === "student" && !diagnosticDone) {
+        if (courseStatus && !courseStatus.diagnosticCompleted) {
+          return (
+            <CourseDiagnosticView
+              questions={courseStatus.diagnosticQuestions ?? []}
+              onCompleted={() => setDiagnosticDone(true)}
+            />
+          );
+        }
+        if (!courseStatus && statusLoading) {
+          return <LoadingScreen />;
+        }
+      }
       return <AppShell onLogout={handleLogout} />;
     }
     // Esperando /api/me (cargando) o sesión caducada (error → el efecto de

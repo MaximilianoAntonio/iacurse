@@ -9,7 +9,7 @@ from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from learning.models import Attempt, Progress, PersonalizedUnit
+from learning.models import Attempt, CourseDiagnosticResult, Progress, PersonalizedUnit
 from learning.ai_services import adapt_unit_for_student
 from .models import Activity, Lesson, Unit
 
@@ -74,7 +74,9 @@ class UnitsListView(views.APIView):
 
 class UnitDetailView(views.APIView):
     """GET /api/units/<slug_or_id> — detalle de unidad adaptada con progreso.
-    POST /api/units/<slug_or_id> — guardar diagnóstico y generar unidad personalizada.
+    POST /api/units/<slug_or_id> — {action: "adapt"|"skip"}: personalizar la
+    unidad con IA (usa las respuestas del diagnóstico general del curso) o
+    usar el contenido base.
     """
 
     permission_classes = [IsAuthenticated]
@@ -85,9 +87,12 @@ class UnitDetailView(views.APIView):
             return Response({"error": "Unidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
 
-        # Buscar unidad personalizada (diagnóstico contestado)
+        # Buscar unidad personalizada (adaptada con IA o con contenido base)
         pers_unit = PersonalizedUnit.objects.filter(user=user, unit=unit).first()
         has_adapted = pers_unit is not None
+        # El botón "Personalizar con IA" solo tiene sentido si el estudiante
+        # ya respondió el diagnóstico general del curso.
+        has_course_diagnostic = CourseDiagnosticResult.objects.filter(user=user).exists()
 
         # Lecciones publicadas con actividades y resumen de intentos del usuario
         # (los borradores del docente no son visibles para estudiantes)
@@ -143,12 +148,11 @@ class UnitDetailView(views.APIView):
                 "summary": unit.summary, "description": unit.description,
                 "icon": unit.icon, "color": unit.color, "order": unit.order,
                 "content": unit.content,
-                "diagnosticQuestions": unit.diagnostic_questions,
                 "lessons": lessons,
                 "hasAdaptedContent": has_adapted,
                 "adaptedContent": pers_unit.adapted_content if pers_unit else "",
-                "diagnosticAnswers": pers_unit.diagnostic_answers if pers_unit else [],
                 "diagnosticSkipped": pers_unit.skipped if pers_unit else False,
+                "hasCourseDiagnostic": has_course_diagnostic,
             },
             "progress": progress,
             "attemptsByActivity": attempts_by_activity,
@@ -160,9 +164,16 @@ class UnitDetailView(views.APIView):
             return Response({"error": "Unidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
 
-        # Opción "Saltar diagnóstico": se desbloquea la unidad con el contenido
-        # base (sin adaptar) y queda marcada para completar el diagnóstico después.
-        if request.data.get("skip"):
+        action = request.data.get("action")
+        if action not in ("adapt", "skip"):
+            return Response(
+                {"error": "Acción inválida (usa 'adapt' o 'skip')"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # "Usar contenido base": se desbloquea la unidad sin adaptar y queda
+        # marcada (skipped) para personalizarla más tarde si el estudiante quiere.
+        if action == "skip":
             PersonalizedUnit.objects.update_or_create(
                 user=user,
                 unit=unit,
@@ -176,48 +187,26 @@ class UnitDetailView(views.APIView):
                 "ok": True,
                 "hasAdaptedContent": True,
                 "adaptedContent": unit.content,
-                "diagnosticAnswers": [],
                 "diagnosticSkipped": True,
             })
 
-        answers = request.data.get("answers")  # [{'question': '...', 'answer': '...'}]
-
-        # Validación de forma: lista no vacía de pares pregunta/respuesta.
-        if not isinstance(answers, list) or not answers:
+        # "Personalizar con IA": exige el diagnóstico general del curso ya
+        # respondido; sus respuestas describen el perfil del estudiante.
+        diagnostic = CourseDiagnosticResult.objects.filter(user=user).first()
+        if not diagnostic:
             return Response(
-                {"error": "Faltan las respuestas del diagnóstico"},
+                {"error": "Debes completar el diagnóstico general del curso antes de personalizar esta unidad"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if len(answers) > 50:
-            return Response(
-                {"error": "Demasiadas respuestas (máx. 50)"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        clean_answers = []
-        for item in answers:
-            if not isinstance(item, dict):
-                return Response(
-                    {"error": "Formato de respuestas inválido"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            q = str(item.get("question", "")).strip()
-            a = str(item.get("answer", "")).strip()
-            if not q or not a:
-                return Response(
-                    {"error": "Todas las preguntas deben tener respuesta"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            clean_answers.append({"question": q[:500], "answer": a[:4000]})
 
-        # Adaptar contenido base usando la IA
-        adapted_content = adapt_unit_for_student(unit.title, unit.content, clean_answers)
+        # Adaptar contenido base usando la IA (fallback: contenido base)
+        adapted_content = adapt_unit_for_student(unit.title, unit.content, diagnostic.answers)
 
-        # Crear o actualizar PersonalizedUnit
-        pers_unit, created = PersonalizedUnit.objects.update_or_create(
+        PersonalizedUnit.objects.update_or_create(
             user=user,
             unit=unit,
             defaults={
-                "diagnostic_answers": clean_answers,
+                "diagnostic_answers": diagnostic.answers,
                 "adapted_content": adapted_content,
                 "skipped": False,
             }
@@ -227,13 +216,14 @@ class UnitDetailView(views.APIView):
             "ok": True,
             "hasAdaptedContent": True,
             "adaptedContent": adapted_content,
-            "diagnosticAnswers": clean_answers,
             "diagnosticSkipped": False,
         })
 
 
 class LessonDetailView(views.APIView):
-    """GET /api/lessons/<id> — detalle de lección con actividades + intentos."""
+    """GET /api/lessons/<id> — detalle de lección con actividades + intentos.
+    Incluye siblingLessons (lecciones hermanas de la misma unidad, publicadas
+    y ordenadas) para la navegación anterior/siguiente del frontend."""
 
     permission_classes = [IsAuthenticated]
 
@@ -242,6 +232,11 @@ class LessonDetailView(views.APIView):
         if not lesson:
             return Response({"error": "Lección no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
+
+        sibling_lessons = [
+            {"id": s.id, "slug": s.slug, "title": s.title, "order": s.order, "durationMin": s.duration_min}
+            for s in lesson.unit.lessons.filter(is_published=True).order_by("order")
+        ]
 
         activities = []
         for a in lesson.activities.order_by("order"):
@@ -281,6 +276,7 @@ class LessonDetailView(views.APIView):
                 },
                 "activities": activities,
             },
+            "siblingLessons": sibling_lessons,
             "attemptsByActivity": attempts_by_activity,
         })
 

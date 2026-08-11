@@ -2,24 +2,28 @@
 Vistas de cuentas — Módulo de acceso del lineamiento.
 
 Endpoints:
-- GET    /api/auth/csrf       — token CSRF para el frontend React
-- POST   /api/auth/register   — registro de estudiantes
-- POST   /api/auth/login      — login (cookie de sesión)
-- POST   /api/auth/logout     — logout
-- GET    /api/me              — usuario actual
-- GET    /api/users           — lista de usuarios (para selector/switcher)
-- PATCH  /api/user/weekly-goal — actualiza meta semanal
+- GET    /api/auth/csrf            — token CSRF para el frontend React
+- POST   /api/auth/login           — login (cookie de sesión)
+- POST   /api/auth/logout          — logout
+- POST   /api/auth/change-password — cambio de contraseña (obligatorio con flag)
+- GET    /api/me                   — usuario actual
+- GET    /api/users                — lista de usuarios (solo docentes)
+- PATCH  /api/user/weekly-goal     — actualiza meta semanal
+
+El registro público fue eliminado: el docente crea las cuentas de
+estudiantes (ver ``accounts/admin_views.py``).
 """
-from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth import get_user_model, login, logout
 from django.middleware.csrf import get_token
 from django.utils import timezone
-from rest_framework import status, views
+from rest_framework import views
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .permissions import IsTeacher
 from .serializers import (
+    ChangePasswordSerializer,
     LoginSerializer,
-    RegisterSerializer,
     UserSerializer,
     WeeklyGoalSerializer,
 )
@@ -39,6 +43,21 @@ def _serialize_user(user):
         "streak": user.streak,
         "weeklyGoalMin": user.weekly_goal_min,
         "lastActive": user.last_active.isoformat() if user.last_active else None,
+        "studentCode": user.student_code or None,
+        "mustChangePassword": user.must_change_password,
+    }
+
+
+def _serialize_student_public(user):
+    """Proyección anonimizada de un estudiante (sin email ni nombre real)."""
+    return {
+        "id": user.id,
+        "studentCode": user.student_code,
+        "role": user.role,
+        "points": user.points,
+        "streak": user.streak,
+        "lastActive": user.last_active.isoformat() if user.last_active else None,
+        "mustChangePassword": user.must_change_password,
     }
 
 
@@ -55,23 +74,8 @@ class CsrfTokenView(views.APIView):
         return Response({"csrfToken": get_token(request)})
 
 
-class RegisterView(views.APIView):
-    """Registro de nuevos estudiantes."""
-
-    permission_classes = [AllowAny]
-    serializer_class = RegisterSerializer
-
-    def post(self, request):
-        serializer = RegisterSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        # Log in automáticamente tras registro (UX del piloto)
-        login(request, user)
-        return Response({"user": _serialize_user(user)}, status=status.HTTP_201_CREATED)
-
-
 class LoginView(views.APIView):
-    """Login por email + password. Crea sesión Django (cookie)."""
+    """Login por identificador (email docente o código estudiante) + password."""
 
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
@@ -96,6 +100,27 @@ class LogoutView(views.APIView):
         return Response({"ok": True})
 
 
+class ChangePasswordView(views.APIView):
+    """Cambio de contraseña del usuario autenticado.
+
+    Limpia el flag ``must_change_password``: es la vía para salir del cambio
+    obligatorio tras el primer login o un reset del docente.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.set_password(serializer.validated_data["newPassword"])
+        user.must_change_password = False
+        user.save(update_fields=["password", "must_change_password", "updated_at"])
+        return Response({"ok": True})
+
+
 class MeView(views.APIView):
     """Usuario actual (sesión requerida).
 
@@ -110,13 +135,22 @@ class MeView(views.APIView):
 
 
 class UsersView(views.APIView):
-    """Lista todos los usuarios (para el panel docente). Requiere sesión."""
+    """Lista usuarios para el panel docente (exclusivo de docentes).
 
-    permission_classes = [IsAuthenticated]
+    Los estudiantes se devuelven anonimizados (sin email ni nombre real);
+    los docentes van completos.
+    """
+
+    permission_classes = [IsAuthenticated, IsTeacher]
 
     def get(self, request):
         users = User.objects.all().order_by("role", "name")
-        return Response({"users": [_serialize_user(u) for u in users]})
+        return Response({
+            "users": [
+                _serialize_user(u) if u.is_teacher else _serialize_student_public(u)
+                for u in users
+            ]
+        })
 
 
 class WeeklyGoalView(views.APIView):

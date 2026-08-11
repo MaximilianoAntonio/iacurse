@@ -6,15 +6,13 @@ import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/app/page-header";
 import { FetchError } from "@/components/app/loading";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
-import { getUnitColor } from "@/lib/course-utils";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { UnitCard, unitProgressStatus, type UnitProgressStatus } from "@/components/views/unit-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2, ArrowRight, BookMarked, Search, Filter, X, Sparkles } from "lucide-react";
+import { CheckCircle2, BookMarked, Search, Filter, X } from "lucide-react";
 import type { Unit, User } from "@/lib/types";
 
-type FilterKey = "all" | "in-progress" | "completed" | "not-started";
+type FilterKey = "all" | UnitProgressStatus;
 
 /** Skeleton de carga: replica header + grid de tarjetas con shimmer. */
 function UnitsSkeleton() {
@@ -67,8 +65,9 @@ export function UnitsView() {
 
   const units = data.units;
   const totalUnits = units.length;
-  const isAdapted = (u: Unit) => Boolean(u.hasAdaptedContent && !u.diagnosticSkipped);
-  const totalAdapted = units.filter(isAdapted).length;
+  const countByStatus = (status: UnitProgressStatus) =>
+    units.filter((u) => unitProgressStatus(u) === status).length;
+  const completedUnits = countByStatus("completed");
 
   const q = search.trim().toLowerCase();
   const filteredUnits = units.filter((u) => {
@@ -76,16 +75,15 @@ export function UnitsView() {
       const hay = `${u.title} ${u.summary} ${u.description}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
-    const adapted = isAdapted(u);
-    if (filter === "completed" && !adapted) return false;
-    if (filter === "not-started" && adapted) return false;
+    if (filter !== "all" && unitProgressStatus(u) !== filter) return false;
     return true;
   });
 
   const filterOptions: { key: FilterKey; label: string; count: number }[] = [
     { key: "all", label: "Todas", count: units.length },
-    { key: "completed", label: "Adaptadas", count: totalAdapted },
-    { key: "not-started", label: "Pendientes", count: units.length - totalAdapted },
+    { key: "in-progress", label: "En curso", count: countByStatus("in-progress") },
+    { key: "completed", label: "Completadas", count: completedUnits },
+    { key: "not-started", label: "Sin iniciar", count: countByStatus("not-started") },
   ];
 
   return (
@@ -104,9 +102,9 @@ export function UnitsView() {
             </div>
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="font-mono font-semibold tabular-nums">{totalAdapted}/{totalUnits}</span>
-              <span className="text-muted-foreground">adaptadas</span>
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-mono font-semibold tabular-nums">{completedUnits}/{totalUnits}</span>
+              <span className="text-muted-foreground">completadas</span>
             </div>
           </div>
         }
@@ -120,7 +118,7 @@ export function UnitsView() {
         <div>
           <p className="text-sm font-medium text-brand dark:text-brand-gold">¿Cómo funciona el aprendizaje adaptativo?</p>
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            Al entrar a cada unidad por primera vez puedes responder un diagnóstico de preguntas abiertas: la IA adaptará el texto base a tu nivel y lo guardará para tu estudio. Si prefieres, sáltalo y complétalo después.
+            Tu diagnóstico inicial del curso ya definió tu perfil de aprendizaje. Dentro de cada unidad puedes usar «Personalizar con IA» para que el contenido se nivele a ese perfil, o estudiar directamente el contenido base.
           </p>
         </div>
       </div>
@@ -189,66 +187,9 @@ export function UnitsView() {
         </div>
       ) : (
       <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredUnits.map((u) => {
-          const color = getUnitColor(u.color);
-          const adapted = isAdapted(u);
-          const skipped = Boolean(u.diagnosticSkipped);
-
-          return (
-            <button
-              key={u.id}
-              onClick={() => openUnit(u.id)}
-              className="hover-lift group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-5 text-left shadow-xs hover:border-brand/30"
-            >
-              <div className="flex items-start justify-between">
-                <div className={`flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br ${color.gradient} text-white shadow-sm transition-transform duration-200 ease-out-expo group-hover:scale-105`}>
-                  <DynamicIcon name={u.icon} className="h-5 w-5" />
-                </div>
-                {adapted ? (
-                  <Badge className="shrink-0 border-none bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                    <CheckCircle2 className="mr-1 h-3 w-3" /> Adaptada
-                  </Badge>
-                ) : skipped ? (
-                  <Badge variant="outline" className="shrink-0 border-brand-gold/50 text-amber-700 dark:text-brand-gold">
-                    Diagnóstico saltado
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="shrink-0">Pendiente</Badge>
-                )}
-              </div>
-
-              <h3 className="mt-3 font-semibold leading-tight transition-colors duration-200 group-hover:text-brand dark:group-hover:text-brand-gold">{u.title}</h3>
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{u.summary}</p>
-
-              {/* Progreso */}
-              <div className="mt-4 space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Diagnóstico</span>
-                  <span className="font-medium">
-                    {adapted ? "Completado" : skipped ? "Saltado" : "Pendiente"}
-                  </span>
-                </div>
-                <Progress value={adapted ? 100 : 0} className="h-1.5 bg-muted" />
-              </div>
-
-              {/* CTA */}
-              <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                {adapted || skipped ? (
-                  <span className="inline-flex items-center rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-                    Leer contenido
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-xs">
-                    Comenzar
-                  </span>
-                )}
-                <span className={`flex h-7 w-7 items-center justify-center rounded-full ${color.bgSoft} ${color.text} transition-transform duration-200 ease-out-expo group-hover:translate-x-0.5`}>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </span>
-              </div>
-            </button>
-          );
-        })}
+        {filteredUnits.map((u) => (
+          <UnitCard key={u.id} unit={u} onOpen={openUnit} />
+        ))}
       </div>
       )}
     </div>

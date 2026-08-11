@@ -13,6 +13,7 @@ export type ViewKey =
   | "achievements"
   | "teacher"
   | "course-builder"
+  | "final-exam"
   | "about";
 
 export type ActivityType =
@@ -34,6 +35,10 @@ export interface User {
   streak: number;
   weeklyGoalMin: number;
   lastActive: string | null;
+  /** Código anonimizado (solo estudiantes; null en docentes). */
+  studentCode?: string | null;
+  /** true obliga a cambiar la contraseña antes de usar la app. */
+  mustChangePassword: boolean;
 }
 
 export interface Unit {
@@ -73,6 +78,38 @@ export interface DiagnosticAnswer {
   answer: string;
 }
 
+/** Estado del diagnóstico general y de la prueba de cierre (GET /api/course/status). */
+export interface CourseStatus {
+  diagnosticCompleted: boolean;
+  /** Preguntas del diagnóstico general (solo presente si está pendiente). */
+  diagnosticQuestions?: string[];
+  allUnitsCompleted: boolean;
+  finalExam: {
+    configured: boolean;
+    passed: boolean;
+    bestScore: number | null;
+    attemptsUsed: number;
+    maxAttempts: number;
+    passScore: number;
+  };
+}
+
+/** Pregunta de la prueba de cierre (sin la respuesta correcta). */
+export interface FinalExamQuestion {
+  question: string;
+  options: string[];
+}
+
+/** Resultado de un intento de la prueba de cierre (POST /api/course/final-exam). */
+export interface FinalExamResult {
+  score: number;
+  passed: boolean;
+  correctCount: number;
+  totalQuestions: number;
+  attemptsUsed: number;
+  maxAttempts: number;
+}
+
 /** Reporte de error (panel docente de /api/report). */
 export interface ErrorReportItem {
   id: string;
@@ -81,8 +118,10 @@ export interface ErrorReportItem {
   reason: string;
   comment: string;
   status: "open" | "reviewed" | "resolved";
-  reporterName: string;
-  reporterEmail: string;
+  /** Código anonimizado cuando el reportante es estudiante (null si es docente). */
+  reporterCode: string | null;
+  /** Nombre del docente reportante (null si es estudiante anonimizado). */
+  reporterName: string | null;
   createdAt: string;
 }
 
@@ -110,6 +149,14 @@ export interface Activity {
   points: number;
   difficulty: Difficulty;
   order: number;
+  /** Intentos máximos permitidos (0 = ilimitado). */
+  maxAttempts?: number;
+  /** Umbral de aprobación en % (0 = sin umbral explícito). */
+  masteryThreshold?: number;
+  /** Tipo de evaluación pedagógica (diagnostic, formative, ...). */
+  assessmentType?: string;
+  /** Nivel cognitivo de Bloom (remember, understand, ...). */
+  bloomLevel?: string;
 }
 
 // Estructuras de los datos JSON de actividades

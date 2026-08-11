@@ -5,13 +5,17 @@ import { useAppStore } from "@/store/app-store";
 import { useFetch, postJSON } from "@/hooks/use-fetch";
 import { useStudySessionTracker } from "@/hooks/use-telemetry";
 import { useToast } from "@/hooks/use-toast";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PageHeader } from "@/components/app/page-header";
 import { FetchError } from "@/components/app/loading";
-import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { ReportErrorDialog } from "@/components/app/report-error-dialog";
 import { getUnitColor } from "@/lib/course-utils";
-import { resolveMediaSrc, videoEmbedUrl, VideoEmbed } from "@/lib/markdown-media";
+import {
+  splitContentSections,
+  splitCheckpoints,
+  parseCheckpointQuestions,
+  PROSE_CLASSES,
+  markdownComponents,
+} from "@/lib/course-content";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -22,6 +26,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   CheckCircle2,
   ChevronRight,
@@ -29,36 +34,8 @@ import {
   Sparkles,
   Brain,
   PenTool,
-  SkipForward,
 } from "lucide-react";
-import type { DiagnosticAnswer, User } from "@/lib/types";
-
-const GLOSSARY: Record<string, { term: string; definition: string }> = {
-  ecg: { term: "ECG (Electrocardiograma)", definition: "Registro de la actividad eléctrica del corazón a lo largo del tiempo, captada mediante electrodos en la piel." },
-  electrocardiograma: { term: "Electrocardiograma", definition: "Registro de la actividad eléctrica del corazón a lo largo del tiempo, captada mediante electrodos en la piel." },
-  transductor: { term: "Transductor", definition: "Dispositivo que convierte una forma de energía (como presión o temperatura) en una señal eléctrica analógica." },
-  desfibrilador: { term: "Desfibrilador", definition: "Equipo médico que administra una descarga eléctrica controlada al corazón para restablecer su ritmo normal." },
-  impedancia: { term: "Impedancia", definition: "Oposición de un conductor o tejido al flujo de una corriente eléctrica alterna." },
-  "filtro notch": { term: "Filtro Notch", definition: "Filtro diseñado para eliminar una banda de frecuencia muy estrecha, típicamente la interferencia de la red eléctrica de 50Hz/60Hz." },
-  biopotenciales: { term: "Biopotenciales", definition: "Voltajes eléctricos generados por procesos electroquímicos en las células excitables del cuerpo (nervios, músculos)." },
-  amplificador: { term: "Amplificador de Instrumentación", definition: "Dispositivo de alta precisión diseñado para medir señales de voltaje biopotenciales muy débiles en presencia de alto ruido." },
-  marcapasos: { term: "Marcapasos", definition: "Dispositivo electrónico implantable que envía impulsos eléctricos al corazón para regular su frecuencia cardíaca." },
-  sensor: { term: "Sensor", definition: "Dispositivo que detecta una magnitud física o química y la traduce en una señal interpretable." },
-};
-
-function injectGlossary(text: string): string {
-  if (!text) return "";
-  let processed = text;
-  const terms = Object.keys(GLOSSARY).sort((a, b) => b.length - a.length);
-  for (const term of terms) {
-    const escapedTerm = term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const regex = new RegExp(`\\b(${escapedTerm}s?)\\b(?!=[^\\[]*\\])(?![^<]*>)`, "gi");
-    processed = processed.replace(regex, (match) => {
-      return `[${match}](glossary:${term})`;
-    });
-  }
-  return processed;
-}
+import type { Unit, User } from "@/lib/types";
 
 interface UnitDetailLesson {
   id: string;
@@ -88,11 +65,12 @@ interface UnitDetailResponse {
     color: string;
     order: number;
     content: string;
-    diagnosticQuestions: string[];
     hasAdaptedContent: boolean;
     adaptedContent: string;
-    diagnosticAnswers: DiagnosticAnswer[];
     diagnosticSkipped: boolean;
+    /** true cuando el estudiante ya respondió el diagnóstico general del curso
+     *  (habilita el botón "Personalizar con IA"). */
+    hasCourseDiagnostic: boolean;
     lessons: UnitDetailLesson[];
   };
   progress: { completed: number; total: number; mastery: number; lastVisited: string | null } | null;
@@ -122,6 +100,7 @@ export function UnitDetailView() {
   const currentUser = useAppStore((s) => s.currentUser) as User | null;
   const currentUnitId = useAppStore((s) => s.currentUnitId);
   const navigate = useAppStore((s) => s.navigate);
+  const openUnit = useAppStore((s) => s.openUnit);
   const openLesson = useAppStore((s) => s.openLesson);
   const openActivity = useAppStore((s) => s.openActivity);
 
@@ -130,54 +109,25 @@ export function UnitDetailView() {
     [currentUnitId]
   );
 
+  // Listado liviano de unidades para la navegación anterior/siguiente
+  const { data: unitsList } = useFetch<{ units: Unit[] }>(`/api/units`, []);
+
   useStudySessionTracker(currentUnitId ?? undefined);
 
   const { toast } = useToast();
-  const [answers, setAnswers] = React.useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = React.useState(false);
+  const [adapting, setAdapting] = React.useState(false);
   const [skipping, setSkipping] = React.useState(false);
-  const [forceShowDiagnostic, setForceShowDiagnostic] = React.useState(false);
 
   const [checkpointAnswers, setCheckpointAnswers] = React.useState<Record<string, string>>({});
   const [checkpointSubmitted, setCheckpointSubmitted] = React.useState(false);
   const [submittingCheckpoint, setSubmittingCheckpoint] = React.useState(false);
 
-  // Cargar borradores al montar o cambiar de unidad (patrón "ajustar estado
-  // durante el render" de React: evita el effect con setState sincrónico).
-  // Prioridad: borrador local > respuestas del servidor > vacío.
-  const [draftsLoadedFor, setDraftsLoadedFor] = React.useState<{
-    unitId: string | null;
-    serverAnswers?: DiagnosticAnswer[];
-  }>({ unitId: null });
-  if (
-    currentUnitId &&
-    (draftsLoadedFor.unitId !== currentUnitId ||
-      draftsLoadedFor.serverAnswers !== data?.unit?.diagnosticAnswers)
-  ) {
-    setDraftsLoadedFor({
-      unitId: currentUnitId,
-      serverAnswers: data?.unit?.diagnosticAnswers,
-    });
-
-    // 1. Diagnóstico
-    const storedDiag = localStorage.getItem(`electromed_diagnostic_draft_${currentUnitId}`);
-    if (storedDiag) {
-      try {
-        setAnswers(JSON.parse(storedDiag));
-      } catch (e) {
-        console.error("Failed to parse diagnostic draft", e);
-      }
-    } else if (data?.unit?.diagnosticAnswers) {
-      const initialAnswers: Record<string, string> = {};
-      data.unit.diagnosticAnswers.forEach((ans) => {
-        initialAnswers[ans.question] = ans.answer;
-      });
-      setAnswers(initialAnswers);
-    } else {
-      setAnswers({});
-    }
-
-    // 2. Checkpoints
+  // Cargar borradores de checkpoints al montar o cambiar de unidad (patrón
+  // "ajustar estado durante el render" de React: evita el effect con setState
+  // sincrónico).
+  const [draftsLoadedFor, setDraftsLoadedFor] = React.useState<string | null>(null);
+  if (currentUnitId && draftsLoadedFor !== currentUnitId) {
+    setDraftsLoadedFor(currentUnitId);
     const storedCheck = localStorage.getItem(`electromed_checkpoint_draft_${currentUnitId}`);
     if (storedCheck) {
       try {
@@ -190,13 +140,6 @@ export function UnitDetailView() {
     }
   }
 
-  // Guardar diagnóstico cuando cambie
-  React.useEffect(() => {
-    if (currentUnitId && Object.keys(answers).length > 0) {
-      localStorage.setItem(`electromed_diagnostic_draft_${currentUnitId}`, JSON.stringify(answers));
-    }
-  }, [answers, currentUnitId]);
-
   // Guardar checkpoints cuando cambie
   React.useEffect(() => {
     if (currentUnitId && Object.keys(checkpointAnswers).length > 0) {
@@ -204,18 +147,7 @@ export function UnitDetailView() {
     }
   }, [checkpointAnswers, currentUnitId]);
 
-  const showDiagnostic = Boolean(
-    data?.unit?.diagnosticQuestions &&
-    data.unit.diagnosticQuestions.length > 0 &&
-    (!data.unit.hasAdaptedContent || forceShowDiagnostic)
-  );
-
-  // Respuestas escritas pero aún no enviadas (borradores locales)
-  const hasUnsavedDiagnostic =
-    showDiagnostic &&
-    !submitting &&
-    !skipping &&
-    Object.values(answers).some((a) => (a || "").trim().length > 0);
+  // Respuestas de checkpoints escritas pero aún no enviadas (borradores locales)
   const hasUnsavedCheckpoints =
     !checkpointSubmitted &&
     !submittingCheckpoint &&
@@ -223,14 +155,14 @@ export function UnitDetailView() {
 
   // Aviso al salir de la página con respuestas sin enviar
   React.useEffect(() => {
-    if (!hasUnsavedDiagnostic && !hasUnsavedCheckpoints) return;
+    if (!hasUnsavedCheckpoints) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [hasUnsavedDiagnostic, hasUnsavedCheckpoints]);
+  }, [hasUnsavedCheckpoints]);
 
   const handleSubmitCheckpoints = async () => {
     setSubmittingCheckpoint(true);
@@ -299,49 +231,49 @@ export function UnitDetailView() {
   const pct = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
   const mastery = Math.min(100, progress?.mastery ?? 0);
 
-  const handleSubmitDiagnostic = async () => {
-    setSubmitting(true);
+  // Unidades hermanas para la navegación anterior/siguiente del pie
+  const siblings = unitsList?.units ?? [];
+  const unitIdx = siblings.findIndex((s) => s.id === unit.id);
+  const prevUnit = unitIdx > 0 ? siblings[unitIdx - 1] : null;
+  const nextUnit = unitIdx >= 0 && unitIdx < siblings.length - 1 ? siblings[unitIdx + 1] : null;
+
+  // "Personalizar con IA": usa las respuestas del diagnóstico general del
+  // curso para adaptar el contenido base de esta unidad (la IA demora: la UI
+  // muestra estado de carga mientras tanto).
+  const handleAdaptUnit = async () => {
+    setAdapting(true);
     try {
-      const formattedAnswers = unit.diagnosticQuestions.map((q) => ({
-        question: q,
-        answer: answers[q] || "",
-      }));
-      await postJSON(`/api/units/${unit.id}`, { answers: formattedAnswers });
-      localStorage.removeItem(`electromed_diagnostic_draft_${unit.id}`);
-      setAnswers({});
-      setForceShowDiagnostic(false);
+      await postJSON(`/api/units/${unit.id}`, { action: "adapt" });
       toast({
         title: "Unidad personalizada",
-        description: "El contenido se adaptó a tu nivel según tus respuestas.",
+        description: "El contenido se adaptó a tu perfil según tu diagnóstico del curso.",
       });
       refetch();
     } catch (err) {
       toast({
-        title: "Error al guardar el diagnóstico",
+        title: "Error al personalizar la unidad",
         description: (err as Error).message,
         variant: "destructive",
       });
     } finally {
-      setSubmitting(false);
+      setAdapting(false);
     }
   };
 
-  // Saltar el diagnóstico: desbloquea la unidad con el contenido base (sin
-  // adaptar) y deja la opción de completar el diagnóstico más tarde.
-  const handleSkipDiagnostic = async () => {
+  // "Usar contenido base": desbloquea la unidad sin adaptar; puede
+  // personalizarla más tarde desde esta misma vista.
+  const handleUseBaseContent = async () => {
     setSkipping(true);
     try {
-      await postJSON(`/api/units/${unit.id}`, { skip: true });
-      localStorage.removeItem(`electromed_diagnostic_draft_${unit.id}`);
-      setAnswers({});
+      await postJSON(`/api/units/${unit.id}`, { action: "skip" });
       toast({
-        title: "Diagnóstico saltado",
-        description: "Ya puedes estudiar el contenido base. Completa el diagnóstico cuando quieras para personalizar la unidad.",
+        title: "Contenido base habilitado",
+        description: "Ya puedes estudiar el contenido base. Personaliza la unidad cuando quieras desde aquí.",
       });
       refetch();
     } catch (err) {
       toast({
-        title: "Error al saltar el diagnóstico",
+        title: "Error al usar el contenido base",
         description: (err as Error).message,
         variant: "destructive",
       });
@@ -361,17 +293,6 @@ export function UnitDetailView() {
           { label: "Unidades", onClick: () => navigate("units") },
           { label: unit.title },
         ]}
-        actions={
-          unit.hasAdaptedContent && !unit.diagnosticSkipped ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setForceShowDiagnostic(true)}
-            >
-              <PenTool className="mr-1.5 h-4 w-4" /> Rehacer diagnóstico
-            </Button>
-          ) : undefined
-        }
       />
 
       {/* Hero de la unidad — color de identidad de la unidad, datos en mono */}
@@ -402,102 +323,70 @@ export function UnitDetailView() {
         </div>
       </Card>
 
-      {showDiagnostic ? (
-        <Card className="space-y-6 border-border bg-card p-6 shadow-sm animate-fade-in-up">
+      {!unit.hasAdaptedContent ? (
+        <Card className="space-y-5 border-border bg-card p-6 shadow-sm animate-fade-in-up">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-gold/15 text-brand-ink dark:text-brand-gold">
               <Brain className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Cuestionario de diagnóstico inicial</h3>
+              <h3 className="text-lg font-semibold">Elige cómo estudiar esta unidad</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Responde estas preguntas abiertas para que la IA nivele y adapte los contenidos de la unidad según tu conocimiento actual.
+                {unit.hasCourseDiagnostic
+                  ? "Puedes personalizar el contenido con IA según tu diagnóstico inicial del curso, o estudiar directamente el contenido base."
+                  : "Esta unidad aún no está personalizada. Puedes estudiar el contenido base directamente."}
               </p>
             </div>
           </div>
 
           <Separator />
 
-          <div className="space-y-6">
-            {unit.diagnosticQuestions.map((q, idx) => (
-              <div key={idx} className="space-y-2">
-                <label className="block text-sm font-semibold text-foreground">
-                  {idx + 1}. {q}
-                </label>
-                <Textarea
-                  value={answers[q] || ""}
-                  onChange={(e) => setAnswers({ ...answers, [q]: e.target.value })}
-                  placeholder="Escribe tu respuesta aquí detalladamente..."
-                  className="mt-1 min-h-[100px]"
-                  disabled={submitting || skipping}
-                />
-                <div className="mt-1 flex items-center justify-between px-1">
-                  <span className="text-[10px] text-muted-foreground/70">
-                    Mínimo 50 caracteres recomendados.
-                  </span>
-                  {(answers[q] || "").trim().length > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      Borrador guardado localmente
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-            {!forceShowDiagnostic ? (
+          {adapting ? (
+            /* La adaptación por IA demora varios segundos: skeleton de espera */
+            <div className="space-y-3" aria-live="polite">
+              <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Personalizando la unidad con IA… esto puede tardar unos segundos.
+              </p>
+              <div className="skeleton h-4 w-full" />
+              <div className="skeleton h-4 w-5/6" />
+              <div className="skeleton h-4 w-4/6" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {unit.hasCourseDiagnostic && (
+                <Button onClick={handleAdaptUnit} disabled={skipping}>
+                  <Sparkles className="mr-1.5 h-4 w-4" />
+                  Personalizar esta unidad con IA
+                </Button>
+              )}
               <div className="space-y-1">
                 <Button
                   variant="outline"
-                  onClick={handleSkipDiagnostic}
-                  disabled={submitting || skipping}
+                  onClick={handleUseBaseContent}
+                  disabled={skipping}
                   className="text-muted-foreground"
                 >
                   {skipping ? (
                     <>
                       <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Saltando...
+                      Habilitando...
                     </>
                   ) : (
-                    <>
-                      <SkipForward className="mr-1.5 h-4 w-4" />
-                      Saltar diagnóstico por ahora
-                    </>
+                    "Usar contenido base"
                   )}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Verás el contenido base sin adaptar. Puedes completar el diagnóstico después desde esta misma unidad.
+                  Verás el contenido original sin adaptar. Puedes personalizar la unidad después desde esta misma vista.
                 </p>
               </div>
-            ) : (
-              <Button variant="ghost" onClick={() => setForceShowDiagnostic(false)} disabled={submitting}>
-                Cancelar
-              </Button>
-            )}
-            <Button
-              onClick={handleSubmitDiagnostic}
-              disabled={submitting || skipping || unit.diagnosticQuestions.some(q => !(answers[q] || "").trim())}
-            >
-              {submitting ? (
-                <>
-                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Personalizando unidad...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-1.5 h-4 w-4" />
-                  Guardar y adaptar unidad con IA
-                </>
-              )}
-            </Button>
-          </div>
+            </div>
+          )}
         </Card>
       ) : (
         <>
-          {/* Aviso para quienes saltaron el diagnóstico */}
-          {unit.diagnosticSkipped && (
+          {/* Aviso para quienes usan el contenido base sin personalizar */}
+          {unit.diagnosticSkipped && unit.hasCourseDiagnostic && (
             <div className="flex flex-col gap-3 rounded-xl border border-dashed border-brand-gold/50 bg-brand-gold/[0.06] p-4 animate-fade-in-up sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-gold/15 text-brand-ink dark:text-brand-gold">
@@ -506,118 +395,37 @@ export function UnitDetailView() {
                 <div>
                   <p className="text-sm font-medium">Estás viendo el contenido base, sin adaptar</p>
                   <p className="text-xs text-muted-foreground">
-                    Completa el diagnóstico para que la IA nivele esta unidad según tu conocimiento.
+                    Personaliza la unidad para que la IA nivele el contenido según tu diagnóstico del curso.
                   </p>
                 </div>
               </div>
               <Button
                 size="sm"
-                onClick={() => setForceShowDiagnostic(true)}
+                onClick={handleAdaptUnit}
+                disabled={adapting}
                 className="shrink-0"
               >
-                <PenTool className="mr-1.5 h-4 w-4" /> Completar diagnóstico
+                {adapting ? (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Personalizando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-1.5 h-4 w-4" /> Personalizar con IA
+                  </>
+                )}
               </Button>
             </div>
           )}
 
-          {/* Contenido Adaptado / Base */}
+          {/* Contenido Adaptado / Base — parsing unificado en @/lib/course-content */}
           {(() => {
-            const rawContent = unit.adaptedContent || unit.content || "";
-            const parts = rawContent.split("## 🔍 Preguntas de Control");
-            const mainMarkdown = parts[0];
-            const questionsMarkdown = parts[1] || "";
-
-            // Separar el contenido principal por cabeceras de tipo H2 (## Titulo)
-            const rawSections = mainMarkdown.split(/(?=^##\s+[^#\n]+)/m);
-            const sections: { title: string; content: string }[] = [];
-            let introduction = "";
-
-            rawSections.forEach((sec) => {
-              if (sec.trim().startsWith("## ")) {
-                const lines = sec.split("\n");
-                const titleLine = lines[0].replace(/^##\s+/, "").trim();
-                const contentLines = lines.slice(1).join("\n").trim();
-                sections.push({
-                  title: titleLine,
-                  content: contentLines,
-                });
-              } else {
-                introduction += sec;
-               }
-            });
-
-            const checkpointQuestions: string[] = [];
-            if (questionsMarkdown) {
-              const matches = questionsMarkdown.match(/\d+\.\s*([^\n]+)/g);
-              if (matches) {
-                matches.forEach((m) => {
-                  checkpointQuestions.push(m.replace(/^\d+\.\s*/, "").trim());
-                });
-              } else {
-                const lines = questionsMarkdown.split("\n").map(l => l.trim()).filter(l => l.startsWith("1.") || l.startsWith("2.") || l.startsWith("-") || l.startsWith("¿"));
-                lines.forEach((l) => {
-                  checkpointQuestions.push(l.replace(/^[-1234567890.\s]+/, "").trim());
-                });
-              }
-            }
-
-            const markdownComponents = {
-              a: ({ href, children }: any) => {
-                if (href && videoEmbedUrl(href)) {
-                  return <VideoEmbed href={href} title={typeof children === "string" ? children : undefined} />;
-                }
-                if (href?.startsWith("glossary:")) {
-                  const termKey = href.substring("glossary:".length);
-                  const entry = GLOSSARY[termKey.toLowerCase()];
-                  if (!entry) return <span>{children}</span>;
-                  return (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <span className="cursor-help border-b border-dashed border-brand font-semibold text-brand transition-opacity hover:opacity-80 dark:border-brand-gold dark:text-brand-gold">
-                          {children}
-                        </span>
-                      </PopoverTrigger>
-                      <PopoverContent className="z-50 w-80 rounded-xl border border-border bg-card p-3 text-xs shadow-md">
-                        <p className="mb-1 font-bold text-brand dark:text-brand-gold">{entry.term}</p>
-                        <p className="text-muted-foreground">{entry.definition}</p>
-                      </PopoverContent>
-                    </Popover>
-                  );
-                }
-                return (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand underline dark:text-brand-gold">
-                    {children}
-                  </a>
-                );
-              },
-              blockquote: ({ children }: any) => (
-                <div className="my-4 rounded-r-lg border-l border-brand-gold bg-brand-gold/[0.06] px-4 py-3 text-sm italic text-foreground/90">
-                  {children}
-                </div>
-              ),
-              code: ({ inline, className, children, ...props }: any) => {
-                const match = /language-(\w+)/.exec(className || '');
-                return !inline && match ? (
-                  <pre className="overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-xs">
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  </pre>
-                ) : (
-                  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-brand dark:text-brand-gold" {...props}>
-                    {children}
-                  </code>
-                );
-              },
-              img: ({ src, alt }: any) => (
-                <img
-                  src={resolveMediaSrc(src)}
-                  alt={alt || ""}
-                  className="my-4 max-w-full rounded-xl border border-border shadow-sm"
-                  loading="lazy"
-                />
-              )
-            };
+            const { main: mainMarkdown, questionsMarkdown } = splitCheckpoints(
+              unit.adaptedContent || unit.content || ""
+            );
+            const { intro: introduction, sections } = splitContentSections(mainMarkdown);
+            const checkpointQuestions = parseCheckpointQuestions(questionsMarkdown);
 
             return (
               <div className="space-y-6">
@@ -642,27 +450,33 @@ export function UnitDetailView() {
                   </div>
 
                   {introduction.trim() && (
-                    <div className="prose dark:prose-invert mb-6 max-w-none text-sm leading-relaxed">
+                    <div className={`${PROSE_CLASSES} mb-6`}>
                       <ReactMarkdown components={markdownComponents}>
-                        {injectGlossary(introduction)}
+                        {introduction}
                       </ReactMarkdown>
                     </div>
                   )}
 
                   {sections.length > 0 && (
-                    <Accordion type="multiple" className="w-full space-y-3">
+                    /* Modo lectura: secciones abiertas por defecto (se pueden plegar) */
+                    <Accordion
+                      key={unit.id}
+                      type="multiple"
+                      defaultValue={sections.map((_, idx) => `sec-${idx}`)}
+                      className="w-full space-y-3"
+                    >
                       {sections.map((sec, idx) => (
                         <AccordionItem
-                          key={idx}
+                          key={sec.id || idx}
                           value={`sec-${idx}`}
                           className="rounded-lg border border-border bg-muted/30 px-4 transition-colors hover:bg-muted/50"
                         >
                           <AccordionTrigger className="py-3 text-sm font-semibold text-brand hover:no-underline dark:text-brand-gold">
                             {sec.title}
                           </AccordionTrigger>
-                          <AccordionContent className="prose dark:prose-invert max-w-none pb-4 pt-2 text-sm leading-relaxed">
+                          <AccordionContent className={`${PROSE_CLASSES} pb-4 pt-2`}>
                             <ReactMarkdown components={markdownComponents}>
-                              {injectGlossary(sec.content)}
+                              {sec.body}
                             </ReactMarkdown>
                           </AccordionContent>
                         </AccordionItem>
@@ -780,10 +594,7 @@ export function UnitDetailView() {
                           return (
                             <button
                               key={a.id}
-                              onClick={() => {
-                                openLesson(lesson.id);
-                                setTimeout(() => openActivity(a.id), 50);
-                              }}
+                              onClick={() => openActivity(a.id, lesson.id)}
                               className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted/60"
                             >
                               {summary?.completed ? (
@@ -806,10 +617,45 @@ export function UnitDetailView() {
         </>
       )}
 
-      <div className="flex justify-between pt-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate("units")}>
+      {/* Pie de navegación: unidad anterior/siguiente + listado completo */}
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+        <div className="sm:max-w-[38%]">
+          {prevUnit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openUnit(prevUnit.id)}
+              className="h-auto max-w-full justify-start px-3 py-2 text-muted-foreground hover:text-foreground"
+              title={prevUnit.title}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4 shrink-0" />
+              <span className="min-w-0 text-left">
+                <span className="block text-xs">Unidad anterior</span>
+                <span className="block truncate font-medium text-foreground">{prevUnit.title}</span>
+              </span>
+            </Button>
+          )}
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => navigate("units")} className="shrink-0">
           <ArrowLeft className="mr-1 h-4 w-4" /> Todas las unidades
         </Button>
+        <div className="flex sm:max-w-[38%] sm:justify-end">
+          {nextUnit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openUnit(nextUnit.id)}
+              className="h-auto max-w-full justify-end px-3 py-2 text-muted-foreground hover:text-foreground"
+              title={nextUnit.title}
+            >
+              <span className="min-w-0 text-right">
+                <span className="block text-xs">Unidad siguiente</span>
+                <span className="block truncate font-medium text-foreground">{nextUnit.title}</span>
+              </span>
+              <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

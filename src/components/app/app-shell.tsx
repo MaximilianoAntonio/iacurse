@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/app/sidebar";
 import { Header } from "@/components/app/header";
 import { Footer } from "@/components/app/footer";
 import { ViewRouter } from "@/components/app/view-router";
+import { GlobalReportFab } from "@/components/app/global-report-fab";
 
 interface AppShellProps {
   onLogout: () => void;
@@ -51,6 +52,8 @@ export function AppShell({ onLogout }: AppShellProps) {
           </div>
         </main>
         <Footer />
+        {/* FAB global de reporte de problemas: visible en toda la plataforma */}
+        <GlobalReportFab />
       </div>
     </div>
   );

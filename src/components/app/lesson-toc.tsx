@@ -3,19 +3,11 @@
 import * as React from "react";
 import { List } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { slugifyHeading } from "@/lib/course-content";
 
-/**
- * Slug de ancla para headings de lecciones. Debe ser IDÉNTICA en
- * lesson-view.tsx (que asigna los ids) y aquí (que navega a ellos).
- */
-export function slugifyHeading(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+// Re-export para compat: la fuente de verdad del slug vive en
+// src/lib/course-content.tsx (compartida con los componentes markdown).
+export { slugifyHeading };
 
 interface TocItem {
   id: string;

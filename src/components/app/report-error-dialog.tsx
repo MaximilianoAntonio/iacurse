@@ -17,14 +17,20 @@ import {
 } from "@/components/ui/dialog";
 
 /**
- * Diálogo compartido "Reportar error" para el contenido del curso
- * (unidades y lecciones). Envía POST /api/report con source="content" y un
- * sourceId con prefijo ("unit:<id>" | "lesson:<id>") para que el docente
- * pueda ubicar el material reportado.
+ * Diálogo compartido "Reportar error/problema". Dos orígenes:
  *
- * La retroalimentación de actividades y el chat del tutor mantienen sus
- * propios diálogos (ligados al estado del intento); este componente es
- * autocontenido y se puede soltar en cualquier vista de contenido.
+ * - source="content": contenido del curso (unidades y lecciones). Se usa con
+ *   su trigger integrado (botón discreto junto al material).
+ * - source="platform": problema general de la plataforma. Lo abre el FAB
+ *   global (`global-report-fab.tsx`) en modo controlado (props open /
+ *   onOpenChange), sin trigger propio.
+ *
+ * Envía POST /api/report con un sourceId con prefijo ("unit:<id>",
+ * "lesson:<id>" o "page:<view>..." para plataforma) para que el docente
+ * pueda ubicar lo reportado.
+ *
+ * La retroalimentación de actividades mantiene su propio diálogo (ligado al
+ * estado del intento); este componente es autocontenido.
  */
 
 const CONTENT_REASONS = [
@@ -35,16 +41,25 @@ const CONTENT_REASONS = [
   { value: "other", label: "Otro (tipografía, formato, enlace roto…)" },
 ] as const;
 
+const PLATFORM_REASONS = [
+  { value: "bug", label: "La página no funciona o no carga" },
+  ...CONTENT_REASONS,
+] as const;
+
 interface ReportErrorDialogProps {
-  /** Origen del reporte (por ahora siempre "content" desde este componente). */
-  source: "content";
-  /** Identificador del material: "unit:<id>" o "lesson:<id>". */
+  /** Origen del reporte: contenido del curso o problema general de la plataforma. */
+  source: "content" | "platform";
+  /** Identificador del origen: "unit:<id>", "lesson:<id>" o "page:<view>..." */
   sourceId: string;
   /** Etiqueta humana del material (ej. "Unidad: Bioseñales"). Se muestra en el
    *  diálogo y se antepone al comentario para dar contexto al docente. */
   contextLabel?: string;
   /** Texto del botón disparador (por defecto "Reportar error"). */
   triggerLabel?: string;
+  /** Modo controlado (sin trigger integrado): estado de apertura externo. */
+  open?: boolean;
+  /** Modo controlado: callback de cambio de apertura. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function ReportErrorDialog({
@@ -52,13 +67,25 @@ export function ReportErrorDialog({
   sourceId,
   contextLabel,
   triggerLabel = "Reportar error",
+  open: controlledOpen,
+  onOpenChange,
 }: ReportErrorDialogProps) {
   const { toast } = useToast();
-  const [open, setOpen] = React.useState(false);
-  const [reason, setReason] = React.useState<string>("incorrect");
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isPlatform = source === "platform";
+  const reasons = isPlatform ? PLATFORM_REASONS : CONTENT_REASONS;
+  const [reason, setReason] = React.useState<string>(reasons[0].value);
   const [comment, setComment] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [reported, setReported] = React.useState(false);
+
+  // Modo controlado (FAB global) vs. no controlado (trigger integrado)
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (isControlled) onOpenChange?.(next);
+    else setInternalOpen(next);
+  };
 
   const handleSubmit = async () => {
     setSending(true);
@@ -77,7 +104,9 @@ export function ReportErrorDialog({
       setComment("");
       toast({
         title: "Reporte enviado",
-        description: "El equipo docente revisará este contenido. ¡Gracias por avisar!",
+        description: isPlatform
+          ? "El equipo docente revisará el problema. ¡Gracias por avisar!"
+          : "El equipo docente revisará este contenido. ¡Gracias por avisar!",
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error al enviar el reporte";
@@ -89,30 +118,38 @@ export function ReportErrorDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button
-          className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-destructive"
-          title="Reportar un error en este contenido"
-        >
-          {reported ? (
-            <span className="text-emerald-600 dark:text-emerald-400">Reportado</span>
-          ) : (
-            <>
-              <Flag className="h-3 w-3" />
-              <span className="hidden sm:inline">{triggerLabel}</span>
-            </>
-          )}
-        </button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <button
+            className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-destructive"
+            title="Reportar un error en este contenido"
+          >
+            {reported ? (
+              <span className="text-emerald-600 dark:text-emerald-400">Reportado</span>
+            ) : (
+              <>
+                <Flag className="h-3 w-3" />
+                <span className="hidden sm:inline">{triggerLabel}</span>
+              </>
+            )}
+          </button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="h-4 w-4 text-destructive" />
-            Reportar error en el contenido
+            {isPlatform
+              ? "Reportar un problema de la plataforma"
+              : "Reportar error en el contenido"}
           </DialogTitle>
           <DialogDescription>
             Tu reporte será revisado por el equipo docente.
-            {contextLabel ? ` Estás reportando: ${contextLabel}.` : ""}
+            {isPlatform
+              ? " El reporte incluye automáticamente la vista donde te encontrabas."
+              : contextLabel
+                ? ` Estás reportando: ${contextLabel}.`
+                : ""}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
@@ -121,7 +158,7 @@ export function ReportErrorDialog({
               Motivo del reporte
             </label>
             <div className="space-y-1.5">
-              {CONTENT_REASONS.map((r) => (
+              {reasons.map((r) => (
                 <label
                   key={r.value}
                   className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors ${
@@ -132,7 +169,7 @@ export function ReportErrorDialog({
                 >
                   <input
                     type="radio"
-                    name="content-report-reason"
+                    name={`report-reason-${source}`}
                     value={r.value}
                     checked={reason === r.value}
                     onChange={(e) => setReason(e.target.value)}
@@ -150,7 +187,11 @@ export function ReportErrorDialog({
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Describe el error que encontraste (sección, frase, dato)..."
+              placeholder={
+                isPlatform
+                  ? "Describe qué estabas haciendo y qué falló..."
+                  : "Describe el error que encontraste (sección, frase, dato)..."
+              }
               className="min-h-[70px] resize-none text-sm"
               rows={3}
             />

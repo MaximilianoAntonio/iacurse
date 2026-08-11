@@ -17,12 +17,13 @@ from rest_framework.response import Response
 from accounts.permissions import IsTeacher
 from curriculum.models import (
     Activity,
+    CourseConfig,
     LearningObjective,
     Lesson,
     Rubric,
     Unit,
 )
-from learning.models import PersonalizedUnit, Progress
+from learning.models import CourseDiagnosticResult, Progress
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +43,6 @@ class AdminUnitsView(views.APIView):
                     "description": u.description, "icon": u.icon, "color": u.color,
                     "order": u.order,
                     "content": u.content,
-                    "diagnosticQuestions": u.diagnostic_questions,
                     "lessonCount": u.lessons.count(),
                     "activityCount": Activity.objects.filter(lesson__unit=u).count(),
                     "sourceCourseId": u.slug[3:] if u.slug.startswith("sc-") else None,
@@ -61,7 +61,6 @@ class AdminUnitsView(views.APIView):
             icon=request.data.get("icon", "BookOpen"),
             color=request.data.get("color", "sky"),
             content=request.data.get("content", ""),
-            diagnostic_questions=request.data.get("diagnosticQuestions", []),
             order=order,
         )
         return Response({"id": unit.id, "ok": True}, status=status.HTTP_201_CREATED)
@@ -72,16 +71,7 @@ class AdminUnitsView(views.APIView):
         for k in ("title", "summary", "description", "icon", "color", "order", "content"):
             if k in request.data:
                 update_data[k] = request.data[k]
-        if "diagnosticQuestions" in request.data:
-            update_data["diagnostic_questions"] = request.data["diagnosticQuestions"]
-        if "diagnostic_questions" in request.data:
-            update_data["diagnostic_questions"] = request.data["diagnostic_questions"]
         Unit.objects.filter(pk=uid).update(**update_data)
-        # Si cambiaron las preguntas de diagnóstico, las adaptaciones existentes
-        # quedaron generadas con preguntas obsoletas: se eliminan para que cada
-        # estudiante repita el diagnóstico con la nueva pauta.
-        if "diagnostic_questions" in update_data:
-            PersonalizedUnit.objects.filter(unit_id=uid).delete()
         return Response({"ok": True})
 
     def delete(self, request):
@@ -111,7 +101,6 @@ class AdminUnitDetailView(views.APIView):
                 "color": unit.color,
                 "order": unit.order,
                 "content": unit.content or "",
-                "diagnosticQuestions": unit.diagnostic_questions or [],
                 "objectives": [
                     {
                         "id": obj.id,
@@ -418,3 +407,132 @@ def _resync_progress_totals(unit: Unit) -> None:
     """Re-sync Progress.total para todos los usuarios de una unidad."""
     total = Activity.objects.filter(lesson__unit=unit).count()
     Progress.objects.filter(unit=unit).update(total=total)
+
+
+# ---------------------------------------------------------------------------
+# Admin: evaluaciones del curso (diagnóstico general + prueba de cierre)
+# ---------------------------------------------------------------------------
+class AdminCourseDiagnosticView(views.APIView):
+    """GET/PATCH /api/admin/course/diagnostic — preguntas del diagnóstico
+    general del curso.
+
+    Al guardar cambios se BORRAN todos los CourseDiagnosticResult: las
+    respuestas previas quedaron obsoletas y cada estudiante repite el
+    diagnóstico con la nueva pauta (mismo criterio que el flujo por unidad).
+    """
+
+    permission_classes = [IsAuthenticated, IsTeacher]
+
+    def get(self, request):
+        return Response({"questions": CourseConfig.load().diagnostic_questions or []})
+
+    def patch(self, request):
+        questions = request.data.get("questions")
+        if not isinstance(questions, list) or len(questions) > 50:
+            return Response(
+                {"error": "questions debe ser una lista de hasta 50 preguntas"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        clean = []
+        for q in questions:
+            if not isinstance(q, str) or not q.strip():
+                return Response(
+                    {"error": "Todas las preguntas deben ser texto no vacío"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            clean.append(q.strip()[:500])
+
+        config = CourseConfig.load()
+        config.diagnostic_questions = clean
+        config.save(update_fields=["diagnostic_questions"])
+        # Invalida las respuestas existentes: los estudiantes repiten el diagnóstico.
+        CourseDiagnosticResult.objects.all().delete()
+        return Response({"ok": True, "questions": clean})
+
+
+class AdminFinalExamView(views.APIView):
+    """GET/PUT /api/admin/course/final-exam — configuración de la prueba de
+    cierre (preguntas con correctIndex, puntaje mínimo y límite de intentos)."""
+
+    permission_classes = [IsAuthenticated, IsTeacher]
+
+    def get(self, request):
+        config = CourseConfig.load()
+        return Response({
+            "questions": config.final_exam_questions or [],
+            "passScore": config.final_exam_pass_score,
+            "maxAttempts": config.final_exam_max_attempts,
+        })
+
+    def put(self, request):
+        questions = request.data.get("questions")
+        pass_score = request.data.get("passScore")
+        max_attempts = request.data.get("maxAttempts")
+
+        # Validación de preguntas: enunciado + ≥2 opciones no vacías + índice en rango.
+        if not isinstance(questions, list) or len(questions) > 100:
+            return Response(
+                {"error": "questions debe ser una lista de hasta 100 preguntas"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        clean_questions = []
+        for item in questions:
+            if not isinstance(item, dict):
+                return Response(
+                    {"error": "Formato de preguntas inválido"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            q_text = str(item.get("question", "")).strip()
+            options = item.get("options")
+            correct = item.get("correctIndex")
+            if not q_text:
+                return Response(
+                    {"error": "Todas las preguntas deben tener enunciado"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not isinstance(options, list) or len(options) < 2 or len(options) > 6:
+                return Response(
+                    {"error": "Cada pregunta debe tener entre 2 y 6 opciones"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            clean_options = [str(o).strip() for o in options]
+            if any(not o for o in clean_options):
+                return Response(
+                    {"error": "Las opciones no pueden estar vacías"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if (
+                not isinstance(correct, int)
+                or isinstance(correct, bool)
+                or correct < 0
+                or correct >= len(clean_options)
+            ):
+                return Response(
+                    {"error": "correctIndex fuera de rango en alguna pregunta"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            clean_questions.append({
+                "question": q_text[:1000],
+                "options": clean_options,
+                "correctIndex": correct,
+            })
+
+        if not isinstance(pass_score, int) or isinstance(pass_score, bool) or not 1 <= pass_score <= 100:
+            return Response(
+                {"error": "passScore debe ser un entero entre 1 y 100"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(max_attempts, int) or isinstance(max_attempts, bool) or not 1 <= max_attempts <= 10:
+            return Response(
+                {"error": "maxAttempts debe ser un entero entre 1 y 10"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        config = CourseConfig.load()
+        config.final_exam_questions = clean_questions
+        config.final_exam_pass_score = pass_score
+        config.final_exam_max_attempts = max_attempts
+        config.save(update_fields=[
+            "final_exam_questions", "final_exam_pass_score", "final_exam_max_attempts",
+        ])
+        return Response({"ok": True})

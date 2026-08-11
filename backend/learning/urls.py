@@ -20,4 +20,8 @@ urlpatterns = [
     path("bookmarks", views.BookmarksView.as_view(), name="bookmarks"),
     # Notifications
     path("notifications", views.NotificationsView.as_view(), name="notifications"),
+    # Diagnóstico general del curso + prueba de cierre
+    path("course/status", views.CourseStatusView.as_view(), name="course-status"),
+    path("course/diagnostic", views.CourseDiagnosticView.as_view(), name="course-diagnostic"),
+    path("course/final-exam", views.FinalExamView.as_view(), name="course-final-exam"),
 ]
