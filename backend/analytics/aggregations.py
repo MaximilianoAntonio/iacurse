@@ -13,20 +13,18 @@ Métricas del lineamiento:
 from datetime import timedelta
 from collections import defaultdict
 
-from django.db.models import Count, Sum
 from django.utils import timezone
 
 from accounts.models import User
 from curriculum.models import Unit
-from learning.models import Attempt, Progress, SelfAssessment, StudySession
+from learning.models import Attempt, Progress, StudySession
 from telemetry.models import AccessLog
 
 
 def student_progress_analytics(user: User) -> dict:
     """Analítica del propio estudiante (progress/route.ts).
 
-    Incluye activityByDay (14 días), byType, byDifficulty, stats, sesiones y
-    selfAssess (autoevaluaciones metacognitivas).
+    Incluye activityByDay (14 días), byType, byDifficulty, stats y sesiones.
     """
     progress_rows = list(
         Progress.objects.filter(user=user).select_related("unit").order_by("unit__order")
@@ -38,9 +36,6 @@ def student_progress_analytics(user: User) -> dict:
     )
     sessions = list(
         StudySession.objects.filter(user=user).order_by("-started_at")[:30]
-    )
-    self_assess = list(
-        SelfAssessment.objects.filter(user=user).select_related("unit").order_by("-created_at")[:50]
     )
 
     # activityByDay (14 días)
@@ -120,14 +115,6 @@ def student_progress_analytics(user: User) -> dict:
             for s in sessions
         ],
         "activityByDay": days,
-        "selfAssess": [
-            {
-                "id": sa.id, "confidence": sa.confidence,
-                "reflection": sa.reflection, "unitId": sa.unit_id,
-                "createdAt": sa.created_at.isoformat(),
-            }
-            for sa in self_assess
-        ],
         "byType": dict(by_type),
         "byDifficulty": dict(by_difficulty),
         "stats": {

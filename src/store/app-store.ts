@@ -9,7 +9,6 @@ interface AppState {
   currentUser: User | null;
   role: Role;
   setUser: (user: User | null) => void;
-  setRole: (role: Role) => void;
 
   // Navigation (sincronizado con la URL)
   view: ViewKey;
@@ -28,17 +27,15 @@ interface AppState {
 
   // Panel de navegación (barra lateral izquierda) — colapsable en desktop
   navCollapsed: boolean;
-  setNavCollapsed: (collapsed: boolean) => void;
   toggleNav: () => void;
 
   // UI
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  resetNav: () => void;
 }
 
 // Vistas permitidas por rol
-const STUDENT_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "progress", "achievements", "final-exam", "about"];
+const STUDENT_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "progress", "achievements", "bookmarks", "final-exam", "about"];
 const TEACHER_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "teacher", "course-builder", "about"];
 
 function isViewAllowed(view: ViewKey, role: Role): boolean {
@@ -118,7 +115,6 @@ export const useAppStore = create<AppState>()(
           };
         });
       },
-      setRole: (role) => set({ role }),
 
       view: "dashboard",
       currentUnitId: null,
@@ -174,17 +170,10 @@ export const useAppStore = create<AppState>()(
       },
 
       navCollapsed: false,
-      setNavCollapsed: (collapsed) => set({ navCollapsed: collapsed }),
       toggleNav: () => set((s) => ({ navCollapsed: !s.navCollapsed })),
 
       sidebarOpen: false,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
-      resetNav: () => {
-        set({ view: "dashboard", currentUnitId: null, currentLessonId: null, currentActivityId: null });
-        if (typeof window !== "undefined") {
-          window.history.pushState({ view: "dashboard" }, "", "/");
-        }
-      },
     }),
     {
       name: "electromed-store",

@@ -27,9 +27,6 @@ gunicorn>=22.0,<24.0
 # Estáticos servidos desde gunicorn en producción (admin/DRF sin nginx)
 whitenoise>=6.6,<7.0
 
-# --- Filtros de consultas complejas ---
-django-filter>=24.0,<25.0
-
 # ============================================================================
 # Desarrollo y tests
 # ============================================================================

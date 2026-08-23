@@ -193,7 +193,7 @@ export function DashboardView() {
         <div>
           <p className="text-sm font-medium text-brand dark:text-brand-gold">¿Qué debes hacer?</p>
           <p className="text-xs text-muted-foreground">
-            Selecciona una unidad temática para comenzar. En cada una puedes personalizar el contenido con IA según tu diagnóstico inicial del curso, o estudiar el contenido base. Al completar todas las unidades se desbloquea la prueba de cierre.
+            Selecciona una unidad temática para comenzar. En cada una puedes personalizar el contenido con IA según tu diagnóstico inicial del curso, o continuar directamente a las lecciones. Al completar todas las unidades se desbloquea la prueba de cierre.
           </p>
         </div>
       </div>

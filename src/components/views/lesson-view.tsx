@@ -13,9 +13,11 @@ import { LessonToc } from "@/components/app/lesson-toc";
 import { getUnitColor, activityTypeMeta, difficultyMeta } from "@/lib/course-utils";
 import {
   splitContentSections,
-  PROSE_CLASSES,
-  markdownComponents,
+  getProseClasses,
+  estimateReadingMinutes,
+  CourseMarkdown,
 } from "@/lib/course-content";
+import { ReadingControls, useReadingFontSize } from "@/components/app/reading-controls";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +28,6 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft,
   ArrowRight,
@@ -165,7 +166,11 @@ export function LessonView() {
       {/* Meta bar */}
       <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-3.5 text-xs shadow-xs">
         <span className="flex items-center gap-1.5 text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" /> {lesson.durationMin} min de lectura
+          <Clock className="h-3.5 w-3.5" />
+          {/* Si la lección no declara duración, se estima del contenido */}
+          {lesson.durationMin
+            ? `${lesson.durationMin} min de lectura`
+            : `≈ ${estimateReadingMinutes(lesson.content ?? "")} min de lectura`}
         </span>
         <Separator orientation="vertical" className="h-4" />
         <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -181,6 +186,8 @@ export function LessonView() {
             </Badge>
           )}
         </span>
+        {/* Ajuste de tamaño de fuente de lectura (persiste entre vistas) */}
+        <ReadingControls className="ml-auto" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -252,6 +259,8 @@ interface LessonContentProps {
  */
 function LessonContent({ lesson, attemptsByActivity, onOpenActivity }: LessonContentProps) {
   const color = getUnitColor(lesson.unit.color);
+  // Tamaño de fuente de lectura elegido por el estudiante (persiste entre vistas)
+  const [fontSize] = useReadingFontSize();
   const completedCount = lesson.activities.filter((a) => attemptsByActivity[a.id]?.completed).length;
   const totalActivities = lesson.activities.length;
 
@@ -323,18 +332,14 @@ function LessonContent({ lesson, attemptsByActivity, onOpenActivity }: LessonCon
           <CardContent className="p-4 sm:p-6">
             {parsed.sections.length === 0 ? (
               // Lección sin secciones H2: render completo tradicional
-              <div className={PROSE_CLASSES}>
-                <ReactMarkdown components={markdownComponents}>
-                  {content}
-                </ReactMarkdown>
+              <div className={getProseClasses(fontSize)}>
+                <CourseMarkdown>{content}</CourseMarkdown>
               </div>
             ) : (
               <div className="space-y-5">
                 {parsed.intro && (
-                  <div className={PROSE_CLASSES}>
-                    <ReactMarkdown components={markdownComponents}>
-                      {parsed.intro}
-                    </ReactMarkdown>
+                  <div className={getProseClasses(fontSize)}>
+                    <CourseMarkdown>{parsed.intro}</CourseMarkdown>
                   </div>
                 )}
                 <Accordion
@@ -353,10 +358,8 @@ function LessonContent({ lesson, attemptsByActivity, onOpenActivity }: LessonCon
                       <AccordionTrigger className="py-4 text-base font-semibold leading-snug hover:text-brand hover:no-underline dark:hover:text-brand-gold">
                         {sec.title}
                       </AccordionTrigger>
-                      <AccordionContent className={`${PROSE_CLASSES} pt-1 pb-5`}>
-                        <ReactMarkdown components={markdownComponents}>
-                          {sec.body}
-                        </ReactMarkdown>
+                      <AccordionContent className={`${getProseClasses(fontSize)} pt-1 pb-5`}>
+                        <CourseMarkdown>{sec.body}</CourseMarkdown>
                       </AccordionContent>
                     </AccordionItem>
                   ))}

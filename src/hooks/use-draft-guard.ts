@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 const PREFIX = "electromed_draft_";
 
 /** Clave de almacenamiento local de un borrador: electromed_draft_<tipo>_<id>. */
-export function draftStorageKey(type: string, id: string): string {
+function draftStorageKey(type: string, id: string): string {
   return `${PREFIX}${type}_${id}`;
 }
 

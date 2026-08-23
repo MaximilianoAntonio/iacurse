@@ -123,7 +123,8 @@ se escribe en **producción** vía heartbeat del frontend (antes solo existía e
 - **AccessLog** (middleware): cada request autenticada → "Número de accesos"
 - **StudySession** (heartbeat cada 30s): "Tiempo de interacción"
 - **EventLog** (`POST /api/telemetry/event`): eventos arbitrarios para analítica
-- **Alarma de uso diario**: `/api/telemetry/usage` (umbral configurable)
+- **Alarma de uso diario**: `check_daily_usage_alert` (`telemetry/services.py`),
+  entregada al estudiante vía `GET /api/notifications` (umbral configurable)
 
 ## Tests
 
@@ -135,12 +136,4 @@ pytest telemetry/tests/         # solo telemetría
 pytest -v                       # verbose
 ```
 
-Cobertura actual: **56 tests** que validan grading (5 tipos), badges (6 reglas), streak (3 branches), endpoint attempt (orden de side-effects), y telemetría completa.
-
-## Migración desde SQLite (datos existentes)
-
-```bash
-python manage.py import_sqlite --source ../db/custom.db
-```
-
-Ver `scripts/import_sqlite.py`.
+Cobertura actual: **141 tests** que validan grading (5 tipos), badges (5 reglas), streak (3 branches), endpoint attempt (orden de side-effects), y telemetría completa.

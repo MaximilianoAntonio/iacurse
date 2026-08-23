@@ -12,7 +12,7 @@ Seguridad: el usuario se identifica por la cookie de sesión Django (que es
  sesión de estudio (el sessionId solo lo conoce el usuario legítimo).
 """
 from django.contrib.auth import get_user_model
-from rest_framework import authentication, exceptions
+from rest_framework import authentication
 
 User = get_user_model()
 

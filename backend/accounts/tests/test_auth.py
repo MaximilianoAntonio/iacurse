@@ -6,7 +6,6 @@ Cubre:
 - Identifier inválido / contraseña incorrecta
 - Change-password: éxito limpia must_change_password, actual incorrecta 400,
   contraseña débil 400, requiere autenticación
-- /api/users: exige rol docente y no expone email/name de estudiantes
 """
 import pytest
 from django.contrib.auth import get_user_model
@@ -150,28 +149,3 @@ class TestChangePassword:
             format="json",
         )
         assert resp.status_code in (401, 403)
-
-
-@pytest.mark.django_db
-class TestUsersView:
-    def test_estudiante_no_puede_listar(self, student):
-        client = APIClient()
-        client.force_authenticate(user=student)
-        resp = client.get("/api/users")
-        assert resp.status_code == 403
-
-    def test_docente_ve_estudiantes_anonimizados(self, student, teacher):
-        client = APIClient()
-        client.force_authenticate(user=teacher)
-        resp = client.get("/api/users")
-        assert resp.status_code == 200
-        users = {u["role"]: u for u in resp.json()["users"]}
-        s = users["student"]
-        assert s["studentCode"] == "EM-0001"
-        assert "email" not in s
-        assert "name" not in s
-        assert s["mustChangePassword"] is True
-        # El docente va completo
-        t = users["teacher"]
-        assert t["email"] == "hermes.mora@uv.cl"
-        assert t["name"] == "Prof. Hermes Mora"

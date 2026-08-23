@@ -3,7 +3,7 @@ Modelos de aprendizaje — intentos, progreso, sesiones, gamificación.
 
 Mapeo 1:1 desde prisma/schema.prisma:
 - Attempt, Progress, StudySession, Bookmark
-- Badge, UserBadge, SelfAssessment, ErrorReport
+- Badge, UserBadge, ErrorReport
 
 StudySession ahora se escribe en PRODUCCIÓN vía heartbeat real (telemetría),
 no solo en seed como en la versión Next.js.
@@ -184,30 +184,13 @@ class UserBadge(models.Model):
         return f"{self.user} → {self.badge}"
 
 
-class SelfAssessment(models.Model):
-    """Autoevaluación metacognitiva del estudiante (línea: autorregulación)."""
-
-    id = models.CharField(primary_key=True, max_length=40, default=_cuid_default, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="self_assessments")
-    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, null=True, blank=True, related_name="self_assessments")
-    confidence = models.IntegerField("confianza (1-5)")
-    reflection = models.TextField("reflexión", blank=True, default="")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "autoevaluación"
-        verbose_name_plural = "autoevaluaciones"
-
-
 class ErrorReport(models.Model):
     """Reporte de error en respuesta de IA (lineamiento: 'Reportar error')."""
 
-    SOURCE_CHAT = "chat"
     SOURCE_ACTIVITY = "activity"
     SOURCE_CONTENT = "content"
     SOURCE_PLATFORM = "platform"
     SOURCE_CHOICES = [
-        (SOURCE_CHAT, "Chat"),
         (SOURCE_ACTIVITY, "Actividad"),
         (SOURCE_CONTENT, "Contenido"),
         (SOURCE_PLATFORM, "Plataforma / general"),

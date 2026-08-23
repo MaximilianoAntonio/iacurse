@@ -340,3 +340,70 @@
     animation: shimmer 1.6s linear infinite;
   }
 }
+
+/* === Reader 2.0: fórmulas KaTeX y resaltado de sintaxis === */
+
+/* Fórmulas en bloque: scroll horizontal cuando superan la medida del texto.
+   KaTeX hereda currentColor → sirve en claro y oscuro sin más trabajo. */
+.prose .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.25rem;
+}
+
+/* Tema hljs propio: el bloque de código es un "panel de instrumento" en
+   tinta azul (#0A2540) en ambos temas, así que los colores de token son
+   claros fijos, legibles sobre esa superficie (≥4.5:1). El dorado UV se
+   reserva a números/literales (datos) y el verde monitor a strings. */
+.hljs-comment,
+.hljs-quote {
+  color: #8fa6c0;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-tag,
+.hljs-meta {
+  color: #7fb3e8;
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-meta .hljs-string {
+  color: #9ed7a8;
+}
+.hljs-number,
+.hljs-literal {
+  color: #f5b800;
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-name {
+  color: #8fd3f4;
+}
+.hljs-title.class_,
+.hljs-type,
+.hljs-built_in {
+  color: #c9a7eb;
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable {
+  color: #e8c07a;
+}
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: #f2a2c0;
+}
+.hljs-deletion {
+  color: #f28b82;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
+}

@@ -1,15 +1,15 @@
 """
-Vistas de currículo — units, lessons, next-activity.
+Vistas de currículo — units, lessons.
 
-Reproducen src/app/api/units/route.ts, units/[slug]/route.ts, lessons/[id]/route.ts,
-next-activity/route.ts. Todas requieren sesión real (sin modo demo).
+Reproducen src/app/api/units/route.ts, units/[slug]/route.ts, lessons/[id]/route.ts.
+Todas requieren sesión real (sin modo demo).
 """
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Q
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from learning.models import Attempt, CourseDiagnosticResult, Progress, PersonalizedUnit
+from learning.models import CourseDiagnosticResult, Progress, PersonalizedUnit
 from learning.ai_services import adapt_unit_for_student
 from .models import Activity, Lesson, Unit
 
@@ -279,74 +279,3 @@ class LessonDetailView(views.APIView):
             "siblingLessons": sibling_lessons,
             "attemptsByActivity": attempts_by_activity,
         })
-
-
-class NextActivityView(views.APIView):
-    """GET /api/next-activity — recomienda la siguiente actividad.
-
-    Lógica: última unidad visitada con actividad incompleta (reason=continue),
-    si no, primera unidad con actividad incompleta (reason=new), si no, null.
-
-    Devuelve la actividad anidada con su lección y unidad, más el progreso de
-    la unidad, para que el dashboard pueda renderizar la tarjeta "Continuar".
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-        # Unidades con lastVisited, ordenadas por última visita
-        visited = Progress.objects.filter(
-            user=user, last_visited__isnull=False
-        ).order_by("-last_visited").select_related("unit")
-
-        correct_activity_ids = set(
-            Attempt.objects.filter(user=user, correct=True).values_list("activity_id", flat=True)
-        )
-
-        def build_response(unit_activity, unit, reason):
-            unit_progress = Progress.objects.filter(user=user, unit=unit).first()
-            return Response({
-                "recommendation": {
-                    "activity": {
-                        "id": unit_activity.id,
-                        "title": unit_activity.title,
-                        "type": unit_activity.type,
-                        "difficulty": unit_activity.difficulty,
-                        "points": unit_activity.points,
-                        "lessonId": unit_activity.lesson_id,
-                    },
-                    "lesson": {
-                        "id": unit_activity.lesson.id,
-                        "title": unit_activity.lesson.title,
-                    },
-                    "unit": {
-                        "id": unit.id, "title": unit.title, "color": unit.color,
-                        "icon": unit.icon, "slug": unit.slug, "order": unit.order,
-                    },
-                    "reason": reason,
-                    "unitProgress": {
-                        "completed": unit_progress.completed if unit_progress else 0,
-                        "total": unit_progress.total if unit_progress else 0,
-                        "mastery": min(100, unit_progress.mastery) if unit_progress else 0,
-                    },
-                }
-            })
-
-        # Intentar primero la última unidad visitada
-        for p in visited:
-            for unit_activity in (
-                Activity.objects.filter(lesson__unit=p.unit).select_related("lesson").order_by("order")
-            ):
-                if unit_activity.id not in correct_activity_ids:
-                    return build_response(unit_activity, p.unit, "continue")
-
-        # Si no, primera unidad con actividad incompleta
-        for unit in Unit.objects.order_by("order"):
-            for unit_activity in (
-                Activity.objects.filter(lesson__unit=unit).select_related("lesson").order_by("order")
-            ):
-                if unit_activity.id not in correct_activity_ids:
-                    return build_response(unit_activity, unit, "new")
-
-        return Response({"recommendation": None})

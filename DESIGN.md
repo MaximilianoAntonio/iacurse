@@ -191,6 +191,37 @@ global (ya en `@layer base`); no añadas excepciones.
   `a`, `button`, inputs y `[role="button"]`).
 - `prefers-reduced-motion` respetado globalmente.
 
+## Componentes de contenido del curso (Reader 2.0)
+
+Componentes del render Markdown del estudiante (`src/lib/course-content.tsx` →
+`<CourseMarkdown>`), fieles al mundo "Instrumento de precisión":
+
+- **Bloque de código** (`app/code-block.tsx`): panel de instrumento en tinta
+  `#0A2540` (constante en ambos temas) con barra superior: lenguaje en mono
+  uppercase y botón "Copiar". Resaltado hljs con tema propio en `globals.css`:
+  tokens claros sobre tinta (≥4.5:1); el dorado UV solo en números/literales
+  (datos) y el verde monitor en strings.
+- **Callouts tipados** (`app/callout.tsx`): `> [!nota]` (azul brand, Info),
+  `> [!advertencia]` (ámbar, TriangleAlert), `> [!seguridad]` (destructivo
+  suave, Zap — seguridad eléctrica, tema central del curso), `> [!dato]`
+  (verde monitor, Lightbulb), `> [!ejemplo]` (neutro, BookOpen). Caja de fondo
+  suave + icono + etiqueta; **nunca** `border-left` de color grueso. Un
+  blockquote sin marca conserva la caja ámbar genérica.
+- **Tablas GFM**: tarjeta con hairline y scroll horizontal; cabecera
+  `bg-muted`, filas separadas por hairline, `tabular-nums` para alinear datos.
+- **Fórmulas KaTeX**: `$...$` inline y `$$...$$` en bloque con scroll
+  horizontal; heredan `currentColor` (sirven en claro y oscuro).
+- **Repaso rápido** (`app/quick-check.tsx`, fence ` ```repaso ` con `P:`/`R:`):
+  tarjeta porcelana con pregunta, "Ver respuesta" y auto-reporte ("Lo tenía
+  claro" verde monitor / "A repasar" ámbar). Es recall, no evaluación: sin envío.
+- **Glosario** (`app/glossary-block.tsx`, fence ` ```glosario ` con
+  `Término :: definición`): "Términos clave" en filas expandibles (click/
+  teclado), chevron que rota; definición en texto secundario.
+- **Imágenes** (`app/content-image.tsx`): click amplía en diálogo; el `alt`
+  descriptivo (que no parezca nombre de archivo) se muestra como caption en
+  mono xs.
+- **Headings H2/H3**: ancla + botón `#` al hover que copia el enlace directo.
+
 ## Referencia de archivos
 
 - Tokens y motion: `src/app/globals.css` (`@theme`, `@theme inline`, `:root`,

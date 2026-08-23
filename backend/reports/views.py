@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from accounts.permissions import IsTeacher
 from learning.models import ErrorReport
 
-VALID_SOURCES = {"chat", "activity", "content", "platform"}
+VALID_SOURCES = {"activity", "content", "platform"}
 VALID_REASONS = {"incorrect", "biased", "offtopic", "harmful", "bug", "other"}
 VALID_STATUSES = {"open", "reviewed", "resolved"}
 

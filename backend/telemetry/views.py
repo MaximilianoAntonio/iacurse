@@ -5,7 +5,9 @@ Vistas de telemetría — endpoints del lineamiento.
 - POST /api/telemetry/session/start   — inicia sesión de estudio
 - POST /api/telemetry/session/heartbeat — heartbeat (cada 30s)
 - POST /api/telemetry/session/end     — finaliza sesión
-- GET  /api/telemetry/usage           — uso diario + alarma de dependencia tecnológica
+
+La alarma de uso diario vive en ``services.check_daily_usage_alert`` y llega
+al estudiante vía ``GET /api/notifications``.
 """
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
@@ -152,16 +154,3 @@ class SessionEndView(views.APIView):
                 "endedAt": session.ended_at.isoformat() if session.ended_at else None,
             }
         )
-
-
-class UsageView(views.APIView):
-    """Uso diario del usuario + alarma de dependencia tecnológica.
-
-    Lineamiento: "sistema de alarma si el estudiante sobrepasa un umbral de uso diario".
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        alert = services.check_daily_usage_alert(request.user)
-        return Response(alert)

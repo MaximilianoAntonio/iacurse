@@ -44,6 +44,7 @@ import {
   Footprints,
   Compass,
   MessageCircleQuestion,
+  Bookmark,
   type LucideProps,
 } from "lucide-react";
 
@@ -91,6 +92,7 @@ const iconMap: Record<string, React.ComponentType<LucideProps>> = {
   Footprints,
   Compass,
   MessageCircleQuestion,
+  Bookmark,
 };
 
 export function DynamicIcon({

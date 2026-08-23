@@ -35,7 +35,7 @@ export function BookmarkButton({ activityId, className }: BookmarkButtonProps) {
       try {
         await postJSON("/api/bookmarks", { activityId });
         refetch();
-        toast({ title: "Actividad guardada", description: "Puedes encontrarla en tus bookmarks." });
+        toast({ title: "Actividad guardada", description: "Puedes encontrarla en Guardados." });
       } catch {
         toast({ title: "Error", description: "No se pudo guardar el bookmark.", variant: "destructive" });
       }

@@ -105,9 +105,9 @@ Apps Django locales (registradas en `config/settings/base.py`):
 
 | App | Responsabilidad |
 |---|---|
-| `accounts/` | Usuario custom (`accounts.User`, roles `student`/`teacher`). Login por **identificador único**: si contiene `@` busca por email (docentes), si no por `student_code` (estudiantes, anonimizados: sin email/nombre real). Campos `student_code` y `must_change_password` (cambio obligatorio vía `POST /api/auth/change-password`; gate a pantalla completa en el frontend). **No hay registro público**: el docente crea/resetea estudiantes desde `admin_views.py` (`GET/POST /api/admin/students`, `POST /api/admin/students/<id>/reset-password`, IsTeacher; las contraseñas temporales se muestran una sola vez). `/api/me`, `/api/users` (solo docentes y sin PII de estudiantes) |
+| `accounts/` | Usuario custom (`accounts.User`, roles `student`/`teacher`). Login por **identificador único**: si contiene `@` busca por email (docentes), si no por `student_code` (estudiantes, anonimizados: sin email/nombre real). Campos `student_code` y `must_change_password` (cambio obligatorio vía `POST /api/auth/change-password`; gate a pantalla completa en el frontend). **No hay registro público**: el docente crea/resetea estudiantes desde `admin_views.py` (`GET/POST /api/admin/students`, `POST /api/admin/students/<id>/reset-password`, IsTeacher; las contraseñas temporales se muestran una sola vez). `/api/me` |
 | `curriculum/` | Units, Lessons, Activities, Objectives, Rubrics + **`CourseConfig`** (singleton: preguntas del diagnóstico general y configuración de la prueba de cierre — preguntas MCQ, `final_exam_pass_score`, `final_exam_max_attempts`) |
-| `learning/` | Attempts, Progress, Badges, Bookmarks, `PersonalizedUnit` (unidad adaptada por IA a partir de las respuestas del **diagnóstico general**; `skipped=True` cuando el estudiante usa "Usar contenido base" — POST `/api/units/<id>` con `{action: "adapt"|"skip"}`), `CourseDiagnosticResult` (diagnóstico general, OneToOne por usuario; si el docente edita las preguntas desde el Course Builder se borran los resultados y los estudiantes lo repiten), `FinalExamAttempt` (prueba de cierre; endpoints `GET/POST /api/course/final-exam`, desbloqueo con `all_units_completed()` de `learning/services.py`, +100 pts al aprobar), `GET /api/course/status` y `POST /api/course/diagnostic` (gate del estudiante). Lógica de negocio en `grading.py` (5 tipos de actividad, umbrales exactos), `badges.py` (5 reglas), `streak.py` (3 branches) |
+| `learning/` | Attempts, Progress, Badges, Bookmarks, `PersonalizedUnit` (unidad adaptada por IA a partir de las respuestas del **diagnóstico general**; `skipped=True` cuando el estudiante usa "Continuar sin personalizar" — POST `/api/units/<id>` con `{action: "adapt"|"skip"}`; el contenido base de la unidad ya no se muestra al estudiante, solo el adaptado por IA; el prompt de adaptación (`learning/ai_services.py`) instruye Markdown enriquecido — tablas GFM, fórmulas KaTeX `$...$`/`$$...$$`, callouts `[!tipo]`, bloques repaso/glosario — manteniendo intactos el separador `## 🔍 Preguntas de Control` y el fallback al contenido base), `CourseDiagnosticResult` (diagnóstico general, OneToOne por usuario; si el docente edita las preguntas desde el Course Builder se borran los resultados y los estudiantes lo repiten), `FinalExamAttempt` (prueba de cierre; endpoints `GET/POST /api/course/final-exam`, desbloqueo con `all_units_completed()` de `learning/services.py`, +100 pts al aprobar), `GET /api/course/status` y `POST /api/course/diagnostic` (gate del estudiante). Lógica de negocio en `grading.py` (5 tipos de actividad, umbrales exactos), `badges.py` (5 reglas), `streak.py` (3 branches) |
 | `telemetry/` | `AccessLog` (middleware), `StudySession` (heartbeat), `EventLog`, alarma de uso diario |
 | `analytics/` | Panel docente y progreso del estudiante (`aggregations.py`) |
 | `tutor/` | Capa de abstracción de IA en `tutor/ai/` (`base.py`, `factory.py`, `openai_provider.py`, `gemini_provider.py`, `prompts.py`) + `services.py` con `generate_activity_feedback` (retroalimentación de actividades). El chat socrático (modelo ChatMessage y endpoint `/api/tutor`) fue eliminado del producto |
@@ -115,7 +115,6 @@ Apps Django locales (registradas en `config/settings/base.py`):
 | `reports/` | Reportes de error (contenido del curso, actividades y `platform` — el botón flotante global). POST abierto a cualquier autenticado; GET/PATCH (moderación) solo docentes vía `accounts.permissions.IsTeacher`. El GET expone `reporterCode` (código) para estudiantes, nunca email/nombre |
 | `search/` | Búsqueda global |
 | `fixtures/` | Datos seed (badges, etc.); `learning/management/commands/seed_demo.py` genera los datos demo |
-| `scripts/` | `import_sqlite.py` — migración de datos desde el SQLite legado |
 
 Todas las rutas de API cuelgan de `/api/` (ver `config/urls.py`), por parity con
 el frontend que ya llama a `/api/...` cambiando solo el host base.
@@ -130,7 +129,7 @@ el frontend que ya llama a `/api/...` cambiando solo el host base.
   `GET /api/course/status`).
 - `src/components/views/` — vistas principales (login, dashboard, units,
   unit-detail, lesson, activity, final-exam, teacher, progress, achievements,
-  course-builder, about).
+  bookmarks, course-builder, about).
 - `src/components/app/` — shell de la aplicación (header, sidebar, footer,
   búsqueda global, notificaciones). El sidebar colapsa a un **mini-rail de
   iconos** en desktop (nunca desaparece) y es drawer con overlay en móvil.
@@ -153,22 +152,42 @@ el frontend que ya llama a `/api/...` cambiando solo el host base.
   `resolveMediaSrc` prefija `API_BASE` a rutas `/media/...`, `videoEmbedUrl`
   detecta YouTube/Vimeo y `VideoEmbed` los embebe en 16:9),
   `course-content.tsx` (parsing y render unificado del contenido Markdown de
-  unidades/lecciones: `splitContentSections` por H2, `CHECKPOINT_SEPARATOR` +
-  `splitCheckpoints`/`parseCheckpointQuestions`, `PROSE_CLASSES` y
-  `markdownComponents` compartidos con anclas `slugifyHeading`; lo importan
-  `lesson-view` y `unit-detail-view`, y `lesson-toc` re-exporta el slug).
+  unidades/lecciones — **Reader 2.0**: `splitContentSections` por H2,
+  `CHECKPOINT_SEPARATOR` + `splitCheckpoints`/`parseCheckpointQuestions`,
+  anclas `slugifyHeading`, `getProseClasses(size)` (tamaño de lectura),
+  `estimateReadingMinutes` y el componente `<CourseMarkdown>`, que enchufa
+  los plugins (`remark-gfm` tablas, `remark-math` + `rehype-katex` fórmulas
+  `$...$`/`$$...$$`, `rehype-highlight` sintaxis con tema hljs propio en
+  `globals.css`) y los overrides de render: bloques de código con header de
+  lenguaje + botón copiar (`app/code-block.tsx`), callouts tipados
+  `> [!nota|advertencia|seguridad|dato|ejemplo]` (`app/callout.tsx`),
+  imágenes con zoom y caption (`app/content-image.tsx`), tablas con scroll
+  y fences interactivos — ` ```repaso ` → auto-repaso P:/R:
+  (`app/quick-check.tsx`), ` ```glosario ` → términos `Término :: definición`
+  (`app/glossary-block.tsx`)). Lo usan `lesson-view` y `unit-detail-view`;
+  `lesson-toc` re-exporta el slug. La experiencia de lectura es paritaria en
+  ambas vistas: TOC con scroll-spy, `ReadingProgress`, `ReadingControls`
+  (A−/A+, persiste `electromed_reader_font` vía `useSyncExternalStore` en
+  `app/reading-controls.tsx`) y anclas copiables en headings H2/H3.
   Las tarjetas de unidad (dashboard y listado) son el componente compartido
   `src/components/views/unit-card.tsx`, con progreso real (completed/total y
   mastery de `GET /api/units`).
 - **Editor de contenido docente**: `src/components/ui/markdown-editor.tsx` —
   WYSIWYG basado en **TipTap v2** (`@tiptap/react` + `starter-kit` + `image` +
-  `link` + `placeholder` + `tiptap-markdown`). El contrato sigue siendo
+  `link` + `placeholder` + `table`/`-table-row`/`-table-header`/`-table-cell` +
+  `tiptap-markdown`). El contrato sigue siendo
   Markdown (`value`/`onChange`): `tiptap-markdown` convierte en ambos sentidos.
   Dentro del editor las imágenes `/media/...` se resuelven contra `API_BASE`
   (helpers `toEditor`/`fromEditor`); en el Markdown persistido quedan
   relativas. Toolbar con formato, listas, citas, código, enlaces, subida de
   imágenes (botón, Ctrl+V o arrastrar), videos YouTube/Vimeo (se embeben al
-  publicar), deshacer/rehacer, modo "Markdown" en crudo, pantalla completa y
+  publicar), **tablas** (botón + mini-menú de filas/columnas; se serializan a
+  GFM con serializers propios de `tiptap-markdown` vía
+  `addStorage().markdown.serialize`, escape `\|` y `<br>` intra-celda),
+  **callouts** (menú "Aviso": inserta un blockquote `[!tipo]` en texto plano,
+  round-trip seguro), menú "Sintaxis avanzada" en el pie (copia ejemplos de
+  fórmulas KaTeX, tabla GFM, callout y bloques repaso/glosario),
+  deshacer/rehacer, modo "Markdown" en crudo, pantalla completa y
   contador. Lo usan el Course Builder (`curriculum-tab`), `course-editor` y el
   `lesson-editor-dialog`. Las imágenes se sirven desde el backend bajo
   `/media/` (en dev vía `static()`; en producción Django las sirve con
@@ -266,8 +285,8 @@ pytest -v                     # verbose
   Además, la gestión de contenido (todo `sandbox/` — Course Builder y CRUD
   `/api/admin/*`), la gestión de estudiantes (`/api/admin/students*`),
   la configuración de evaluaciones (`/api/admin/course/*`), la moderación de
-  reportes y la analítica docente (`/api/teacher`, `/api/teacher/student/<id>`,
-  `/api/users`) exigen el permiso `accounts.permissions.IsTeacher` (rol docente).
+  reportes y la analítica docente (`/api/teacher`, `/api/teacher/student/<id>`)
+  exigen el permiso `accounts.permissions.IsTeacher` (rol docente).
   La analítica y los reportes identifican estudiantes solo por `studentCode`.
 - **IA**: las API keys nunca se exponen al frontend; si falta la key, los
   servicios usan fallbacks en español en vez de fallar. El provider `openai`
@@ -298,5 +317,3 @@ pytest -v                     # verbose
   `staticfiles/` — no los elimines del ignore (riesgo de secretos en imagen).
 - **Desarrollo con hot-reload**: override `docker-compose.dev.yml`
   (runserver + `next dev`, monta el código como volumen).
-- Migración de datos desde el SQLite legado:
-  `python manage.py import_sqlite --source ../db/custom.db`.

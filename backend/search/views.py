@@ -5,7 +5,7 @@ Busca en units, lessons y activities por título/contenido.
 Requiere sesión real (sin modo demo).
 """
 from django.db.models import Q
-from rest_framework import status, views
+from rest_framework import views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 

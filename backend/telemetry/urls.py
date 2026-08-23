@@ -12,6 +12,4 @@ urlpatterns = [
     path("telemetry/session/start", views.SessionStartView.as_view(), name="session-start"),
     path("telemetry/session/heartbeat", views.SessionHeartbeatView.as_view(), name="session-heartbeat"),
     path("telemetry/session/end", views.SessionEndView.as_view(), name="session-end"),
-    # Uso diario + alarma de dependencia tecnológica
-    path("telemetry/usage", views.UsageView.as_view(), name="usage"),
 ]

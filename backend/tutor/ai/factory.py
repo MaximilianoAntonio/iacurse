@@ -41,9 +41,3 @@ def get_ai_provider() -> AIProvider:
         _provider = FallbackProvider()
 
     return _provider
-
-
-def reset_provider() -> None:
-    """Resetea el singleton (para tests)."""
-    global _provider
-    _provider = None

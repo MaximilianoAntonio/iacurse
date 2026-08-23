@@ -11,25 +11,6 @@ from rest_framework import serializers
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
-    """Serialización pública del usuario (para /me, /users, panel docente)."""
-
-    class Meta:
-        model = User
-        fields = [
-            "id",
-            "email",
-            "name",
-            "role",
-            "avatar",
-            "points",
-            "streak",
-            "weekly_goal_min",
-            "last_active",
-        ]
-        read_only_fields = ["id", "points", "streak", "last_active"]
-
-
 class LoginSerializer(serializers.Serializer):
     """Login por identificador + password (sesión Django por cookie).
 
@@ -83,17 +64,4 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_newPassword(self, value: str) -> str:
         # Validadores de Django (longitud mínima, contraseñas comunes, etc.)
         validate_password(value, user=self.context["request"].user)
-        return value
-
-
-class WeeklyGoalSerializer(serializers.ModelSerializer):
-    """Actualización de la meta semanal de estudio."""
-
-    class Meta:
-        model = User
-        fields = ["weekly_goal_min"]
-
-    def validate_weekly_goal_min(self, value: int) -> int:
-        if not (30 <= value <= 1200):
-            raise serializers.ValidationError("La meta debe estar entre 30 y 1200 minutos.")
         return value

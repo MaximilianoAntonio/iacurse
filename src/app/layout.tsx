@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Archivo, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+// Estilos de KaTeX para las fórmulas del contenido del curso (Reader 2.0)
+import "katex/dist/katex.min.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 

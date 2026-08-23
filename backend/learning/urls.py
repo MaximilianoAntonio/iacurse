@@ -15,7 +15,6 @@ urlpatterns = [
     # Badges
     path("badges", views.BadgesListView.as_view(), name="badges-list"),
     path("badge-progress", views.BadgeProgressView.as_view(), name="badge-progress"),
-    path("recent-badges", views.RecentBadgesView.as_view(), name="recent-badges"),
     # Bookmarks
     path("bookmarks", views.BookmarksView.as_view(), name="bookmarks"),
     # Notifications

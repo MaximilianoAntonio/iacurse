@@ -55,11 +55,8 @@ import {
   Flame,
   Sparkles,
   Activity,
-  Trophy,
   Calendar,
   Zap,
-  Brain,
-  Star,
 } from "lucide-react";
 import type { ActivityType, Difficulty } from "@/lib/types";
 
@@ -95,14 +92,6 @@ interface AttemptItem {
   };
 }
 
-interface SelfAssessItem {
-  id: string;
-  confidence: number;
-  reflection: string;
-  unitId: string | null;
-  createdAt: string;
-}
-
 interface DayActivity {
   date: string;
   attempts: number;
@@ -120,7 +109,6 @@ interface ProgressResponse {
   progress: ProgressUnit[];
   attempts: AttemptItem[];
   sessions: { id: string; duration: number; startedAt: string; unitId: string | null }[];
-  selfAssess: SelfAssessItem[];
   activityByDay: DayActivity[];
   byType: Record<string, Breakdown>;
   byDifficulty: Record<string, Breakdown>;
@@ -283,7 +271,6 @@ export function ProgressView() {
   const {
     progress,
     attempts,
-    selfAssess,
     activityByDay,
     byType,
     byDifficulty,
@@ -381,13 +368,6 @@ export function ProgressView() {
     rate: b.total > 0 ? Math.round((b.correct / b.total) * 100) : 0,
   }));
 
-  const selfAssessAvg =
-    selfAssess.length > 0
-      ? Math.round(
-          (selfAssess.reduce((a, s) => a + s.confidence, 0) / selfAssess.length) * 10
-        ) / 10
-      : 0;
-
   const unitTitleById = new Map<string, { title: string; color: string }>();
   for (const p of progress) {
     unitTitleById.set(p.unit.id, { title: p.unit.title, color: p.unit.color });
@@ -465,9 +445,6 @@ export function ProgressView() {
           </TabsTrigger>
           <TabsTrigger value="types" className="gap-2 text-sm font-medium" title="Desempeño por tipo y dificultad de actividad">
             <Target className="h-4 w-4" /> Por tipo
-          </TabsTrigger>
-          <TabsTrigger value="reflection" className="gap-2 text-sm font-medium" title="Tus autoevaluaciones y nivel de confianza">
-            <Brain className="h-4 w-4" /> Reflexión
           </TabsTrigger>
         </TabsList>
 
@@ -865,82 +842,6 @@ export function ProgressView() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* Tab 4: Reflection / metacognition */}
-        <TabsContent value="reflection" className="animate-fade-in space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="h-4 w-4 text-primary" /> Autoevaluación metacognitiva
-              </CardTitle>
-              <CardDescription>
-                Registro de tu nivel de confianza y reflexiones sobre tu aprendizaje.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {selfAssess.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                    <Brain className="h-6 w-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Aún no has registrado autoevaluaciones</p>
-                    <p className="max-w-sm text-xs text-muted-foreground">
-                      Resuelve actividades de autoevaluación para reflexionar sobre tu
-                      proceso y ver aquí tu evolución de confianza.
-                    </p>
-                  </div>
-                  <Button onClick={() => navigate("units")} variant="outline" size="sm">
-                    <Target className="mr-1.5 h-4 w-4" /> Ir a actividades
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-accent px-4 py-3 text-accent-foreground">
-                    <div className="flex items-center gap-2">
-                      <Trophy className="h-4 w-4" />
-                      <span className="text-sm font-medium">Confianza promedio</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Stars value={Math.round(selfAssessAvg)} />
-                      <span className="font-mono text-sm font-semibold tabular-nums">
-                        {selfAssessAvg.toFixed(1)} / 5
-                      </span>
-                    </div>
-                  </div>
-
-                  {selfAssess.map((s) => {
-                    const unit = s.unitId ? unitTitleById.get(s.unitId) : undefined;
-                    return (
-                      <div key={s.id} className="rounded-lg border border-border p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <Stars value={s.confidence} />
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {unit && (
-                              <Badge variant="outline" className="gap-1">
-                                <span
-                                  className={cn(
-                                    "h-1.5 w-1.5 rounded-full",
-                                    getUnitColor(unit.color).dot
-                                  )}
-                                />
-                                {unit.title}
-                              </Badge>
-                            )}
-                            <span>{timeAgo(s.createdAt)}</span>
-                          </div>
-                        </div>
-                        <p className="mt-2 text-sm leading-relaxed text-foreground/90">
-                          {s.reflection}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Recent attempts feed */}
@@ -1071,24 +972,6 @@ function MiniStat({
       </div>
       <div className="font-mono text-lg font-semibold leading-none tabular-nums">{value}</div>
       {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
-    </div>
-  );
-}
-
-function Stars({ value, max = 5 }: { value: number; max?: number }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: max }).map((_, i) => (
-        <Star
-          key={i}
-          className={cn(
-            "h-3.5 w-3.5",
-            i < value
-              ? "fill-brand-gold text-brand-gold"
-              : "fill-transparent text-muted-foreground/40"
-          )}
-        />
-      ))}
     </div>
   );
 }

@@ -710,7 +710,6 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 };
 
 const sourceLabels: Record<string, string> = {
-  chat: "Chat tutor",
   activity: "Actividad",
   content: "Contenido del curso",
   platform: "Plataforma",

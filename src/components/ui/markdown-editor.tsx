@@ -7,6 +7,18 @@ import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "tiptap-markdown";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -30,6 +42,10 @@ import {
   Maximize2,
   Minimize2,
   Loader2,
+  Table as TableIcon,
+  Megaphone,
+  Info,
+  Copy,
 } from "lucide-react";
 import { uploadFile, API_BASE } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
@@ -38,6 +54,73 @@ import { cn } from "@/lib/utils";
 // pero dentro del editor deben resolverse contra el backend para visualizarse.
 const toEditor = (md: string) => md.replaceAll("](/media/", `](${API_BASE}/media/`);
 const fromEditor = (md: string) => md.replaceAll(`](${API_BASE}/media/`, "](/media/");
+
+// tiptap-markdown no serializa tablas por defecto: se extiende la extensión
+// oficial con un serializer GFM (pipes). El parseo no necesita handlers de
+// tokens: tiptap-markdown usa markdown-it (preset "default", que habilita la
+// regla `table` aun con html:false) para renderizar la tabla GFM a <table>,
+// y las extensiones oficiales la reconocen vía parseHTML (table/tr/th/td).
+const MarkdownTable = Table.extend({
+  addStorage() {
+    return {
+      markdown: {
+        serialize(state: any, node: any) {
+          state.inTable = true;
+          node.forEach((row: any, _rowOffset: number, rowIndex: number) => {
+            state.write("| ");
+            row.forEach((cell: any, _cellOffset: number, cellIndex: number) => {
+              if (cellIndex) state.write(" | ");
+              // La celda se serializa en línea; si tiene varios bloques se unen
+              // con <br> y los pipes del texto se escapan (\|) para no romper la
+              // tabla GFM. state.out es el acumulador del serializador.
+              const start = state.out.length;
+              cell.forEach((block: any, _blockOffset: number, blockIndex: number) => {
+                if (blockIndex) state.write("<br>");
+                state.renderInline(block);
+              });
+              state.out = state.out.slice(0, start) + state.out.slice(start).replace(/\|/g, "\\|");
+            });
+            state.write(" |");
+            state.ensureNewLine();
+            // Fila separadora obligatoria tras la fila de encabezado
+            if (rowIndex === 0) {
+              const delimiter = Array.from({ length: row.childCount }, () => "---").join(" | ");
+              state.write(`| ${delimiter} |`);
+              state.ensureNewLine();
+            }
+          });
+          state.closeBlock(node);
+          state.inTable = false;
+        },
+        parse: {
+          // Lo maneja markdown-it (ver comentario sobre MarkdownTable)
+        },
+      },
+    };
+  },
+});
+
+// Avisos (callouts) que el render del estudiante destaca: blockquote cuya
+// primera línea es [!tipo]. Es texto plano, así el round-trip Markdown está
+// garantizado sin NodeViews custom.
+const CALLOUTS: { tipo: string; label: string; hint: string }[] = [
+  { tipo: "nota", label: "Nota", hint: "Escribe aquí la nota..." },
+  { tipo: "advertencia", label: "Advertencia", hint: "Describe aquí la advertencia..." },
+  { tipo: "seguridad", label: "Seguridad", hint: "Describe aquí la precaución de seguridad..." },
+  { tipo: "dato", label: "Dato", hint: "Escribe aquí el dato clave..." },
+  { tipo: "ejemplo", label: "Ejemplo", hint: "Desarrolla aquí el ejemplo..." },
+];
+
+// Ejemplos de sintaxis avanzada soportada por la vista del estudiante;
+// al elegir uno se copia al portapapeles para pegarlo en el contenido.
+const SINTAXIS_AVANZADA: { label: string; ejemplo: string }[] = [
+  { label: "Fórmula en línea", ejemplo: "$V = I \\cdot R$" },
+  { label: "Fórmula en bloque", ejemplo: "$$G = 1 + \\frac{R_f}{R_1}$$" },
+  { label: "Tabla 2×2", ejemplo: "| Parámetro | Valor |\n| --- | --- |\n| Ganancia | 100 |" },
+  { label: "Aviso de seguridad", ejemplo: "> [!seguridad]\n> Describe aquí la precaución..." },
+  { label: "Repaso rápido", ejemplo: "```repaso\nP: ¿Qué mide un multímetro?\nR: Voltaje, corriente y resistencia.\n```" },
+  { label: "Glosario", ejemplo: "```glosario\nImpedancia :: Oposición al paso de corriente alterna.\n```" },
+];
 
 interface MarkdownEditorProps {
   value: string;
@@ -73,6 +156,10 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
       TiptapImage,
       TiptapLink.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder }),
+      MarkdownTable.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Markdown.configure({ html: false, transformPastedText: true, linkify: true }),
     ],
     content: toEditor(value),
@@ -85,7 +172,12 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
         class:
           "prose dark:prose-invert max-w-none flex-1 overflow-y-auto p-4 text-sm leading-relaxed focus:outline-none " +
           // Placeholder: párrafo vacío muestra el texto de ayuda
-          "[&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-muted-foreground [&_.is-editor-empty:first-child::before]:pointer-events-none",
+          "[&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-muted-foreground [&_.is-editor-empty:first-child::before]:pointer-events-none " +
+          // Tablas dentro del editor (sin tocar globals.css)
+          "[&_table]:my-4 [&_table]:w-full [&_table]:border-collapse " +
+          "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 " +
+          "[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left " +
+          "[&_.selectedCell]:bg-muted/50",
       },
       // Pegar una imagen (Ctrl+V) la sube e inserta en el cursor
       handlePaste: (_view, event) => {
@@ -177,6 +269,31 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
       .run();
   };
 
+  // Aviso (callout): blockquote cuya primera línea es [!tipo], texto plano
+  const insertCallout = (tipo: string, hint: string) => {
+    if (!editor) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "blockquote",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: `[!${tipo}]` }] },
+          { type: "paragraph", content: [{ type: "text", text: hint }] },
+        ],
+      })
+      .run();
+  };
+
+  // Copia un ejemplo de sintaxis avanzada al portapapeles (feedback en el pie)
+  const [copiedSyntax, setCopiedSyntax] = React.useState<string | null>(null);
+  const copySyntax = (label: string, ejemplo: string) => {
+    navigator.clipboard?.writeText(ejemplo).then(() => {
+      setCopiedSyntax(label);
+      window.setTimeout(() => setCopiedSyntax(null), 2000);
+    });
+  };
+
   const toolbar: {
     icon: React.ReactNode;
     label: string;
@@ -198,6 +315,7 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
         { icon: <SquareCode className="h-4 w-4" />, label: "Bloque de código", action: () => editor.chain().focus().toggleCodeBlock().run(), active: editor.isActive("codeBlock") },
         { icon: <LinkIcon className="h-4 w-4" />, label: "Enlace", action: handleSetLink, active: editor.isActive("link") },
         { icon: <Youtube className="h-4 w-4" />, label: "Video (YouTube/Vimeo, se embebe al publicar)", action: handleInsertVideo },
+        { icon: <TableIcon className="h-4 w-4" />, label: "Insertar tabla 3×3", action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), active: editor.isActive("table") },
       ]
     : [];
 
@@ -245,6 +363,54 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
             className="hidden"
             onChange={handleImagePicked}
           />
+          {/* Insertar aviso (callout): blockquote con [!tipo] en la primera línea */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                title="Insertar aviso (callout)"
+                disabled={sourceMode}
+              >
+                <Megaphone className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Aviso (callout)</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {CALLOUTS.map((c) => (
+                <DropdownMenuItem key={c.tipo} onSelect={() => insertCallout(c.tipo, c.hint)}>
+                  {c.label}
+                  <span className="ml-auto font-mono text-[10px] text-muted-foreground">[!{c.tipo}]</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* Acciones de tabla: solo visibles con el cursor dentro de una tabla */}
+          {editor?.isActive("table") && (
+            <>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-0.5">
+                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Agregar fila debajo" onClick={() => editor.chain().focus().addRowAfter().run()} disabled={sourceMode}>
+                  + Fila
+                </Button>
+                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Agregar columna a la derecha" onClick={() => editor.chain().focus().addColumnAfter().run()} disabled={sourceMode}>
+                  + Columna
+                </Button>
+                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Eliminar fila actual" onClick={() => editor.chain().focus().deleteRow().run()} disabled={sourceMode}>
+                  − Fila
+                </Button>
+                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Eliminar columna actual" onClick={() => editor.chain().focus().deleteColumn().run()} disabled={sourceMode}>
+                  − Columna
+                </Button>
+                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:text-destructive" title="Eliminar tabla" onClick={() => editor.chain().focus().deleteTable().run()} disabled={sourceMode}>
+                  Eliminar tabla
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 ml-auto">
@@ -321,9 +487,38 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
           <span className="hidden min-w-0 truncate sm:inline">
             {uploading ? "Subiendo imagen…" : "Pega o arrastra una imagen para subirla · Ctrl+B/I para formato"}
           </span>
-          <span className="shrink-0 whitespace-nowrap font-mono tabular-nums">
-            {words} palabras · {value.length} caracteres
-          </span>
+          <div className="flex shrink-0 items-center gap-3">
+            {/* Ejemplos copiables de la sintaxis avanzada que entiende el estudiante */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 hover:text-foreground hover:bg-muted"
+                  title="Ejemplos de sintaxis avanzada (clic para copiar)"
+                >
+                  <Info className="h-3 w-3" /> Sintaxis avanzada
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel className="text-xs">
+                  {copiedSyntax ? `¡"${copiedSyntax}" copiado!` : "Sintaxis avanzada (clic para copiar)"}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {SINTAXIS_AVANZADA.map((s) => (
+                  <DropdownMenuItem key={s.label} onSelect={() => copySyntax(s.label, s.ejemplo)} className="flex-col items-start gap-0.5">
+                    <span className="flex w-full items-center justify-between text-xs font-medium">
+                      {s.label}
+                      <Copy className="h-3 w-3 text-muted-foreground" />
+                    </span>
+                    <span className="w-full truncate font-mono text-[10px] text-muted-foreground">{s.ejemplo.split("\n")[0]}{s.ejemplo.includes("\n") ? " …" : ""}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="whitespace-nowrap font-mono tabular-nums">
+              {words} palabras · {value.length} caracteres
+            </span>
+          </div>
         </div>
       </div>
     </Card>

@@ -15,10 +15,8 @@ urlpatterns = [
         views.ChangePasswordView.as_view(),
         name="change-password",
     ),
-    # Usuario actual y lista
+    # Usuario actual
     path("me", views.MeView.as_view(), name="me"),
-    path("users", views.UsersView.as_view(), name="users"),
-    path("user/weekly-goal", views.WeeklyGoalView.as_view(), name="weekly-goal"),
     # Gestión de estudiantes (solo docentes)
     path("admin/students", admin_views.StudentsAdminView.as_view(), name="admin-students"),
     path(

@@ -3,7 +3,7 @@ import type { ActivityType, Difficulty } from "@/lib/types";
 // Mapeo de colores de unidades — Paleta institucional UV
 // Azul UV (#003366) como base, dorado UV (#fbbf24) como acento
 // Cada unidad mantiene un color distintivo pero dentro de la familia UV
-export const unitColorMap: Record<
+const unitColorMap: Record<
   string,
   {
     bg: string;

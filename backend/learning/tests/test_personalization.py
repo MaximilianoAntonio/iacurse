@@ -229,7 +229,7 @@ class TestReportPermissions:
         assert ErrorReport.objects.get().status == "reviewed"
 
         # Filtro por fuente
-        assert teacher_client.get("/api/report?status=all&source=chat").json()["reports"] == []
+        assert teacher_client.get("/api/report?status=all&source=platform").json()["reports"] == []
         assert len(teacher_client.get("/api/report?status=all&source=content").json()["reports"]) == 1
 
 

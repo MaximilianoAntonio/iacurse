@@ -8,9 +8,9 @@ export type ViewKey =
   | "unit-detail"
   | "lesson"
   | "activity"
-  | "tutor"
   | "progress"
   | "achievements"
+  | "bookmarks"
   | "teacher"
   | "course-builder"
   | "final-exam"
@@ -55,7 +55,7 @@ export interface Unit {
   /** true cuando el estudiante ya tiene una PersonalizedUnit (diagnóstico
    *  respondido o saltado) para esta unidad. */
   hasAdaptedContent?: boolean;
-  /** true cuando el estudiante saltó el diagnóstico (ve el contenido base). */
+  /** true cuando el estudiante saltó la personalización (continúa sin contenido adaptado). */
   diagnosticSkipped?: boolean;
   lessons?: {
     id: string;
@@ -70,12 +70,6 @@ export interface Unit {
     mastery: number;
     lastVisited: string | null;
   } | null;
-}
-
-/** Respuesta de una pregunta de diagnóstico (par pregunta/respuesta). */
-export interface DiagnosticAnswer {
-  question: string;
-  answer: string;
 }
 
 /** Estado del diagnóstico general y de la prueba de cierre (GET /api/course/status). */
@@ -113,7 +107,7 @@ export interface FinalExamResult {
 /** Reporte de error (panel docente de /api/report). */
 export interface ErrorReportItem {
   id: string;
-  source: "chat" | "activity" | "content";
+  source: "activity" | "content" | "platform";
   sourceId: string;
   reason: string;
   comment: string;
@@ -123,19 +117,6 @@ export interface ErrorReportItem {
   /** Nombre del docente reportante (null si es estudiante anonimizado). */
   reporterName: string | null;
   createdAt: string;
-}
-
-export interface Lesson {
-  id: string;
-  unitId: string;
-  slug: string;
-  title: string;
-  description: string;
-  content: string;
-  durationMin: number;
-  order: number;
-  unit?: Pick<Unit, "title" | "color" | "icon" | "slug">;
-  activities?: Activity[];
 }
 
 export interface Activity {
@@ -188,37 +169,4 @@ export interface SelfAssessmentData {
   prompt: string;
   rubric: string[];
   autoGradeKeywords: string[];
-}
-
-export interface Attempt {
-  id: string;
-  userId: string;
-  activityId: string;
-  answer: string;
-  feedback: string | null;
-  score: number | null;
-  correct: boolean | null;
-  timeSpent: number | null;
-  createdAt: string;
-}
-
-export interface Badge {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  icon: string;
-  tier: "bronze" | "silver" | "gold";
-  awardedAt?: string;
-}
-
-export interface ProgressRecord {
-  id: string;
-  userId: string;
-  unitId: string;
-  completed: number;
-  total: number;
-  mastery: number;
-  lastVisited: string | null;
-  updatedAt: string;
 }

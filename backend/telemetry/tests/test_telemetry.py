@@ -186,29 +186,3 @@ class TestAccessLogMiddleware:
             client = APIClient()
             client.get("/api/me")
         assert AccessLog.objects.filter(user__isnull=False).count() == 0
-
-
-@pytest.mark.django_db
-class TestUsageAlert:
-    """Alarma de dependencia tecnológica (lineamiento: umbral de uso diario)."""
-
-    def test_usage_under_threshold(self, auth_client):
-        """Sin sesiones hoy → 0 minutos, no excedido."""
-        resp = auth_client.get("/api/telemetry/usage")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["minutesToday"] == 0
-        assert data["exceeded"] is False
-
-    def test_usage_aggregates_today_sessions(self, student, auth_client):
-        """Las sesiones de hoy se suman correctamente."""
-        # Crear 2 sesiones hoy de 1h cada una
-        StudySession.objects.create(
-            user=student, started_at=timezone.now() - timedelta(hours=2), duration=3600
-        )
-        StudySession.objects.create(
-            user=student, started_at=timezone.now() - timedelta(hours=1), duration=3600
-        )
-        resp = auth_client.get("/api/telemetry/usage")
-        data = resp.json()
-        assert data["minutesToday"] == 120  # 2h = 120 min

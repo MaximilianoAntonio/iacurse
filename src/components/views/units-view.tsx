@@ -118,7 +118,7 @@ export function UnitsView() {
         <div>
           <p className="text-sm font-medium text-brand dark:text-brand-gold">¿Cómo funciona el aprendizaje adaptativo?</p>
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            Tu diagnóstico inicial del curso ya definió tu perfil de aprendizaje. Dentro de cada unidad puedes usar «Personalizar con IA» para que el contenido se nivele a ese perfil, o estudiar directamente el contenido base.
+            Tu diagnóstico inicial del curso ya definió tu perfil de aprendizaje. Dentro de cada unidad puedes usar «Personalizar con IA» para que el contenido se nivele a ese perfil, o continuar directamente a las lecciones.
           </p>
         </div>
       </div>

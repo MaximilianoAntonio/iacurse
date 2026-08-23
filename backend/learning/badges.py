@@ -15,10 +15,8 @@ y NO se actualiza durante el loop (cada slug se otorga a lo más una vez).
 from dataclasses import dataclass
 from typing import List
 
-from django.db.models import Count, Q
-
 from accounts.models import User
-from .models import Badge, Progress, StudySession, UserBadge
+from .models import Badge, Progress, UserBadge
 
 
 # Slugs de unidades referenciados por las reglas (deben existir en el seed)

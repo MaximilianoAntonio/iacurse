@@ -13,9 +13,13 @@ import {
   splitContentSections,
   splitCheckpoints,
   parseCheckpointQuestions,
-  PROSE_CLASSES,
-  markdownComponents,
+  getProseClasses,
+  estimateReadingMinutes,
+  CourseMarkdown,
 } from "@/lib/course-content";
+import { ReadingControls, useReadingFontSize } from "@/components/app/reading-controls";
+import { ReadingProgress } from "@/components/app/reading-progress";
+import { LessonToc } from "@/components/app/lesson-toc";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -23,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft,
   ArrowRight,
@@ -139,6 +142,59 @@ export function UnitDetailView() {
       setCheckpointAnswers({});
     }
   }
+
+  // Tamaño de fuente de lectura (compartido con lesson-view, persiste)
+  const [fontSize] = useReadingFontSize();
+
+  // Contenido adaptado parseado una sola vez (checkpoints + secciones H2).
+  // El contenido base de la unidad ya no se muestra al estudiante.
+  const adapted = React.useMemo(() => {
+    const unitData = data?.unit;
+    if (!unitData?.adaptedContent || unitData.diagnosticSkipped) return null;
+    const { main, questionsMarkdown } = splitCheckpoints(unitData.adaptedContent);
+    const { intro, sections } = splitContentSections(main);
+    return { main, intro, sections, questions: parseCheckpointQuestions(questionsMarkdown) };
+  }, [data?.unit?.adaptedContent, data?.unit?.diagnosticSkipped]);
+
+  // Acordeón controlado del contenido adaptado (todas abiertas por defecto;
+  // el TOC sticky salta entre secciones y las expande si están plegadas).
+  const [sectionsOpenFor, setSectionsOpenFor] = React.useState<string | null>(null);
+  const [openSections, setOpenSections] = React.useState<string[]>([]);
+  if (adapted && currentUnitId && sectionsOpenFor !== currentUnitId) {
+    setSectionsOpenFor(currentUnitId);
+    setOpenSections(adapted.sections.map((_, idx) => `sec-${idx}`));
+  }
+
+  // Navegación del TOC: expande la sección del acordeón antes de hacer scroll
+  const handleTocNavigate = React.useCallback(
+    (id: string) => {
+      const scrollTo = (targetId: string) => {
+        const el = document.getElementById(targetId);
+        if (el) {
+          const top = el.getBoundingClientRect().top + window.scrollY - 96;
+          window.scrollTo({ top, behavior: "smooth" });
+        }
+      };
+      if (!adapted) {
+        scrollTo(id);
+        return;
+      }
+      const idx = adapted.sections.findIndex((s) => s.headingIds.includes(id));
+      if (idx < 0) {
+        scrollTo(id);
+        return;
+      }
+      const value = `sec-${idx}`;
+      if (openSections.includes(value)) {
+        scrollTo(id);
+      } else {
+        setOpenSections((prev) => (prev.includes(value) ? prev : [...prev, value]));
+        // Esperar a que Radix monte el contenido antes de desplazarse
+        window.setTimeout(() => scrollTo(id), 140);
+      }
+    },
+    [adapted, openSections]
+  );
 
   // Guardar checkpoints cuando cambie
   React.useEffect(() => {
@@ -260,20 +316,20 @@ export function UnitDetailView() {
     }
   };
 
-  // "Usar contenido base": desbloquea la unidad sin adaptar; puede
+  // "Continuar sin personalizar": desbloquea la unidad sin adaptar; puede
   // personalizarla más tarde desde esta misma vista.
   const handleUseBaseContent = async () => {
     setSkipping(true);
     try {
       await postJSON(`/api/units/${unit.id}`, { action: "skip" });
       toast({
-        title: "Contenido base habilitado",
-        description: "Ya puedes estudiar el contenido base. Personaliza la unidad cuando quieras desde aquí.",
+        title: "Unidad habilitada",
+        description: "Ya puedes avanzar por las lecciones. Personaliza la unidad cuando quieras desde aquí.",
       });
       refetch();
     } catch (err) {
       toast({
-        title: "Error al usar el contenido base",
+        title: "Error al habilitar la unidad",
         description: (err as Error).message,
         variant: "destructive",
       });
@@ -284,6 +340,8 @@ export function UnitDetailView() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 p-4 lg:p-8">
+      {/* Barra de progreso de lectura (misma experiencia que en lecciones) */}
+      <ReadingProgress colorClass={`bg-gradient-to-r ${color.gradient}`} />
       <PageHeader
         title={unit.title}
         description={unit.summary}
@@ -304,6 +362,12 @@ export function UnitDetailView() {
                 Unidad {unit.order}
               </Badge>
               <p className="text-sm leading-relaxed text-white/90">{unit.description}</p>
+              {/* Lectura estimada del contenido adaptado (cuando existe) */}
+              {adapted && (
+                <p className="flex items-center gap-1.5 text-xs text-white/80">
+                  <Clock className="h-3.5 w-3.5" /> ≈ {estimateReadingMinutes(adapted.main)} min de lectura
+                </p>
+              )}
             </div>
             <div className="space-y-3 rounded-lg bg-black/15 p-4">
               <div>
@@ -333,8 +397,8 @@ export function UnitDetailView() {
               <h3 className="text-lg font-semibold">Elige cómo estudiar esta unidad</h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {unit.hasCourseDiagnostic
-                  ? "Puedes personalizar el contenido con IA según tu diagnóstico inicial del curso, o estudiar directamente el contenido base."
-                  : "Esta unidad aún no está personalizada. Puedes estudiar el contenido base directamente."}
+                  ? "Puedes personalizar el contenido con IA según tu diagnóstico inicial del curso, o continuar directamente a las lecciones."
+                  : "Esta unidad aún no está personalizada. Puedes continuar directamente a las lecciones."}
               </p>
             </div>
           </div>
@@ -373,11 +437,11 @@ export function UnitDetailView() {
                       Habilitando...
                     </>
                   ) : (
-                    "Usar contenido base"
+                    "Continuar sin personalizar"
                   )}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Verás el contenido original sin adaptar. Puedes personalizar la unidad después desde esta misma vista.
+                  Irás directo a las lecciones de la unidad. Puedes personalizarla después desde esta misma vista.
                 </p>
               </div>
             </div>
@@ -385,7 +449,7 @@ export function UnitDetailView() {
         </Card>
       ) : (
         <>
-          {/* Aviso para quienes usan el contenido base sin personalizar */}
+          {/* Aviso para quienes continúan sin personalizar la unidad */}
           {unit.diagnosticSkipped && unit.hasCourseDiagnostic && (
             <div className="flex flex-col gap-3 rounded-xl border border-dashed border-brand-gold/50 bg-brand-gold/[0.06] p-4 animate-fade-in-up sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
@@ -393,7 +457,7 @@ export function UnitDetailView() {
                   <Brain className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Estás viendo el contenido base, sin adaptar</p>
+                  <p className="text-sm font-medium">Estás viendo la unidad sin personalizar</p>
                   <p className="text-xs text-muted-foreground">
                     Personaliza la unidad para que la IA nivele el contenido según tu diagnóstico del curso.
                   </p>
@@ -419,28 +483,23 @@ export function UnitDetailView() {
             </div>
           )}
 
-          {/* Contenido Adaptado / Base — parsing unificado en @/lib/course-content */}
-          {(() => {
-            const { main: mainMarkdown, questionsMarkdown } = splitCheckpoints(
-              unit.adaptedContent || unit.content || ""
-            );
-            const { intro: introduction, sections } = splitContentSections(mainMarkdown);
-            const checkpointQuestions = parseCheckpointQuestions(questionsMarkdown);
-
-            return (
-              <div className="space-y-6">
-                <Card className="border-border p-6 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+          {/* Contenido personalizado con IA — parsing unificado en @/lib/course-content.
+              El contenido base de la unidad ya no se muestra al estudiante. */}
+          {adapted && (
+            <div className="space-y-6">
+              <div className="grid gap-6 lg:grid-cols-3">
+                {/* Columna principal: intro + secciones en acordeón */}
+                <Card className="border-border p-6 shadow-sm lg:col-span-2">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                       <h3 className="text-lg font-semibold">
-                        {unit.adaptedContent && !unit.diagnosticSkipped ? "Contenido de la unidad (personalizado con IA)" : "Contenido base de la unidad"}
+                        Contenido de la unidad (personalizado con IA)
                       </h3>
                     </div>
                     <div className="flex items-center gap-3">
-                      {unit.adaptedContent && !unit.diagnosticSkipped && (
-                        <Badge className="border-none bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Nivel adaptativo</Badge>
-                      )}
+                      <ReadingControls />
+                      <Badge className="border-none bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Nivel adaptativo</Badge>
                       <ReportErrorDialog
                         source="content"
                         sourceId={`unit:${unit.id}`}
@@ -449,35 +508,33 @@ export function UnitDetailView() {
                     </div>
                   </div>
 
-                  {introduction.trim() && (
-                    <div className={`${PROSE_CLASSES} mb-6`}>
-                      <ReactMarkdown components={markdownComponents}>
-                        {introduction}
-                      </ReactMarkdown>
+                  {adapted.intro.trim() && (
+                    <div className={`${getProseClasses(fontSize)} mb-6`}>
+                      <CourseMarkdown>{adapted.intro}</CourseMarkdown>
                     </div>
                   )}
 
-                  {sections.length > 0 && (
-                    /* Modo lectura: secciones abiertas por defecto (se pueden plegar) */
+                  {adapted.sections.length > 0 && (
+                    /* Modo lectura: secciones abiertas por defecto (se pueden plegar);
+                       controlado para que el TOC las expanda al navegar */
                     <Accordion
-                      key={unit.id}
                       type="multiple"
-                      defaultValue={sections.map((_, idx) => `sec-${idx}`)}
+                      value={openSections}
+                      onValueChange={setOpenSections}
                       className="w-full space-y-3"
                     >
-                      {sections.map((sec, idx) => (
+                      {adapted.sections.map((sec, idx) => (
                         <AccordionItem
                           key={sec.id || idx}
+                          id={sec.id}
                           value={`sec-${idx}`}
-                          className="rounded-lg border border-border bg-muted/30 px-4 transition-colors hover:bg-muted/50"
+                          className="scroll-mt-24 rounded-lg border border-border bg-muted/30 px-4 transition-colors hover:bg-muted/50"
                         >
                           <AccordionTrigger className="py-3 text-sm font-semibold text-brand hover:no-underline dark:text-brand-gold">
                             {sec.title}
                           </AccordionTrigger>
-                          <AccordionContent className={`${PROSE_CLASSES} pb-4 pt-2`}>
-                            <ReactMarkdown components={markdownComponents}>
-                              {sec.body}
-                            </ReactMarkdown>
+                          <AccordionContent className={`${getProseClasses(fontSize)} pb-4 pt-2`}>
+                            <CourseMarkdown>{sec.body}</CourseMarkdown>
                           </AccordionContent>
                         </AccordionItem>
                       ))}
@@ -485,77 +542,82 @@ export function UnitDetailView() {
                   )}
                 </Card>
 
-                {/* Checkpoint Questions Section */}
-                {checkpointQuestions.length > 0 && (
-                  <Card className="space-y-4 border-border p-6 shadow-sm">
-                    <div className="flex items-center gap-2 border-b border-border pb-3">
-                      <PenTool className="h-5 w-5 text-brand-gold" />
-                      <h3 className="text-lg font-semibold">Checkpoints de comprensión</h3>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Responde las siguientes preguntas basadas en la lectura anterior para verificar tu nivel de comprensión y guardar tus respuestas.
-                    </p>
-
-                    {checkpointSubmitted ? (
-                      <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] p-4 text-emerald-800 dark:text-emerald-200">
-                        <div className="flex items-center gap-2 text-sm font-semibold">
-                          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                          ¡Respuestas registradas exitosamente!
-                        </div>
-                        <p className="text-xs">
-                          Tus respuestas han sido grabadas en el sistema de telemetría y estarán disponibles para el docente.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 pt-2">
-                        {checkpointQuestions.map((q, idx) => (
-                          <div key={idx} className="space-y-2">
-                            <label className="block text-sm font-medium text-foreground">
-                              {idx + 1}. {q}
-                            </label>
-                            <Textarea
-                              value={checkpointAnswers[q] || ""}
-                              onChange={(e) => setCheckpointAnswers({ ...checkpointAnswers, [q]: e.target.value })}
-                              placeholder="Escribe tu respuesta corta aquí..."
-                              className="mt-1 min-h-[70px]"
-                              disabled={submittingCheckpoint}
-                            />
-                            <div className="mt-1 flex items-center justify-between px-1">
-                              <span className="text-[10px] text-muted-foreground/70">
-                                Explica con tus palabras.
-                              </span>
-                              {(checkpointAnswers[q] || "").trim().length > 0 && (
-                                <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                  Borrador guardado
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-
-                        <div className="flex justify-end pt-2">
-                          <Button
-                            onClick={handleSubmitCheckpoints}
-                            disabled={submittingCheckpoint || checkpointQuestions.some(q => !(checkpointAnswers[q] || "").trim())}
-                          >
-                            {submittingCheckpoint ? (
-                              <>
-                                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                Enviando...
-                              </>
-                            ) : (
-                              <>Enviar respuestas de control</>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                )}
+                {/* Sidebar: índice del contenido adaptado (pegajoso en desktop) */}
+                <div className="self-start lg:sticky lg:top-6">
+                  <LessonToc content={adapted.main} onNavigate={handleTocNavigate} />
+                </div>
               </div>
-            );
-          })()}
+
+              {/* Checkpoint Questions Section */}
+              {adapted.questions.length > 0 && (
+                <Card className="space-y-4 border-border p-6 shadow-sm">
+                  <div className="flex items-center gap-2 border-b border-border pb-3">
+                    <PenTool className="h-5 w-5 text-brand-gold" />
+                    <h3 className="text-lg font-semibold">Checkpoints de comprensión</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Responde las siguientes preguntas basadas en la lectura anterior para verificar tu nivel de comprensión y guardar tus respuestas.
+                  </p>
+
+                  {checkpointSubmitted ? (
+                    <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] p-4 text-emerald-800 dark:text-emerald-200">
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                        ¡Respuestas registradas exitosamente!
+                      </div>
+                      <p className="text-xs">
+                        Tus respuestas han sido grabadas en el sistema de telemetría y estarán disponibles para el docente.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 pt-2">
+                      {adapted.questions.map((q, idx) => (
+                        <div key={idx} className="space-y-2">
+                          <label className="block text-sm font-medium text-foreground">
+                            {idx + 1}. {q}
+                          </label>
+                          <Textarea
+                            value={checkpointAnswers[q] || ""}
+                            onChange={(e) => setCheckpointAnswers({ ...checkpointAnswers, [q]: e.target.value })}
+                            placeholder="Escribe tu respuesta corta aquí..."
+                            className="mt-1 min-h-[70px]"
+                            disabled={submittingCheckpoint}
+                          />
+                          <div className="mt-1 flex items-center justify-between px-1">
+                            <span className="text-[10px] text-muted-foreground/70">
+                              Explica con tus palabras.
+                            </span>
+                            {(checkpointAnswers[q] || "").trim().length > 0 && (
+                              <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Borrador guardado
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          onClick={handleSubmitCheckpoints}
+                          disabled={submittingCheckpoint || adapted.questions.some(q => !(checkpointAnswers[q] || "").trim())}
+                        >
+                          {submittingCheckpoint ? (
+                            <>
+                              <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>Enviar respuestas de control</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              )}
+            </div>
+          )}
 
           {/* Lecciones y actividades de la unidad */}
           {unit.lessons.length > 0 && (

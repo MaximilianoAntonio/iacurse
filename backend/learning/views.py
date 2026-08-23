@@ -14,7 +14,7 @@ Orden reproducido fielmente desde src/app/api/activities/[id]/attempt/route.ts:
 10. Badge check (check_and_award_badges)
 """
 from django.db import transaction
-from django.db.models import Count, F, Max
+from django.db.models import F, Max
 from django.utils import timezone
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
@@ -240,32 +240,6 @@ class BadgesListView(views.APIView):
         })
 
 
-class RecentBadgesView(views.APIView):
-    """GET /api/recent-badges — últimas 5 insignias en 7 días (notificaciones)."""
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        from datetime import timedelta
-        threshold = timezone.now() - timedelta(days=7)
-        recent = list(
-            request.user.user_badges.filter(awarded_at__gte=threshold)
-            .select_related("badge").order_by("-awarded_at")[:5]
-        )
-        return Response({
-            "badges": [
-                {
-                    "id": ub.badge.id,
-                    "slug": ub.badge.slug, "name": ub.badge.name,
-                    "description": ub.badge.description,
-                    "icon": ub.badge.icon, "tier": ub.badge.tier,
-                    "awardedAt": ub.awarded_at.isoformat(),
-                }
-                for ub in recent
-            ]
-        })
-
-
 class BadgeProgressView(views.APIView):
     """GET /api/badge-progress — progreso hacia cada insignia."""
 
@@ -372,6 +346,12 @@ class BookmarksView(views.APIView):
             user=request.user, activity=activity, defaults={"note": note}
         )
         if not created:
+            # Si el bookmark ya existía y el body trae nota, se actualiza
+            # (permite editar la nota desde la vista "Guardados"). Si el body
+            # no incluye "note" (p.ej. el toggle de BookmarkButton), se deja intacta.
+            if "note" in request.data and bookmark.note != note:
+                bookmark.note = note
+                bookmark.save(update_fields=["note"])
             return Response({"alreadyExists": True, "bookmarkId": bookmark.id})
         return Response({"ok": True, "bookmarkId": bookmark.id}, status=status.HTTP_201_CREATED)
 

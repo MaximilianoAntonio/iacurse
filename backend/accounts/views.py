@@ -7,8 +7,6 @@ Endpoints:
 - POST   /api/auth/logout          — logout
 - POST   /api/auth/change-password — cambio de contraseña (obligatorio con flag)
 - GET    /api/me                   — usuario actual
-- GET    /api/users                — lista de usuarios (solo docentes)
-- PATCH  /api/user/weekly-goal     — actualiza meta semanal
 
 El registro público fue eliminado: el docente crea las cuentas de
 estudiantes (ver ``accounts/admin_views.py``).
@@ -20,13 +18,7 @@ from rest_framework import views
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .permissions import IsTeacher
-from .serializers import (
-    ChangePasswordSerializer,
-    LoginSerializer,
-    UserSerializer,
-    WeeklyGoalSerializer,
-)
+from .serializers import ChangePasswordSerializer, LoginSerializer
 
 User = get_user_model()
 
@@ -44,19 +36,6 @@ def _serialize_user(user):
         "weeklyGoalMin": user.weekly_goal_min,
         "lastActive": user.last_active.isoformat() if user.last_active else None,
         "studentCode": user.student_code or None,
-        "mustChangePassword": user.must_change_password,
-    }
-
-
-def _serialize_student_public(user):
-    """Proyección anonimizada de un estudiante (sin email ni nombre real)."""
-    return {
-        "id": user.id,
-        "studentCode": user.student_code,
-        "role": user.role,
-        "points": user.points,
-        "streak": user.streak,
-        "lastActive": user.last_active.isoformat() if user.last_active else None,
         "mustChangePassword": user.must_change_password,
     }
 
@@ -132,34 +111,3 @@ class MeView(views.APIView):
 
     def get(self, request):
         return Response({"user": _serialize_user(request.user)})
-
-
-class UsersView(views.APIView):
-    """Lista usuarios para el panel docente (exclusivo de docentes).
-
-    Los estudiantes se devuelven anonimizados (sin email ni nombre real);
-    los docentes van completos.
-    """
-
-    permission_classes = [IsAuthenticated, IsTeacher]
-
-    def get(self, request):
-        users = User.objects.all().order_by("role", "name")
-        return Response({
-            "users": [
-                _serialize_user(u) if u.is_teacher else _serialize_student_public(u)
-                for u in users
-            ]
-        })
-
-
-class WeeklyGoalView(views.APIView):
-    """Actualiza la meta semanal de estudio del usuario autenticado."""
-
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        serializer = WeeklyGoalSerializer(instance=request.user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({"ok": True, "weeklyGoalMin": request.user.weekly_goal_min})
