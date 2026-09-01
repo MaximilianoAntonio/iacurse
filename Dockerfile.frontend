@@ -32,9 +32,14 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME=0.0.0.0
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Usuario no-root (node viene en la imagen base): Next standalone escribe su
+# caché en .next/cache, por eso el WORKDIR queda con propiedad de node.
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+RUN mkdir -p /app/.next/cache && chown -R node:node /app/.next
+
+USER node
 
 EXPOSE 3000
 

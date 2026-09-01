@@ -23,7 +23,7 @@ from rest_framework.response import Response
 from accounts.models import User
 from curriculum.models import Activity, CourseConfig, Unit
 from .badges import check_and_award_badges
-from .grading import grade
+from .grading import grade, parse_activity_data
 from .models import (
     Attempt,
     Badge,
@@ -61,6 +61,10 @@ class AttemptView(views.APIView):
                 "lesson__unit", "rubric"
             ).get(pk=activity_id)
         except Activity.DoesNotExist:
+            return Response({"error": "Actividad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Los borradores del docente no son respondibles por estudiantes
+        if not activity.lesson.is_published:
             return Response({"error": "Actividad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
         # --- 1. maxAttempts check ---
@@ -196,6 +200,9 @@ class AttemptView(views.APIView):
                 "score": grade_result.score,
                 "feedback": feedback,
                 "correctAnswer": grade_result.correct_answer,
+                # Pauta completa solo post-envío: el frontend la fusiona con
+                # el data sanitizado para mostrar la corrección detallada.
+                "reviewData": parse_activity_data(activity.data),
                 "pointsAwarded": points_awarded,
                 "newBadges": [b.to_dict() for b in new_badges],
                 "unitCompleted": unit_completed,

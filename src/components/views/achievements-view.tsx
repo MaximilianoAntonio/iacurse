@@ -49,7 +49,6 @@ interface LeaderboardEntry {
   rank: number;
   id: string;
   name: string;
-  email: string;
   points: number;
   streak: number;
   avatar: string | null;

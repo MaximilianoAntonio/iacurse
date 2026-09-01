@@ -51,11 +51,17 @@ def start_session(user: User, unit_id: Optional[str] = None) -> StudySession:
     return session
 
 
-def heartbeat(session_id: str) -> Optional[StudySession]:
-    """Actualiza el último heartbeat de una sesión (el frontend lo llama cada 30s)."""
-    try:
-        session = StudySession.objects.get(pk=session_id, is_active=True)
-    except StudySession.DoesNotExist:
+def heartbeat(session_id: str, user: Optional[User] = None) -> Optional[StudySession]:
+    """Actualiza el último heartbeat de una sesión (el frontend lo llama cada 30s).
+
+    Si se pasa ``user``, valida que la sesión le pertenezca (sin esto,
+    cualquier autenticado podría mantener viva la sesión de otro).
+    """
+    qs = StudySession.objects.filter(pk=session_id, is_active=True)
+    if user is not None:
+        qs = qs.filter(user=user)
+    session = qs.first()
+    if session is None:
         return None
 
     now = timezone.now()

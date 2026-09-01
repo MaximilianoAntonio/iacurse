@@ -206,3 +206,40 @@ def grade(activity, answer: str) -> GradeResult:
     if grader is None:
         return grade_default(activity, answer)
     return grader(activity, answer, data)
+
+
+# ---------------------------------------------------------------------------
+# Sanitización de datos de actividad hacia el cliente
+# ---------------------------------------------------------------------------
+# Claves de primer nivel que revelan la respuesta correcta o la pauta.
+_ANSWER_KEYS_TOP = {"correctIndex", "finalAnswer", "autoGradeKeywords", "explanation"}
+# Claves por ítem dentro de las listas de pasos/niveles/preguntas.
+_ANSWER_KEYS_NESTED = {"answer", "explanation"}
+# Listas anidadas que contienen respuestas por ítem.
+_NESTED_LIST_KEYS = ("steps", "levels", "questions")
+
+
+def sanitize_activity_data(data: Any) -> dict:
+    """Copia de ``data`` sin las claves que revelan la respuesta correcta.
+
+    Seguridad: el GET de lección nunca debe exponer ``correctIndex``,
+    ``finalAnswer``, ``autoGradeKeywords`` ni los ``answer``/``explanation``
+    por paso/nivel/pregunta (el estudiante podría leerlos en DevTools y hacer
+    trampa). El cliente recibe la pauta completa solo DESPUÉS de enviar su
+    respuesta, en el campo ``reviewData`` de la respuesta del attempt.
+
+    Se conservan intactas las claves de presentación: options, prompts,
+    hints, rubric, etc.
+    """
+    base = parse_activity_data(data)
+    clean = {k: v for k, v in base.items() if k not in _ANSWER_KEYS_TOP}
+    for list_key in _NESTED_LIST_KEYS:
+        items = clean.get(list_key)
+        if isinstance(items, list):
+            clean[list_key] = [
+                {k: v for k, v in item.items() if k not in _ANSWER_KEYS_NESTED}
+                if isinstance(item, dict)
+                else item
+                for item in items
+            ]
+    return clean

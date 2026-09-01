@@ -1,0 +1,56 @@
+# CI — Plataforma Electromedicina II
+# Verificación mínima por push/PR: tests de backend, lint de frontend y
+# análisis de dependencias (SCA). Los análisis SAST/DAST formales del
+# Departamento de Ciberseguridad (punto 2.7 de los principios DGMTD) se
+# ejecutan sobre el ambiente QA institucional; este pipeline es la barrera
+# de entrada del repositorio.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Tests (pytest, SQLite en memoria)
+        working-directory: backend
+        run: pytest -q
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Instalar dependencias (reproducible)
+        run: npm ci
+      - name: ESLint
+        run: npm run lint
+
+  # SCA: vulnerabilidades conocidas (CVE) en dependencias (punto 2.7)
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: pip-audit (backend)
+        working-directory: backend
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+      - name: npm audit (frontend)
+        # Solo dependencias de producción; severidad alta o crítica
+        run: npm audit --omit=dev --audit-level=high

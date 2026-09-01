@@ -24,11 +24,18 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copiar el resto del código
 COPY . .
 
-# Crear directorio para estáticos
-RUN mkdir -p /app/staticfiles
+# Usuario no-root (hardening 2.3.1 d): la app no corre como root en el contenedor.
+# Los directorios escribibles (media = subidas de docentes, staticfiles del
+# collectstatic) quedan con su propietario correcto; el volumen media_data
+# hereda esta propiedad al inicializarse.
+RUN useradd --system --uid 10001 --create-home appuser \
+    && mkdir -p /app/staticfiles /app/media \
+    && chown -R appuser:appuser /app
 
 # El entrypoint espera a Postgres, migra, carga fixtures y arranca el server
 RUN chmod +x /app/entrypoint.sh
+
+USER appuser
 
 EXPOSE 8000
 

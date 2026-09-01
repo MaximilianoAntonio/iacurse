@@ -43,7 +43,10 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up # dev con hot-
 ```
 
 El entrypoint del backend (`backend/entrypoint.sh`) espera a Postgres, ejecuta
-`migrate`, `collectstatic` y carga fixtures + `seed_demo` si la DB está vacía.
+`migrate`, `collectstatic` y —**solo en dev/debug o con `LOAD_DEMO_DATA=1`**—
+carga fixtures + `seed_demo` si la DB está vacía. En producción el seed está
+bloqueado (las cuentas demo tienen contraseñas públicas del repo); la primera
+cuenta docente se crea manualmente (ver `DEPLOY.md`).
 
 Servicios: frontend http://localhost:3000 · backend http://localhost:8000 ·
 admin Django http://localhost:8000/admin · Postgres localhost:5432.
@@ -105,10 +108,10 @@ Apps Django locales (registradas en `config/settings/base.py`):
 
 | App | Responsabilidad |
 |---|---|
-| `accounts/` | Usuario custom (`accounts.User`, roles `student`/`teacher`). Login por **identificador único**: si contiene `@` busca por email (docentes), si no por `student_code` (estudiantes, anonimizados: sin email/nombre real). Campos `student_code` y `must_change_password` (cambio obligatorio vía `POST /api/auth/change-password`; gate a pantalla completa en el frontend). **No hay registro público**: el docente crea/resetea estudiantes desde `admin_views.py` (`GET/POST /api/admin/students`, `POST /api/admin/students/<id>/reset-password`, IsTeacher; las contraseñas temporales se muestran una sola vez). `/api/me` |
+| `accounts/` | Usuario custom (`accounts.User`, roles `student`/`teacher`). Login por **identificador único**: si contiene `@` busca por email (docentes), si no por `student_code` (estudiantes, anonimizados: sin email/nombre real). Campos `student_code` y `must_change_password` (cambio obligatorio vía `POST /api/auth/change-password`; gate a pantalla completa en el frontend). **No hay registro público**: el docente crea/resetea estudiantes desde `admin_views.py` (`GET/POST /api/admin/students`, `POST /api/admin/students/<id>/reset-password`, IsTeacher; las contraseñas temporales se muestran una sola vez). El login tiene **rate limiting** (scope `login`, 10/min por IP) y **auditoría** de intentos exitosos/fallidos. `GET /api/me` y `GET /api/me/data` (exportación completa de datos del titular — derecho de acceso/portabilidad Ley 21.719) |
 | `curriculum/` | Units, Lessons, Activities, Objectives, Rubrics + **`CourseConfig`** (singleton: preguntas del diagnóstico general y configuración de la prueba de cierre — preguntas MCQ, `final_exam_pass_score`, `final_exam_max_attempts`) |
-| `learning/` | Attempts, Progress, Badges, Bookmarks, `PersonalizedUnit` (unidad adaptada por IA a partir de las respuestas del **diagnóstico general**; `skipped=True` cuando el estudiante usa "Continuar sin personalizar" — POST `/api/units/<id>` con `{action: "adapt"|"skip"}`; el contenido base de la unidad ya no se muestra al estudiante, solo el adaptado por IA; el prompt de adaptación (`learning/ai_services.py`) instruye Markdown enriquecido — tablas GFM, fórmulas KaTeX `$...$`/`$$...$$`, callouts `[!tipo]`, bloques repaso/glosario — manteniendo intactos el separador `## 🔍 Preguntas de Control` y el fallback al contenido base), `CourseDiagnosticResult` (diagnóstico general, OneToOne por usuario; si el docente edita las preguntas desde el Course Builder se borran los resultados y los estudiantes lo repiten), `FinalExamAttempt` (prueba de cierre; endpoints `GET/POST /api/course/final-exam`, desbloqueo con `all_units_completed()` de `learning/services.py`, +100 pts al aprobar), `GET /api/course/status` y `POST /api/course/diagnostic` (gate del estudiante). Lógica de negocio en `grading.py` (5 tipos de actividad, umbrales exactos), `badges.py` (5 reglas), `streak.py` (3 branches) |
-| `telemetry/` | `AccessLog` (middleware), `StudySession` (heartbeat), `EventLog`, alarma de uso diario |
+| `learning/` | Attempts, Progress, Badges, Bookmarks, `PersonalizedUnit` (unidad adaptada por IA a partir de las respuestas del **diagnóstico general**; `skipped=True` cuando el estudiante usa "Continuar sin personalizar" — POST `/api/units/<id>` con `{action: "adapt"|"skip"}`; el contenido base de la unidad ya no se muestra al estudiante, solo el adaptado por IA; el prompt de adaptación (`learning/ai_services.py`) instruye Markdown enriquecido — tablas GFM, fórmulas KaTeX `$...$`/`$$...$$`, callouts `[!tipo]`, bloques repaso/glosario — manteniendo intactos el separador `## 🔍 Preguntas de Control` y el fallback al contenido base), `CourseDiagnosticResult` (diagnóstico general, OneToOne por usuario; si el docente edita las preguntas desde el Course Builder se borran los resultados y los estudiantes lo repiten), `FinalExamAttempt` (prueba de cierre; endpoints `GET/POST /api/course/final-exam`, desbloqueo con `all_units_completed()` de `learning/services.py`, +100 pts al aprobar), `GET /api/course/status` y `POST /api/course/diagnostic` (gate del estudiante). Lógica de negocio en `grading.py` (5 tipos de actividad, umbrales exactos — incluye `sanitize_activity_data`, que quita la pauta del payload de `GET /api/lessons/<id>`; el attempt devuelve la pauta completa solo post-envío en `reviewData`), `badges.py` (5 reglas), `streak.py` (3 branches). Los intentos sobre lecciones en borrador (docente) se rechazan con 404 |
+| `telemetry/` | `AccessLog` (middleware), `StudySession` (heartbeat, valida que la sesión pertenezca al usuario), `EventLog` (con rate limiting, scope `telemetry_events`), alarma de uso diario, **`AuditLog`** (auditoría de seguridad: logins exitosos/fallidos, cambios/reset de contraseña, creación de cuentas, moderación de reportes y cambios de configuración crítica del curso — registrar vía `telemetry/audit.py::log_security_event`) y `manage.py purge_telemetry` (retención configurable: `TELEMETRY_RETENTION_DAYS`/`AUDIT_LOG_RETENTION_DAYS`, default 365 días) |
 | `analytics/` | Panel docente y progreso del estudiante (`aggregations.py`) |
 | `tutor/` | Capa de abstracción de IA en `tutor/ai/` (`base.py`, `factory.py`, `openai_provider.py`, `gemini_provider.py`, `prompts.py`) + `services.py` con `generate_activity_feedback` (retroalimentación de actividades). El chat socrático (modelo ChatMessage y endpoint `/api/tutor`) fue eliminado del producto |
 | `sandbox/` | Course Builder del docente — CRUD admin del currículo live (`/api/admin/units|lessons|activities|objectives|rubrics`, solo docentes), configuración del diagnóstico general (`GET/PATCH /api/admin/course/diagnostic`) y de la prueba de cierre (`GET/PUT /api/admin/course/final-exam`), y `POST /api/uploads` (subida de imágenes para el editor, máx. 5 MB a `MEDIA_ROOT/uploads/`). Sin modelos propios: el flujo sandbox de cursos (Course/QuestionBank/DataResource y `publish_to_curriculum`) fue eliminado del producto |
@@ -172,6 +175,16 @@ el frontend que ya llama a `/api/...` cambiando solo el host base.
   Las tarjetas de unidad (dashboard y listado) son el componente compartido
   `src/components/views/unit-card.tsx`, con progreso real (completed/total y
   mastery de `GET /api/units`).
+- **Seguridad cliente**: `next.config.ts` emite cabeceras de seguridad (CSP,
+  `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`) con
+  el origen del API leído de `NEXT_PUBLIC_API_URL`. El logout (`page.tsx`)
+  borra TODO el almacenamiento local de la sesión (flag, store persistido,
+  borradores, historial de búsqueda) por privacidad en equipos compartidos;
+  solo se conserva la preferencia de tamaño de letra. Las actividades reciben
+  la pauta sanitizada en el GET de lección y la completa solo tras enviar
+  (`reviewData` del attempt). El leaderboard anonimiza a los demás
+  estudiantes (sin email ni códigos ajenos). La búsqueda global no expone
+  borradores a estudiantes.
 - **Editor de contenido docente**: `src/components/ui/markdown-editor.tsx` —
   WYSIWYG basado en **TipTap v2** (`@tiptap/react` + `starter-kit` + `image` +
   `link` + `placeholder` + `table`/`-table-row`/`-table-header`/`-table-cell` +
@@ -248,8 +261,8 @@ Solo el **backend** tiene tests (el frontend no tiene infraestructura de pruebas
 
 ```bash
 cd backend
-pytest                        # todos los tests (~145)
-pytest learning/tests/        # grading / badges / streak / attempt
+pytest                        # todos los tests (~160)
+pytest learning/tests/        # grading / badges / streak / attempt / seguridad
 pytest telemetry/tests/       # telemetría
 pytest -v                     # verbose
 ```
@@ -267,16 +280,24 @@ pytest -v                     # verbose
 - **Secretos**: nunca commitear `.env`. `DJANGO_SECRET_KEY`, `OPENAI_API_KEY`,
   `GEMINI_API_KEY` y credenciales de Postgres se leen de variables de entorno
   (ver `.env.example`). El valor por defecto `dev-insecure-key-change-in-prod`
-  es solo para desarrollo.
+  es solo para desarrollo y **prod.py aborta el arranque si se usa en
+  producción** (`ImproperlyConfigured`).
 - **Autenticación**: sesiones Django por cookie HttpOnly (`SessionAuthentication`),
   `SESSION_COOKIE_AGE` de 7 días; en producción activar `SESSION_COOKIE_SECURE`
-  y `CSRF_COOKIE_SECURE`. El login usa un identificador único: email para
-  docentes (`@uv.cl`), `student_code` para estudiantes — **los estudiantes son
-  anónimos dentro de la plataforma** (sin email ni nombre real; la tabla que
-  mapea código ↔ identidad se mantiene fuera del sistema). No existe registro
-  público: solo el docente crea cuentas (`/api/admin/students`) y resetea
-  contraseñas; toda contraseña temporal fuerza cambio obligatorio
-  (`must_change_password`).
+  y `CSRF_COOKIE_SECURE` (default seguro en prod.py) y, con TLS operativo,
+  `SECURE_SSL_REDIRECT=1` + `SECURE_HSTS_SECONDS=31536000`. El login usa un
+  identificador único: email para docentes (`@uv.cl`), `student_code` para
+  estudiantes — **los estudiantes son anónimos dentro de la plataforma** (sin
+  email ni nombre real; la tabla que mapea código ↔ identidad se mantiene fuera
+  del sistema). No existe registro público: solo el docente crea cuentas
+  (`/api/admin/students`) y resetea contraseñas; toda contraseña temporal fuerza
+  cambio obligatorio (`must_change_password`). El login y la telemetría tienen
+  **rate limiting** (DRF throttling, scopes `login`/`telemetry_events`).
+- **Auditoría de seguridad**: los eventos sensibles (logins exitosos y fallidos,
+  cambios/reset de contraseña, creación de cuentas, moderación de reportes,
+  cambios de configuración crítica) se registran en `telemetry.AuditLog` vía
+  `log_security_event` — cualquier vista nueva con acciones sensibles debe
+  usarlo. La retención se aplica con `manage.py purge_telemetry`.
 - **CORS/CSRF**: orígenes permitidos en `CORS_ALLOWED_ORIGINS` y
   `CSRF_TRUSTED_ORIGINS` (default: localhost:3000); `CORS_ALLOW_CREDENTIALS=True`
   es necesario para las cookies cross-origin. Restringir en producción.
@@ -298,11 +319,16 @@ pytest -v                     # verbose
 ## Despliegue
 
 - **Guía completa**: `DEPLOY.md` (variables obligatorias, cookies según
-  HTTPS/HTTP, verificación, respaldos, **costos estimados de VPS**).
-- **Producción**: `docker compose up --build` — Postgres 16 + gunicorn
-  (3 workers, `config.wsgi:application`) + Next.js standalone
-  (`Dockerfile.frontend` multi-etapa: deps → build → runtime con
-  `node server.js`; la imagen final no incluye `node_modules` completo).
+  HTTPS/HTTP, verificación, respaldos con `backend/scripts/backup.sh`,
+  purga de telemetría, **costos estimados de VPS**).
+- **CI**: `.github/workflows/ci.yml` corre tests de backend, lint de frontend
+  y auditoría de dependencias (pip-audit + npm audit) en cada push/PR.
+- **Producción**: `docker compose up --build` — Postgres 16 (puerto publicado
+  solo en `127.0.0.1`) + gunicorn (3 workers, `config.wsgi:application`) +
+  Next.js standalone (`Dockerfile.frontend` multi-etapa: deps → build →
+  runtime con `node server.js`; la imagen final no incluye `node_modules`
+  completo). Todos los contenedores corren con **usuario no-root**
+  (`appuser`/`node`).
 - **Estáticos y media en prod**: WhiteNoise sirve `/static/` desde gunicorn
   (middleware + `CompressedManifestStaticFilesStorage` en
   `config/settings/prod.py`); `/media/` lo sirve Django vía

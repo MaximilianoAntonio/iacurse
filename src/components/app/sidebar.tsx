@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAppStore } from "@/store/app-store";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,16 @@ export function Sidebar() {
   const toggleNav = useAppStore((s) => s.toggleNav);
 
   const items = navItems.filter((i) => i.roles.includes(role));
+
+  // Accesibilidad (WCAG 2.1.2): el drawer móvil se cierra con Escape
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sidebarOpen, setSidebarOpen]);
 
   // `navCollapsed` solo aplica en desktop (lg+): en móvil el drawer siempre
   // muestra el panel completo (las clases de colapso llevan prefijo lg:).

@@ -11,6 +11,7 @@ from rest_framework.response import Response
 
 from accounts.permissions import IsTeacher
 from learning.models import ErrorReport
+from telemetry.audit import log_security_event
 
 VALID_SOURCES = {"activity", "content", "platform"}
 VALID_REASONS = {"incorrect", "biased", "offtopic", "harmful", "bug", "other"}
@@ -80,4 +81,11 @@ class ReportView(views.APIView):
         if new_status not in VALID_STATUSES:
             return Response({"error": "status inválido"}, status=status.HTTP_400_BAD_REQUEST)
         ErrorReport.objects.filter(pk=report_id).update(status=new_status)
+        log_security_event(
+            "report_moderated",
+            actor=request.user,
+            request=request,
+            target=str(report_id),
+            metadata={"newStatus": new_status},
+        )
         return Response({"ok": True})

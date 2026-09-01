@@ -32,17 +32,27 @@ echo "🗂️  collectstatic..."
 python manage.py collectstatic --noinput || true
 
 # Cargar fixtures solo si no hay usuarios (DB vacía / recién migrada)
+# SEGURIDAD: el seed crea cuentas demo con contraseñas conocidas del repo
+# (docente y estudiantes con "demo1234"). Nunca debe correr en producción:
+# solo en modo dev/debug o si se fuerza explícitamente con LOAD_DEMO_DATA=1.
 USERS_COUNT=$(python manage.py shell -c "from accounts.models import User; print(User.objects.count())" 2>/dev/null | tail -1)
 if [ "$USERS_COUNT" = "0" ]; then
-    echo "🌱 Base de datos vacía. Cargando fixtures demo..."
-    for f in backend/fixtures/*.json fixtures/*.json; do
-        if [ -f "$f" ]; then
-            echo "  → $f"
-            python manage.py loaddata "$f" || echo "  ⚠️  No se pudo cargar $f (continuando)"
-        fi
-    done
-    # Seed demo vía management command si existe
-    python manage.py seed_demo || echo "  ℹ️  seed_demo no disponible aún"
+    if [ "$DJANGO_DEBUG" = "1" ] || [ "$1" = "dev" ] || [ "$LOAD_DEMO_DATA" = "1" ]; then
+        echo "🌱 Base de datos vacía. Cargando fixtures demo (modo desarrollo)..."
+        for f in backend/fixtures/*.json fixtures/*.json; do
+            if [ -f "$f" ]; then
+                echo "  → $f"
+                python manage.py loaddata "$f" || echo "  ⚠️  No se pudo cargar $f (continuando)"
+            fi
+        done
+        # Seed demo vía management command si existe
+        python manage.py seed_demo || echo "  ℹ️  seed_demo no disponible aún"
+    else
+        echo "🔒 DB vacía en modo producción: NO se cargan cuentas demo."
+        echo "   Crea la cuenta docente con:"
+        echo "   docker compose exec backend python manage.py shell -c \"from accounts.models import User; u=User(email='docente@uv.cl', username='docente@uv.cl', name='Docente', role='teacher', is_staff=True); u.set_password('CAMBIA-ESTO'); u.save()\""
+        echo "   (o fuerza el seed SOLO para pruebas con LOAD_DEMO_DATA=1)"
+    fi
 else
     echo "ℹ️  Base de datos ya tiene $USERS_COUNT usuario(s). Saltando carga de fixtures."
 fi

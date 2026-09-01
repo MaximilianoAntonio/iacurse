@@ -69,6 +69,9 @@ server.log
 /.zscripts/
 /.zcode/
 
+# Respaldos de base de datos (contienen datos; nunca versionar)
+/backups/
+
 # Directorios vacios de scaffolding que no aportan al repo
 /mini-services/
 /upload/

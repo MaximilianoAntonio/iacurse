@@ -20,6 +20,29 @@ import type { CourseStatus, User } from "@/lib/types";
 
 type AuthState = "loading" | "authenticated" | "anonymous";
 
+/**
+ * Borra los datos locales de la sesión al cerrarla (privacidad en equipos
+ * compartidos, p. ej. laboratorios): flag de sesión, store persistido con el
+ * perfil del usuario, borradores de respuestas y del editor docente, e
+ * historial de búsqueda. Se conserva la preferencia de tamaño de letra
+ * (`electromed_reader_font`), que es del equipo y no de la persona.
+ */
+function clearLocalSessionData() {
+  if (typeof window === "undefined") return;
+  const exact = ["electromed-session", "electromed-store", "electromed-search-history"];
+  const prefixes = [
+    "electromed_draft_",
+    "electromed_checkpoint_draft_",
+    "electromed_lesson_editor_draft_",
+  ];
+  const toDelete: string[] = [...exact];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && prefixes.some((p) => key.startsWith(p))) toDelete.push(key);
+  }
+  toDelete.forEach((k) => localStorage.removeItem(k));
+}
+
 export default function Home() {
   const setUser = useAppStore((s) => s.setUser);
   const [authState, setAuthState] = useState<AuthState>("loading");
@@ -64,9 +87,7 @@ export default function Home() {
   // durante la transición authenticated→fetch, que causaba un bucle de login.
   useEffect(() => {
     if (authState === "authenticated" && error && !meData?.user) {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("electromed-session");
-      }
+      clearLocalSessionData();
       setAuthState("anonymous");
     }
   }, [authState, error, meData]);
@@ -80,9 +101,7 @@ export default function Home() {
   };
 
   const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("electromed-session");
-    }
+    clearLocalSessionData();
     setUser(null);
     setPasswordChanged(false);
     setDiagnosticDone(false);

@@ -1,0 +1,3 @@
+# Los scripts shell deben mantener finales de línea LF: con CRLF el shebang
+# (#!/bin/sh\r) falla dentro del contenedor Linux ("no such file or directory").
+*.sh text eol=lf

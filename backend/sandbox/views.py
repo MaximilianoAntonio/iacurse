@@ -24,6 +24,7 @@ from curriculum.models import (
     Unit,
 )
 from learning.models import CourseDiagnosticResult, Progress
+from telemetry.audit import log_security_event
 
 
 # ---------------------------------------------------------------------------
@@ -446,7 +447,14 @@ class AdminCourseDiagnosticView(views.APIView):
         config.diagnostic_questions = clean
         config.save(update_fields=["diagnostic_questions"])
         # Invalida las respuestas existentes: los estudiantes repiten el diagnóstico.
-        CourseDiagnosticResult.objects.all().delete()
+        deleted_count, _ = CourseDiagnosticResult.objects.all().delete()
+        log_security_event(
+            "course_config_changed",
+            actor=request.user,
+            request=request,
+            target="diagnostic_questions",
+            metadata={"questions": len(clean), "diagnosticsInvalidated": deleted_count},
+        )
         return Response({"ok": True, "questions": clean})
 
 
@@ -535,4 +543,15 @@ class AdminFinalExamView(views.APIView):
         config.save(update_fields=[
             "final_exam_questions", "final_exam_pass_score", "final_exam_max_attempts",
         ])
+        log_security_event(
+            "course_config_changed",
+            actor=request.user,
+            request=request,
+            target="final_exam",
+            metadata={
+                "questions": len(clean_questions),
+                "passScore": pass_score,
+                "maxAttempts": max_attempts,
+            },
+        )
         return Response({"ok": True})

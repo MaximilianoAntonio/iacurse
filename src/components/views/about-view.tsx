@@ -63,6 +63,18 @@ const ETHICS_POINTS: string[] = [
   "Evaluación por el Comité de Ética de la Universidad de Valparaíso.",
 ];
 
+// Tratamiento de datos personales (Ley N°19.628, y N°21.719 desde dic-2026).
+// Texto base referencial: el contenido definitivo debe validarse con el/la
+// Delegado/a de Protección de Datos (DPO) de la Universidad.
+const PRIVACY_POINTS: string[] = [
+  "Finalidad: los datos se usan solo para operar la plataforma (progreso, personalización y retroalimentación) y para la investigación del piloto.",
+  "Minimización: los estudiantes se identifican con un código anonimizado; no se solicitan nombres ni correos reales dentro de la plataforma.",
+  "Se registran datos de uso (accesos, tiempo de interacción y eventos de navegación) para el seguimiento docente y la investigación.",
+  "Las respuestas que escribes pueden ser procesadas por servicios externos de inteligencia artificial (OpenAI/Gemini) para generar retroalimentación y personalizar el contenido; no incluyas datos personales en ellas.",
+  "Tus derechos: puedes solicitar acceso, rectificación, cancelación u oposición sobre tus datos. Puedes exportar tus datos desde la plataforma (GET /api/me/data) o canalizar solicitudes a través del docente del curso.",
+  "Ante incidentes que afecten datos personales se informará conforme a la normativa vigente.",
+];
+
 // ---------- Componente principal ----------
 
 export function AboutView() {
@@ -152,6 +164,21 @@ export function AboutView() {
           proceso de aprendizaje en comparación con el método tradicional de
           enseñanza durante una experiencia piloto de innovación educativa?”
         </blockquote>
+      </section>
+
+      {/* ---------- Privacidad y protección de datos ---------- */}
+      <section className="space-y-4 border-t border-border pt-8">
+        <h2 className="font-display text-title font-semibold">
+          Privacidad y protección de datos
+        </h2>
+        <ul className="stagger-children space-y-3">
+          {PRIVACY_POINTS.map((p) => (
+            <li key={p} className="flex items-start gap-2.5">
+              <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+              <span className="text-sm leading-relaxed">{p}</span>
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );

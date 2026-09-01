@@ -5,8 +5,9 @@
 # ============================================================================
 
 # --- Framework principal ---
-Django>=5.0,<5.2
-djangorestframework>=3.15,<3.16
+# Rama LTS con parches de seguridad hasta abril 2028 (5.1 quedó EOL en dic-2025)
+Django>=5.2,<5.3
+djangorestframework>=3.15,<3.17
 
 # --- Base de datos PostgreSQL (lineamiento: PostgreSQL/MySQL) ---
 psycopg[binary]>=3.1,<4.0

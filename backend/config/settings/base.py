@@ -237,6 +237,19 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    # Rate limiting (2.9: protección contra abuso/fuerza bruta). Los scopes
+    # específicos se asignan por vista (login, telemetría). En tests se
+    # elevan los límites (ver config/settings/test.py).
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.environ.get("THROTTLE_ANON", "60/minute"),
+        "user": os.environ.get("THROTTLE_USER", "600/minute"),
+        "login": os.environ.get("THROTTLE_LOGIN", "10/minute"),
+        "telemetry_events": os.environ.get("THROTTLE_TELEMETRY", "240/minute"),
+    },
 }
 
 
@@ -264,3 +277,37 @@ TELEMETRY_LOG_PATHS_EXACT = {"/api/telemetry/session/heartbeat", "/api/health"}
 TELEMETRY_LOG_PATH_PREFIXES = ("/static/", "/admin/jsi18n/", "/api/telemetry/session/heartbeat")
 # Umbral de alarma de uso diario (lineamiento: "sistema de alarma si sobrepasa umbral")
 TELEMETRY_DAILY_USAGE_ALERT_MIN = int(os.environ.get("TELEMETRY_DAILY_USAGE_ALERT_MIN", "360"))
+
+# Retención de registros (política de trazabilidad 2.9: 12 meses en caliente).
+# ``manage.py purge_telemetry`` aplica estos plazos; el archivo en frío
+# (24 meses) es responsabilidad de la operación (respaldos de la DB).
+TELEMETRY_RETENTION_DAYS = int(os.environ.get("TELEMETRY_RETENTION_DAYS", "365"))
+AUDIT_LOG_RETENTION_DAYS = int(os.environ.get("AUDIT_LOG_RETENTION_DAYS", "365"))
+
+
+# ---------------------------------------------------------------------------
+# Logging — salida estructurada a stdout (recolectable por Docker/gunicorn)
+# ---------------------------------------------------------------------------
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        # Errores de request (5xx) y de seguridad de Django
+        "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "django.security": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        # Canal de auditoría de seguridad (telemetry.audit)
+        "security": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}

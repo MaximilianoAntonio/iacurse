@@ -17,6 +17,8 @@ urlpatterns = [
     ),
     # Usuario actual
     path("me", views.MeView.as_view(), name="me"),
+    # Exportación de datos personales (derecho de acceso/portabilidad)
+    path("me/data", views.MeDataExportView.as_view(), name="me-data"),
     # Gestión de estudiantes (solo docentes)
     path("admin/students", admin_views.StudentsAdminView.as_view(), name="admin-students"),
     path(

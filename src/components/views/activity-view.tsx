@@ -127,6 +127,8 @@ interface AttemptResult {
     score: number;
     feedback: string;
     correctAnswer: string;
+    /** Pauta completa (respuestas correctas) — solo llega tras el envío. */
+    reviewData?: Record<string, any>;
     pointsAwarded: number;
     newBadges?: BadgeAwardInfo[];
     unitCompleted?: boolean;
@@ -140,6 +142,8 @@ interface ActivityComponentProps {
   activity: Activity;
   submitted: boolean;
   submitting: boolean;
+  /** Pauta completa post-envío (el GET de lección la entrega sanitizada). */
+  reviewData?: Record<string, any> | null;
   onSubmit: (answer: string) => void;
   onHintUsed?: () => void;
 }
@@ -626,6 +630,7 @@ function ActivityInner(props: ActivityInnerProps) {
             activity={activity}
             submitted={submitted}
             submitting={submitting}
+            reviewData={result?.reviewData ?? null}
             onSubmit={handleSubmit}
             onHintUsed={() => setHintsUsed((n) => n + 1)}
           />
@@ -696,13 +701,15 @@ function MultipleChoiceActivity({
   activity,
   submitted,
   submitting,
+  reviewData,
   onSubmit,
   onHintUsed,
 }: ActivityComponentProps) {
-  const data = useMemo(
-    () => parseActivityData<MultipleChoiceData>(activity.data),
-    [activity.data]
-  );
+  const data = useMemo(() => {
+    const base = parseActivityData<MultipleChoiceData>(activity.data);
+    // La pauta completa solo está disponible después de enviar (reviewData)
+    return submitted && reviewData ? { ...base, ...reviewData } : base;
+  }, [activity.data, submitted, reviewData]);
   const options = data.options ?? [];
   const hints = (data.hints ?? []).slice(0, 2); // Máximo 2 pistas
   const MAX_HINTS = 2;
@@ -853,13 +860,14 @@ function GuidedProblemActivity({
   activity,
   submitted,
   submitting,
+  reviewData,
   onSubmit,
   onHintUsed,
 }: ActivityComponentProps) {
-  const data = useMemo(
-    () => parseActivityData<GuidedProblemData>(activity.data),
-    [activity.data]
-  );
+  const data = useMemo(() => {
+    const base = parseActivityData<GuidedProblemData>(activity.data);
+    return submitted && reviewData ? { ...base, ...reviewData } : base;
+  }, [activity.data, submitted, reviewData]);
   const steps = data.steps ?? [];
 
   // Autoguardado: las respuestas sobreviven a la navegación dentro de la app
@@ -1050,12 +1058,13 @@ function CaseAnalysisActivity({
   activity,
   submitted,
   submitting,
+  reviewData,
   onSubmit,
 }: ActivityComponentProps) {
-  const data = useMemo(
-    () => parseActivityData<CaseAnalysisData>(activity.data),
-    [activity.data]
-  );
+  const data = useMemo(() => {
+    const base = parseActivityData<CaseAnalysisData>(activity.data);
+    return submitted && reviewData ? { ...base, ...reviewData } : base;
+  }, [activity.data, submitted, reviewData]);
   const questions = data.questions ?? [];
 
   // Autoguardado: análisis largos protegidos ante navegación accidental
@@ -1189,12 +1198,13 @@ function ProgressiveExerciseActivity({
   activity,
   submitted,
   submitting,
+  reviewData,
   onSubmit,
 }: ActivityComponentProps) {
-  const data = useMemo(
-    () => parseActivityData<ProgressiveExerciseData>(activity.data),
-    [activity.data]
-  );
+  const data = useMemo(() => {
+    const base = parseActivityData<ProgressiveExerciseData>(activity.data);
+    return submitted && reviewData ? { ...base, ...reviewData } : base;
+  }, [activity.data, submitted, reviewData]);
   const levels = data.levels ?? [];
 
   // Autoguardado de respuestas por nivel
@@ -1318,12 +1328,13 @@ function SelfAssessmentActivity({
   activity,
   submitted,
   submitting,
+  reviewData,
   onSubmit,
 }: ActivityComponentProps) {
-  const data = useMemo(
-    () => parseActivityData<SelfAssessmentData>(activity.data),
-    [activity.data]
-  );
+  const data = useMemo(() => {
+    const base = parseActivityData<SelfAssessmentData>(activity.data);
+    return submitted && reviewData ? { ...base, ...reviewData } : base;
+  }, [activity.data, submitted, reviewData]);
   const rubric = data.rubric ?? [];
   const keywords = data.autoGradeKeywords ?? [];
 

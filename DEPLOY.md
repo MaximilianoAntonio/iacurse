@@ -21,7 +21,7 @@ Editar `.env` y ajustar **obligatoriamente**:
 |---|---|
 | `DJANGO_MODE` | `prod` |
 | `DJANGO_DEBUG` | `0` |
-| `DJANGO_SECRET_KEY` | generar uno nuevo: `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
+| `DJANGO_SECRET_KEY` | **Obligatoria en prod** (el backend no arranca con la clave de desarrollo): `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
 | `POSTGRES_PASSWORD` | password fuerte (no el default `electromed`) |
 | `DJANGO_ALLOWED_HOSTS` | dominio/IP del servidor, p. ej. `midominio.uv.cl,backend` |
 | `CORS_ALLOWED_ORIGINS` | URL pública del frontend, p. ej. `https://midominio.uv.cl` |
@@ -54,15 +54,30 @@ docker compose logs -f backend
 ```
 
 El entrypoint del backend espera a Postgres, corre `migrate`, `collectstatic`
-y, si la base está vacía, carga fixtures + `seed_demo` (crea las cuentas demo
-— **cambiar sus passwords o eliminarlas si no se quieren en producción**).
+y, **solo en modo dev/debug (o con `LOAD_DEMO_DATA=1`)**, si la base está
+vacía carga fixtures + `seed_demo`. En producción el seed está bloqueado
+(las cuentas demo tienen contraseñas públicas del repo). Para crear la
+primera cuenta docente en producción:
+
+```bash
+docker compose exec backend python manage.py shell -c "
+from accounts.models import User
+u = User(email='docente@uv.cl', username='docente@uv.cl', name='Docente', role='teacher', is_staff=True)
+u.set_password('<password-inicial-fuerte>')
+u.save()"
+```
+
+Luego, desde el panel docente, crear las cuentas de estudiantes (cada una
+con contraseña temporal de un solo uso y cambio obligatorio).
 
 ## 4. Verificación
 
 - `curl http://localhost:8000/api/health` → `{"status": "ok", ...}`
 - Frontend: `http://<servidor>:3000`
 - Admin Django: `http://<servidor>:8000/admin` (con CSS — servido por WhiteNoise)
-- Login con una cuenta demo y navegación básica.
+- Login con la cuenta docente creada y navegación básica.
+- Postgres **no** debe ser visible desde fuera: `docker compose port db 5432`
+  debe mostrar solo `127.0.0.1` como publicación.
 
 ## 5. Datos persistentes
 
@@ -71,10 +86,22 @@ Dos volúmenes nombrados; respaldarlos para no perder información:
 - `postgres_data` — base de datos completa.
 - `media_data` — imágenes subidas por docentes desde el Course Builder.
 
-Respaldo rápido de la base:
+Respaldo automatizado (script incluido en el repo, con retención de 30 días):
 
 ```bash
-docker exec electromed-db pg_dump -U electromed electromed > backup.sql
+# Desde la raíz del proyecto en el servidor:
+sh backend/scripts/backup.sh
+# Cron diario sugerido (03:23) — los respaldos son además el archivo en frío
+# de los logs de auditoría/telemetría (política de retención 12m + 24m):
+#   23 3 * * *  cd /ruta/iacurse && sh backend/scripts/backup.sh >> /var/log/electromed-backup.log 2>&1
+```
+
+Purga periódica de registros según la política de retención (12 meses en
+caliente; `TELEMETRY_RETENTION_DAYS` / `AUDIT_LOG_RETENTION_DAYS`):
+
+```bash
+docker compose exec backend python manage.py purge_telemetry
+# Programar p. ej. semanal:  41 4 * * 0  cd /ruta/iacurse && docker compose exec -T backend python manage.py purge_telemetry
 ```
 
 ## 6. Notas operativas
@@ -229,17 +256,32 @@ curl http://localhost:8000/api/health
 
 App: `http://<IP>:3000`. Si más adelante hay dominio, poner Caddy delante
 (puertos 80/443, TLS automático) y revertir las cookies a
-`SECURE=1`/`SAMESITE=None`.
+`SECURE=1`/`SAMESITE=None`. **Con TLS operativo**, activar además en `.env`:
+
+```env
+SECURE_SSL_REDIRECT=1
+SECURE_HSTS_SECONDS=31536000
+```
+
+Nota de seguridad: operar por HTTP plano expone credenciales y cookies de
+sesión en tránsito; para información clasificada como Confidencial (datos
+personales y registros académicos) la política institucional exige TLS 1.2+
+— el despliegue definitivo debe ir detrás de HTTPS.
 
 ### 8.4 Respaldos
 
 ```bash
-# cron diario en la VM; copiar backup.sql periódicamente a otro lado (scp/drive)
-docker exec electromed-db pg_dump -U electromed electromed > backup.sql
+# Script del repo (retención 30 días, configurable con BACKUP_RETENTION_DAYS):
+sh backend/scripts/backup.sh
+# cron diario en la VM; copiar los .sql.gz periódicamente a otro lado (scp/drive)
 ```
 
 Alternativa: activar los backups automáticos del proveedor (Hetzner/DO: +20%
-del plan; OVH: incluidos). Para restaurar: `psql < backup.sql` sobre la base.
+del plan; OVH: incluidos). Para restaurar:
+
+```bash
+gunzip -c backups/electromed_YYYYMMDD_HHMMSS.sql.gz | docker compose exec -T db psql -U electromed -d electromed
+```
 
 ### 8.5 Control de costos
 

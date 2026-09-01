@@ -15,8 +15,12 @@ from django.contrib.auth import get_user_model, login, logout
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from rest_framework import views
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+
+from telemetry.audit import log_security_event
 
 from .serializers import ChangePasswordSerializer, LoginSerializer
 
@@ -54,16 +58,31 @@ class CsrfTokenView(views.APIView):
 
 
 class LoginView(views.APIView):
-    """Login por identificador (email docente o código estudiante) + password."""
+    """Login por identificador (email docente o código estudiante) + password.
+
+    Protegido con rate limiting (scope ``login``) contra fuerza bruta y
+    registra en auditoría los intentos exitosos y fallidos (2.9).
+    """
 
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError:
+            log_security_event(
+                "login_failed",
+                request=request,
+                target=str(request.data.get("identifier", ""))[:255],
+            )
+            raise
         user = serializer.validated_data["user"]
         login(request, user)
+        log_security_event("login_success", actor=user, request=request)
         # last_active se actualiza vía middleware, pero forzamos en login
         User.objects.filter(pk=user.pk).update(last_active=timezone.now())
         return Response({"user": _serialize_user(user)})
@@ -97,6 +116,7 @@ class ChangePasswordView(views.APIView):
         user.set_password(serializer.validated_data["newPassword"])
         user.must_change_password = False
         user.save(update_fields=["password", "must_change_password", "updated_at"])
+        log_security_event("password_change", actor=user, request=request)
         return Response({"ok": True})
 
 
@@ -111,3 +131,129 @@ class MeView(views.APIView):
 
     def get(self, request):
         return Response({"user": _serialize_user(request.user)})
+
+
+class MeDataExportView(views.APIView):
+    """GET /api/me/data — exportación de todos los datos del usuario autenticado.
+
+    Implementa el derecho de acceso y portabilidad del titular (Ley N°21.719):
+    entrega en un solo JSON el perfil, la actividad académica y la telemetría
+    asociada a la cuenta, en formato estructurado y legible por máquina.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Imports locales para no acoplar accounts al resto de apps en import-time
+        from learning.models import (
+            Bookmark,
+            CourseDiagnosticResult,
+            ErrorReport,
+            FinalExamAttempt,
+            PersonalizedUnit,
+            Progress,
+            StudySession,
+            UserBadge,
+        )
+        from telemetry.models import AccessLog, EventLog
+
+        user = request.user
+        attempts = [
+            {
+                "activityId": a.activity_id,
+                "answer": a.answer,
+                "score": a.score,
+                "correct": a.correct,
+                "feedback": a.feedback,
+                "timeSpent": a.time_spent,
+                "hintsUsed": a.hints_used,
+                "createdAt": a.created_at.isoformat(),
+            }
+            for a in user.attempts.order_by("-created_at")
+        ]
+        data = {
+            "exportedAt": timezone.now().isoformat(),
+            "profile": _serialize_user(user),
+            "attempts": attempts,
+            "progress": [
+                {
+                    "unitId": p.unit_id,
+                    "completed": p.completed,
+                    "total": p.total,
+                    "mastery": p.mastery,
+                    "lastVisited": p.last_visited.isoformat() if p.last_visited else None,
+                }
+                for p in Progress.objects.filter(user=user)
+            ],
+            "badges": [
+                {"badge": ub.badge.slug, "awardedAt": ub.awarded_at.isoformat()}
+                for ub in UserBadge.objects.filter(user=user).select_related("badge")
+            ],
+            "bookmarks": [
+                {"activityId": b.activity_id, "createdAt": b.created_at.isoformat()}
+                for b in Bookmark.objects.filter(user=user)
+            ],
+            "studySessions": [
+                {
+                    "unitId": s.unit_id,
+                    "startedAt": s.started_at.isoformat(),
+                    "endedAt": s.ended_at.isoformat() if s.ended_at else None,
+                    "durationSec": s.duration,
+                }
+                for s in StudySession.objects.filter(user=user).order_by("-started_at")
+            ],
+            "courseDiagnostic": (
+                lambda d: {"answers": d.answers, "createdAt": d.created_at.isoformat()} if d else None
+            )(CourseDiagnosticResult.objects.filter(user=user).first()),
+            "personalizedUnits": [
+                {
+                    "unitId": p.unit_id,
+                    "diagnosticAnswers": p.diagnostic_answers,
+                    "adaptedContent": p.adapted_content,
+                    "skipped": p.skipped,
+                }
+                for p in PersonalizedUnit.objects.filter(user=user)
+            ],
+            "finalExamAttempts": [
+                {
+                    "answers": f.answers,
+                    "score": f.score,
+                    "passed": f.passed,
+                    "createdAt": f.created_at.isoformat(),
+                }
+                for f in FinalExamAttempt.objects.filter(user=user).order_by("-created_at")
+            ],
+            "errorReports": [
+                {
+                    "source": r.source,
+                    "sourceId": r.source_id,
+                    "reason": r.reason,
+                    "comment": r.comment,
+                    "status": r.status,
+                    "createdAt": r.created_at.isoformat(),
+                }
+                for r in ErrorReport.objects.filter(user=user).order_by("-created_at")
+            ],
+            "telemetry": {
+                "accessLog": [
+                    {
+                        "ip": l.ip,
+                        "userAgent": l.user_agent,
+                        "path": l.path,
+                        "method": l.method,
+                        "statusCode": l.status_code,
+                        "createdAt": l.created_at.isoformat(),
+                    }
+                    for l in AccessLog.objects.filter(user=user).order_by("-created_at")[:5000]
+                ],
+                "events": [
+                    {
+                        "eventType": e.event_type,
+                        "metadata": e.metadata,
+                        "createdAt": e.created_at.isoformat(),
+                    }
+                    for e in EventLog.objects.filter(user=user).order_by("-created_at")[:5000]
+                ],
+            },
+        }
+        return Response(data)

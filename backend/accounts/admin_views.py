@@ -19,6 +19,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import status, views
 from rest_framework.response import Response
 
+from telemetry.audit import log_security_event
+
 from .permissions import IsTeacher
 
 User = get_user_model()
@@ -138,6 +140,9 @@ class StudentsAdminView(views.APIView):
             created.append(
                 {"studentCode": code, "temporaryPassword": temp_password}
             )
+            log_security_event(
+                "student_created", actor=request.user, request=request, target=code
+            )
 
         return Response(
             {"created": created, "errors": errors},
@@ -162,6 +167,12 @@ class StudentResetPasswordView(views.APIView):
         student.set_password(temp_password)
         student.must_change_password = True
         student.save(update_fields=["password", "must_change_password", "updated_at"])
+        log_security_event(
+            "password_reset_admin",
+            actor=request.user,
+            request=request,
+            target=student.student_code or str(student.pk),
+        )
         return Response(
             {
                 "studentCode": student.student_code,

@@ -52,22 +52,32 @@ class ProgressView(views.APIView):
 
 
 class LeaderboardView(views.APIView):
-    """GET /api/leaderboard — ranking de estudiantes por puntos."""
+    """GET /api/leaderboard — ranking de estudiantes por puntos.
+
+    Privacidad (minimización 6.2): el ``name`` de un estudiante es su
+    ``student_code`` —que además es su identificador de login—, así que a los
+    demás estudiantes se les muestra anonimizado. El docente, que ya administra
+    los códigos, los ve completos. Nunca se expone el email (placeholder que
+    también contiene el código).
+    """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         students = User.objects.filter(role=User.ROLE_STUDENT).order_by("-points", "name")
+        viewer_is_teacher = getattr(request.user, "is_teacher", False)
         ranking = []
         for rank, s in enumerate(students, start=1):
             completed = (
                 s.attempts.filter(correct=True).values("activity_id").distinct().count()
             )
+            visible = viewer_is_teacher or s.pk == request.user.pk
             ranking.append({
                 "rank": rank,
-                "id": s.id, "name": s.name, "email": s.email,
+                "id": s.id,
+                "name": s.name if visible else "Participante anónimo",
                 "points": s.points, "streak": s.streak,
-                "avatar": s.avatar or None,
+                "avatar": (s.avatar or None) if visible else None,
                 "completedActivities": completed,
             })
         return Response({"leaderboard": ranking})

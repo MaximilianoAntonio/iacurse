@@ -12,6 +12,7 @@ al estudiante vía ``GET /api/notifications``.
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from . import services
 from .models import EventLog
@@ -30,6 +31,9 @@ class EventView(views.APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    # Límite anti-inflado de la DB (2.9: protección contra abuso)
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "telemetry_events"
 
     VALID_TYPES = {code for code, _ in EventLog.EVENT_TYPES}
 
@@ -96,7 +100,7 @@ class SessionHeartbeatView(views.APIView):
             return Response(
                 {"error": "Falta sessionId"}, status=status.HTTP_400_BAD_REQUEST
             )
-        session = services.heartbeat(session_id)
+        session = services.heartbeat(session_id, user=request.user)
         if session is None:
             return Response(
                 {"error": "Sesión no encontrada o finalizada"},

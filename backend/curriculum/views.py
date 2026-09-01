@@ -11,6 +11,7 @@ from rest_framework.response import Response
 
 from learning.models import CourseDiagnosticResult, Progress, PersonalizedUnit
 from learning.ai_services import adapt_unit_for_student
+from learning.grading import sanitize_activity_data
 from .models import Activity, Lesson, Unit
 
 
@@ -242,7 +243,10 @@ class LessonDetailView(views.APIView):
         for a in lesson.activities.order_by("order"):
             act_dict = {
                 "id": a.id, "type": a.type, "title": a.title, "prompt": a.prompt,
-                "data": a.data, "points": a.points, "difficulty": a.difficulty,
+                # Nunca exponer la pauta (correctIndex, answers, keywords) al
+                # cliente: llega solo tras el envío, en reviewData del attempt.
+                "data": sanitize_activity_data(a.data),
+                "points": a.points, "difficulty": a.difficulty,
                 "order": a.order, "assessmentType": a.assessment_type,
                 "bloomLevel": a.bloom_level, "maxAttempts": a.max_attempts,
                 "masteryThreshold": a.mastery_threshold, "weight": a.weight,

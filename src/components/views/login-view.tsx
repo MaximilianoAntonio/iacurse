@@ -150,6 +150,8 @@ export function LoginView({ onLogin }: LoginViewProps) {
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="EM-0001 o nombre@uv.cl"
                 autoComplete="username"
+                aria-invalid={!!error}
+                aria-describedby={error ? "login-error" : undefined}
               />
             </div>
 
@@ -164,11 +166,14 @@ export function LoginView({ onLogin }: LoginViewProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                aria-invalid={!!error}
+                aria-describedby={error ? "login-error" : undefined}
               />
             </div>
 
             {error && (
               <div
+                id="login-error"
                 role="alert"
                 className="flex items-start gap-2.5 rounded-md bg-destructive/10 px-3 py-2.5 text-sm text-destructive animate-fade-in"
               >

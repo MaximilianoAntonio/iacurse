@@ -98,3 +98,54 @@ class EventLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.event_type} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class AuditLog(models.Model):
+    """Registro de auditoría de eventos de seguridad.
+
+    Cubre los eventos obligatorios de la política de trazabilidad
+    (autenticaciones exitosas y fallidas, cambios de contraseña, resets por
+    el docente, creación de cuentas, moderación de reportes y cambios de
+    configuración crítica del curso). A diferencia de AccessLog/EventLog
+    (telemetría pedagógica), esta tabla es la evidencia auditable ante un
+    incidente: NO se edita ni se borra desde la aplicación; la retención se
+    gestiona con ``manage.py purge_telemetry``.
+    """
+
+    EVENT_TYPES = [
+        ("login_success", "Inicio de sesión exitoso"),
+        ("login_failed", "Inicio de sesión fallido"),
+        ("password_change", "Cambio de contraseña"),
+        ("password_reset_admin", "Reset de contraseña por docente"),
+        ("student_created", "Creación de cuenta de estudiante"),
+        ("report_moderated", "Moderación de reporte"),
+        ("course_config_changed", "Cambio de configuración del curso"),
+    ]
+
+    # Quien ejecuta la acción (null en login_failed sin usuario válido)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="audit_events",
+        null=True,
+        blank=True,
+    )
+    event_type = models.CharField("tipo de evento", max_length=32, choices=EVENT_TYPES, db_index=True)
+    # Descripción del objetivo (p. ej. código de estudiante afectado);
+    # nunca contiene contraseñas ni datos de credenciales.
+    target = models.CharField("objetivo", max_length=255, blank=True, default="")
+    ip = models.GenericIPAddressField("IP", null=True, blank=True)
+    metadata = models.JSONField("metadatos", default=dict, blank=True)
+    created_at = models.DateTimeField("fecha/hora", auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "evento de auditoría"
+        verbose_name_plural = "eventos de auditoría"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["actor", "-created_at"]),
+            models.Index(fields=["event_type", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.event_type} @ {self.created_at:%Y-%m-%d %H:%M}"

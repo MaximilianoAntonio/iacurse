@@ -33,6 +33,11 @@ class SearchView(views.APIView):
             .values_list("activity_id", flat=True)
         )
 
+        # Los borradores del docente (is_published=False) no son contenido
+        # visible para estudiantes; el docente sí puede encontrarlos.
+        show_drafts = getattr(request.user, "is_teacher", False)
+        draft_filter = {} if show_drafts else {"is_published": True}
+
         units = []
         for u in Unit.objects.filter(
             Q(title__icontains=q) | Q(summary__icontains=q) | Q(description__icontains=q)
@@ -46,7 +51,8 @@ class SearchView(views.APIView):
 
         lessons = []
         for l in Lesson.objects.select_related("unit").filter(
-            Q(title__icontains=q) | Q(description__icontains=q) | Q(content__icontains=q)
+            Q(title__icontains=q) | Q(description__icontains=q) | Q(content__icontains=q),
+            **draft_filter,
         ):
             lessons.append({
                 "id": l.id, "title": l.title,
@@ -60,8 +66,10 @@ class SearchView(views.APIView):
             })
 
         activities = []
+        activity_draft_filter = {} if show_drafts else {"lesson__is_published": True}
         for a in Activity.objects.select_related("lesson__unit").filter(
-            Q(title__icontains=q) | Q(prompt__icontains=q)
+            Q(title__icontains=q) | Q(prompt__icontains=q),
+            **activity_draft_filter,
         ):
             activities.append({
                 "id": a.id, "title": a.title, "type": a.type,

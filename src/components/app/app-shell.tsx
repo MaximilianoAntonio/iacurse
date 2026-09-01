@@ -38,6 +38,13 @@ export function AppShell({ onLogout }: AppShellProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {/* Salto al contenido (WCAG 2.4.1): visible solo al recibir foco */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg"
+      >
+        Saltar al contenido principal
+      </a>
       <Sidebar />
       {/* El main se empuja según el sidebar: panel completo (w-72) o mini-rail (w-16) en desktop */}
       <div
@@ -46,7 +53,7 @@ export function AppShell({ onLogout }: AppShellProps) {
         }`}
       >
         <Header onLogout={onLogout} />
-        <main className="flex-1" key={view}>
+        <main id="main-content" className="flex-1" key={view} tabIndex={-1}>
           <div className="animate-fade-in-up">
             <ViewRouter />
           </div>
