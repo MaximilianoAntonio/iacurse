@@ -93,6 +93,7 @@ interface CurriculumUnitDetail {
       weight: number;
       timeLimitMin: number | null;
       rubricId: string | null;
+      objectiveIds: string[];
     }[];
   }[];
 }
@@ -715,6 +716,7 @@ function CurriculumUnitEditor({ unitId, onBack }: { unitId: string; onBack: () =
                                     weight: act.weight,
                                     timeLimitMin: act.timeLimitMin,
                                     rubricId: act.rubricId,
+                                    objectiveIds: act.objectiveIds,
                                   }
                                 })}
                               >

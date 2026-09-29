@@ -170,7 +170,9 @@ def grade_self_assessment(activity, answer: str, data: dict) -> GradeResult:
                 total_weight += c.get("weight", 1)
             rubric_score = weighted_score / total_weight if total_weight > 0 else 0
             ratio = (ratio + rubric_score) / 2  # promedio keyword + rubric
-        except (json.JSONDecodeError, TypeError, KeyError):
+        except (json.JSONDecodeError, TypeError, KeyError, AttributeError):
+            # AttributeError: criteria con forma inesperada (dict en vez de
+            # lista, ítems no-dict) editada a mano desde el Course Builder.
             pass  # mantener solo ratio de keywords
 
     is_correct = ratio >= 0.4 and len(answer) > 40

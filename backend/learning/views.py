@@ -52,8 +52,16 @@ class AttemptView(views.APIView):
         answer = body.get("answer")
         if not answer:
             return Response({"error": "Faltan answer"}, status=status.HTTP_400_BAD_REQUEST)
-        time_spent = body.get("timeSpent")
-        hints_used = body.get("hintsUsed", 0)
+        # Coerción defensiva: un cliente que envíe texto no numérico no debe
+        # provocar un 500 al guardar el IntegerField (Postgres rechaza str).
+        try:
+            time_spent = int(body.get("timeSpent")) if body.get("timeSpent") is not None else None
+        except (TypeError, ValueError):
+            time_spent = None
+        try:
+            hints_used = int(body.get("hintsUsed", 0) or 0)
+        except (TypeError, ValueError):
+            hints_used = 0
 
         # Cargar actividad con relaciones
         try:
@@ -126,7 +134,9 @@ class AttemptView(views.APIView):
             )
 
             # --- 6. Progress upsert ---
-            total_activities = Activity.objects.filter(lesson__unit=unit).count()
+            total_activities = Activity.objects.filter(
+                lesson__unit=unit, lesson__is_published=True
+            ).count()
             correct_activities = (
                 Attempt.objects.filter(user=user, activity__lesson__unit=unit, correct=True)
                 .values("activity_id").distinct().count()
@@ -186,10 +196,10 @@ class AttemptView(views.APIView):
         # Re-leer puntos frescos
         user.refresh_from_db()
 
-        # attemptsRemaining
+        # attemptsRemaining: new_count ya incluye el intento recién creado.
         if activity.max_attempts > 0:
             new_count = Attempt.objects.filter(user=user, activity=activity).count()
-            attempts_remaining = max(0, activity.max_attempts - 1 - new_count)
+            attempts_remaining = max(0, activity.max_attempts - new_count)
         else:
             attempts_remaining = -1
 
@@ -272,7 +282,10 @@ class BadgeProgressView(views.APIView):
                 pass
 
         safety = UnitModel.objects.filter(slug=SAFETY_UNIT_SLUG).first()
-        safety_total = Activity.objects.filter(lesson__unit=safety).count() if safety else 0
+        safety_total = (
+            Activity.objects.filter(lesson__unit=safety, lesson__is_published=True).count()
+            if safety else 0
+        )
         safety_completed = 0
         if safety:
             try:
@@ -453,10 +466,15 @@ class CourseStatusView(views.APIView):
     def get(self, request):
         user = request.user
         config = CourseConfig.load()
+        diagnostic_questions = config.diagnostic_questions or []
 
+        # Si el docente dejó el diagnóstico sin preguntas, el gate no aplica:
+        # no hay nada que responder y POST /api/course/diagnostic rechaza el
+        # envío (400), por lo que diagnosticCompleted=False dejaría a los
+        # estudiantes atrapados en la pantalla de diagnóstico.
         diagnostic_completed = (
             True
-            if user.is_teacher
+            if user.is_teacher or not diagnostic_questions
             else CourseDiagnosticResult.objects.filter(user=user).exists()
         )
 

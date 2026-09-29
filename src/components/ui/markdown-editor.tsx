@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { HardBreak } from "@tiptap/extension-hard-break";
 import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -71,11 +72,15 @@ const MarkdownTable = Table.extend({
             row.forEach((cell: any, _cellOffset: number, cellIndex: number) => {
               if (cellIndex) state.write(" | ");
               // La celda se serializa en línea; si tiene varios bloques se unen
-              // con <br> y los pipes del texto se escapan (\|) para no romper la
-              // tabla GFM. state.out es el acumulador del serializador.
+              // con un espacio (GFM no admite saltos de línea en celdas y toda
+              // la plataforma renderiza con HTML deshabilitado: un <br> se
+              // perdería en la vista del estudiante y reaparecería como texto
+              // literal al reabrir el editor). Los pipes del texto se escapan
+              // (\|) para no romper la tabla GFM. state.out es el acumulador
+              // del serializador.
               const start = state.out.length;
               cell.forEach((block: any, _blockOffset: number, blockIndex: number) => {
-                if (blockIndex) state.write("<br>");
+                if (blockIndex) state.write(" ");
                 state.renderInline(block);
               });
               state.out = state.out.slice(0, start) + state.out.slice(start).replace(/\|/g, "\\|");
@@ -94,6 +99,33 @@ const MarkdownTable = Table.extend({
         },
         parse: {
           // Lo maneja markdown-it (ver comentario sobre MarkdownTable)
+        },
+      },
+    };
+  },
+});
+
+// tiptap-markdown serializa hardBreak como HTML cuando state.inTable es true,
+// y con html:false eso deja el texto literal "[hardBreak]" en el Markdown
+// guardado. Como GFM no admite saltos de línea dentro de una celda, dentro de
+// tablas se degrada a un espacio; fuera de tablas se mantiene el "\" + salto
+// de línea de CommonMark (que sí se renderiza y re-parsea correctamente).
+const MarkdownHardBreak = HardBreak.extend({
+  addStorage() {
+    return {
+      markdown: {
+        serialize(state: any, node: any, parent: any, index: number) {
+          // Igual que en tiptap-markdown: los hardBreak al final del bloque
+          // no se escriben.
+          for (let i = index + 1; i < parent.childCount; i++) {
+            if (parent.child(i).type !== node.type) {
+              state.write(state.inTable ? " " : "\\\n");
+              return;
+            }
+          }
+        },
+        parse: {
+          // Lo maneja markdown-it
         },
       },
     };
@@ -152,7 +184,8 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
     // (TipTap solo debe renderizarse en el cliente).
     immediatelyRender: false,
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, hardBreak: false }),
+      MarkdownHardBreak,
       TiptapImage,
       TiptapLink.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder }),

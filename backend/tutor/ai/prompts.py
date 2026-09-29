@@ -73,7 +73,9 @@ def build_feedback_prompt(opts: dict) -> str:
                 levels = ", ".join(f"{l['label']} ({l['score']}pt)" for l in c.get("levels", []))
                 lines.append(f"- {c.get('name', '')}: {levels}")
             parts.append("Criterios de la rúbrica de evaluación:\n" + "\n".join(lines))
-        except (json.JSONDecodeError, TypeError, KeyError):
+        except (json.JSONDecodeError, TypeError, KeyError, AttributeError):
+            # JSONField libre: si la rúbrica no tiene la forma esperada
+            # (lista de dicts con levels), se omite sin romper el feedback.
             pass
 
     parts.append(f"Enunciado/pregunta:\n{prompt}")

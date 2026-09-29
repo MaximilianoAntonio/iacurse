@@ -51,7 +51,6 @@ interface LeaderboardEntry {
   name: string;
   points: number;
   streak: number;
-  avatar: string | null;
   completedActivities: number;
 }
 

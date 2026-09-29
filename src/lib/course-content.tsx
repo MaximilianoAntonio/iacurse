@@ -229,6 +229,11 @@ function hasRenderableContent(node: React.ReactNode): boolean {
   if (Array.isArray(node)) return node.some(hasRenderableContent);
   if (React.isValidElement(node)) {
     if (node.type === "img" || node.type === "br" || node.type === "iframe") return true;
+    // Las imágenes y videos del markdown ya llegan transformados por los
+    // overrides de `markdownComponents` (ContentImage/VideoEmbed, sin children):
+    // sin este check, un callout cuyo único contenido es una imagen o video
+    // quedaría vacío al podar los párrafos "sin contenido".
+    if (node.type === ContentImage || node.type === VideoEmbed) return true;
     return hasRenderableContent((node.props as { children?: React.ReactNode }).children);
   }
   return false;

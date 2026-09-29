@@ -46,6 +46,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "corsheaders",
+    "captcha",  # django-simple-captcha: captcha autoalojado del login
 ]
 
 LOCAL_APPS = [
@@ -195,7 +196,19 @@ CORS_ALLOWED_ORIGINS = env_list(
 )
 CORS_ALLOW_CREDENTIALS = True  # necesario para cookies de sesión cross-origin
 CORS_ALLOW_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
-CORS_ALLOW_HEADERS = ["content-type", "x-csrftoken", "authorization"]
+CORS_ALLOW_HEADERS = ["content-type", "x-csrftoken", "authorization", "x-requested-with"]
+
+
+# ---------------------------------------------------------------------------
+# Captcha del login (anti fuerza bruta) — django-simple-captcha
+# ---------------------------------------------------------------------------
+# Operación matemática en imagen (autoalojada: no envía datos a terceros).
+CAPTCHA_CHALLENGE_FUNCT = "captcha.helpers.math_challenge"
+CAPTCHA_TIMEOUT = 5  # minutos de validez del desafío
+CAPTCHA_IMAGE_SIZE = (200, 60)  # px — el default (~60x30) es demasiado pequeño
+CAPTCHA_FONT_SIZE = 40
+# Kill switch por entorno (los tests lo desactivan en settings/test.py)
+LOGIN_CAPTCHA_ENABLED = env_bool("LOGIN_CAPTCHA_ENABLED", True)
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +250,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
-    # Rate limiting (2.9: protección contra abuso/fuerza bruta). Los scopes
+    # Rate limiting (protección contra abuso/fuerza bruta). Los scopes
     # específicos se asignan por vista (login, telemetría). En tests se
     # elevan los límites (ver config/settings/test.py).
     "DEFAULT_THROTTLE_CLASSES": [
@@ -247,7 +260,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": os.environ.get("THROTTLE_ANON", "60/minute"),
         "user": os.environ.get("THROTTLE_USER", "600/minute"),
-        "login": os.environ.get("THROTTLE_LOGIN", "10/minute"),
+        "login": os.environ.get("LOGIN_THROTTLE_RATE", os.environ.get("THROTTLE_LOGIN", "5/min")),
         "telemetry_events": os.environ.get("THROTTLE_TELEMETRY", "240/minute"),
     },
 }

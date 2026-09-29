@@ -9,6 +9,7 @@ Endpoints:
 
 Ahora incluye número de accesos (AccessLog) y tiempo real (StudySession).
 """
+from django.db.models import Count, Q
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -64,20 +65,31 @@ class LeaderboardView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        students = User.objects.filter(role=User.ROLE_STUDENT).order_by("-points", "name")
+        # completedActivities anotado en la query (evita un COUNT por estudiante).
+        # Privacidad: el código del estudiante solo es visible para el docente o el
+        # propio estudiante; a los demás se les muestra "Participante anónimo".
+        students = (
+            User.objects.filter(role=User.ROLE_STUDENT)
+            .annotate(
+                completed_activities=Count(
+                    "attempts__activity_id",
+                    distinct=True,
+                    filter=Q(attempts__correct=True),
+                )
+            )
+            .order_by("-points", "name")
+        )
         viewer_is_teacher = getattr(request.user, "is_teacher", False)
         ranking = []
         for rank, s in enumerate(students, start=1):
-            completed = (
-                s.attempts.filter(correct=True).values("activity_id").distinct().count()
-            )
             visible = viewer_is_teacher or s.pk == request.user.pk
             ranking.append({
                 "rank": rank,
                 "id": s.id,
                 "name": s.name if visible else "Participante anónimo",
-                "points": s.points, "streak": s.streak,
+                "points": s.points,
+                "streak": s.streak,
                 "avatar": (s.avatar or None) if visible else None,
-                "completedActivities": completed,
+                "completedActivities": s.completed_activities,
             })
         return Response({"leaderboard": ranking})

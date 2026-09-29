@@ -13,6 +13,7 @@ Métricas del lineamiento:
 from datetime import timedelta
 from collections import defaultdict
 
+from django.db.models import Count, Prefetch, Sum
 from django.utils import timezone
 
 from accounts.models import User
@@ -131,24 +132,32 @@ def teacher_dashboard(unit_filter=None) -> dict:
 
     Ahora con StudySession real (tiempo de interacción) y AccessLog (accesos).
     """
+    # Precargar las relaciones por estudiante: sin esto cada métrica
+    # (progress, attempts, sesiones, accesos) era una query por estudiante
+    # (N+1 grave con un curso completo).
     students = list(
-        User.objects.filter(role=User.ROLE_STUDENT).order_by("student_code")
+        User.objects.filter(role=User.ROLE_STUDENT)
+        .order_by("student_code")
+        .annotate(num_accesses=Count("access_logs"))
+        .prefetch_related(
+            Prefetch("progress", queryset=Progress.objects.select_related("unit")),
+            "attempts",
+            "study_sessions",
+        )
     )
     units = list(Unit.objects.order_by("order"))
 
     students_data = []
     for s in students:
-        progress_q = Progress.objects.filter(user=s)
-        if unit_filter:
-            progress_q = progress_q.filter(unit_id=unit_filter)
-        progress = list(progress_q.select_related("unit"))
+        progress = [
+            p for p in s.progress.all()
+            if not unit_filter or p.unit_id == unit_filter
+        ]
 
         attempts = list(s.attempts.all())
-        correct_activities = (
-            s.attempts.filter(correct=True).values("activity_id").distinct().count()
-        )
+        correct_activities = len({a.activity_id for a in attempts if a.correct})
         sessions = list(s.study_sessions.all())
-        access_count = s.access_logs.count()
+        access_count = s.num_accesses
 
         total_time_min = sum(sess.duration for sess in sessions) // 60
         last_active = None
@@ -220,6 +229,11 @@ def student_detail(student: User) -> dict:
     progress = list(student.progress.select_related("unit").all())
     attempts = list(student.attempts.select_related("activity__lesson__unit").all())
     sessions = list(student.study_sessions.order_by("-started_at")[:20].all())
+    # La lista `sessions` se limita a las últimas 20 para el detalle, pero el
+    # total de tiempo debe considerar TODAS las sesiones del estudiante.
+    total_session_sec = (
+        student.study_sessions.aggregate(t=Sum("duration"))["t"] or 0
+    )
     badges = list(student.user_badges.select_related("badge").all())
     accesses = student.access_logs.count()
 
@@ -307,7 +321,7 @@ def student_detail(student: User) -> dict:
             "correctAttempts": correct_attempts,
             "totalActivitiesAttempted": activities_attempted,
             "totalActivitiesCorrect": activities_correct,
-            "totalTimeMin": sum(s.duration for s in sessions) // 60,
+            "totalTimeMin": total_session_sec // 60,
             "avgScore": round(sum(scores_all) / len(scores_all)) if scores_all else 0,
             "totalHintsUsed": total_hints_used,
         },

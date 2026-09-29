@@ -16,6 +16,8 @@ import secrets
 import string
 
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
+from django.db.models.functions import Lower
 from rest_framework import status, views
 from rest_framework.response import Response
 
@@ -97,6 +99,12 @@ class StudentsAdminView(views.APIView):
                 errors.append(
                     {"studentCode": code, "error": "El código excede 32 caracteres."}
                 )
+            elif "@" in code:
+                # Un código con "@" jamás podría entrar: el login interpreta
+                # cualquier identificador con "@" como email de docente.
+                errors.append(
+                    {"studentCode": code, "error": "El código no puede contener '@'."}
+                )
             else:
                 normalized.append(code)
 
@@ -113,12 +121,13 @@ class StudentsAdminView(views.APIView):
                 seen.add(key)
                 unique_codes.append(code)
 
-        # Duplicados contra la DB
+        # Duplicados contra la DB (case-insensitive: el login por código usa
+        # __iexact, así que "em-0001" choca con el "EM-0001" existente aunque
+        # la constraint UNIQUE de Postgres distinga mayúsculas).
         existing = set(
-            code.lower()
-            for code in User.objects.filter(
-                student_code__in=unique_codes
-            ).values_list("student_code", flat=True)
+            User.objects.annotate(code_lower=Lower("student_code"))
+            .filter(code_lower__in=[c.lower() for c in unique_codes])
+            .values_list("code_lower", flat=True)
         )
         created = []
         for code in unique_codes:
@@ -136,7 +145,19 @@ class StudentsAdminView(views.APIView):
                 must_change_password=True,
             )
             user.set_password(temp_password)
-            user.save()
+            try:
+                # Savepoint por código: un conflicto residual (p. ej. username
+                # ya usado por otra cuenta) no debe botar toda la llamada.
+                with transaction.atomic():
+                    user.save()
+            except IntegrityError:
+                errors.append(
+                    {
+                        "studentCode": code,
+                        "error": "Conflicto con un usuario existente (usuario o correo ya en uso).",
+                    }
+                )
+                continue
             created.append(
                 {"studentCode": code, "temporaryPassword": temp_password}
             )

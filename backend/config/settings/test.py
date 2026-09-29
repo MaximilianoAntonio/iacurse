@@ -24,10 +24,14 @@ AI_PROVIDER = "fallback"
 # Password hashing rápido para tests
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
-# Sin límites de rate en tests (el throttling se prueba aparte)
+# Captcha del login desactivado por defecto en tests (los tests de captcha
+# lo activan explícitamente con override_settings)
+LOGIN_CAPTCHA_ENABLED = False
+
+# Sin límites de rate en tests (el throttling se prueba aparte con monkeypatch)
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
     "anon": "10000/minute",
     "user": "10000/minute",
-    "login": "10000/minute",
+    "login": "10000/min",
     "telemetry_events": "10000/minute",
 }

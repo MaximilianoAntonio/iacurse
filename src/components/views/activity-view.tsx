@@ -457,7 +457,7 @@ function ActivityInner(props: ActivityInnerProps) {
         setSubmitting(false);
       }
     },
-    [activity.id, submitting, toast]
+    [activity.id, submitting, toast, hintsUsed]
   );
 
   const handleRetry = useCallback(() => {

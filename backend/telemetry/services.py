@@ -54,8 +54,8 @@ def start_session(user: User, unit_id: Optional[str] = None) -> StudySession:
 def heartbeat(session_id: str, user: Optional[User] = None) -> Optional[StudySession]:
     """Actualiza el último heartbeat de una sesión (el frontend lo llama cada 30s).
 
-    Si se pasa ``user``, valida que la sesión le pertenezca (sin esto,
-    cualquier autenticado podría mantener viva la sesión de otro).
+    Si se pasa ``user``, valida que la sesión le pertenezca (seguridad: un
+    usuario no puede mantener viva la sesión de otro).
     """
     qs = StudySession.objects.filter(pk=session_id, is_active=True)
     if user is not None:
@@ -76,10 +76,17 @@ def heartbeat(session_id: str, user: Optional[User] = None) -> Optional[StudySes
     return session
 
 
-def end_session(session_id: str) -> Optional[StudySession]:
-    """Finaliza una sesión calculando la duración total."""
+def end_session(session_id: str, user: Optional[User] = None) -> Optional[StudySession]:
+    """Finaliza una sesión calculando la duración total.
+
+    Si se pasa ``user``, la sesión debe pertenecerle: la validación ocurre
+    ANTES de mutar (un usuario no puede cerrar la sesión de otro).
+    """
+    qs = StudySession.objects.filter(pk=session_id)
+    if user is not None:
+        qs = qs.filter(user=user)
     try:
-        session = StudySession.objects.get(pk=session_id)
+        session = qs.get()
     except StudySession.DoesNotExist:
         return None
     return _finalize_session(session)
@@ -88,12 +95,13 @@ def end_session(session_id: str) -> Optional[StudySession]:
 def _finalize_session(session: StudySession) -> StudySession:
     """Calcula duration final y marca la sesión como cerrada."""
     now = timezone.now()
-    # Usar el último heartbeat como referencia si existe (más realista que started_at)
     end_ref = session.last_heartbeat_at or session.started_at
     # Limitar la duración: si el gap desde el último heartbeat es muy grande,
-    # asumir que el usuario se fue (no contar todo el tiempo).
-    if session.last_heartbeat_at and (now - session.last_heartbeat_at).total_seconds() > 300:
-        end_ref = session.last_heartbeat_at
+    # asumir que el usuario se fue (no contar todo el tiempo hasta ahora).
+    # Si el heartbeat es reciente (cierre activo vía sendBeacon), contar hasta
+    # el momento real del cierre.
+    if session.last_heartbeat_at and (now - session.last_heartbeat_at).total_seconds() <= 300:
+        end_ref = now
     duration = max(0, int((end_ref - session.started_at).total_seconds()))
     StudySession.objects.filter(pk=session.pk).update(
         duration=duration,

@@ -6,6 +6,8 @@
  * Autenticación real contra el backend Django (sesión por cookie).
  * No hay modo demo ni registro público: el docente crea las cuentas de
  * estudiantes (anonimizadas, por código) y resetea sus contraseñas.
+ * El login exige un captcha autoalojado (operación matemática, un solo uso,
+ * `GET /api/captcha/refresh/`) y el backend aplica rate limit por IP.
  *
  * Rediseño 2026 ("instrumento de precisión"): layout dividido con panel de
  * marca en tinta azul (retícula técnica + señal ámbar) y formulario sobre
@@ -13,9 +15,9 @@
  * formulario entra en cascada.
  */
 
-import { useState } from "react";
-import { HeartPulse, Loader2, XCircle } from "lucide-react";
-import { postJSON } from "@/hooks/use-fetch";
+import { useCallback, useEffect, useState } from "react";
+import { HeartPulse, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { API_BASE, postJSON } from "@/hooks/use-fetch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { User } from "@/lib/types";
@@ -24,11 +26,44 @@ interface LoginViewProps {
   onLogin: (user: User) => void;
 }
 
+interface CaptchaChallenge {
+  key: string;
+  image_url: string;
+}
+
 export function LoginView({ onLogin }: LoginViewProps) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [captcha, setCaptcha] = useState<CaptchaChallenge | null>(null);
+  const [captchaValue, setCaptchaValue] = useState("");
+  const [captchaError, setCaptchaError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // El captcha es de un solo uso: se pide uno nuevo al montar la vista y tras
+  // cada intento de login (éxito o fallo). Requiere el header X-Requested-With.
+  const loadCaptcha = useCallback(() => {
+    fetch(`${API_BASE}/api/captcha/refresh/`, {
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`Error ${r.status}`);
+        return r.json();
+      })
+      .then((json: CaptchaChallenge) => {
+        setCaptcha(json);
+        setCaptchaValue("");
+        setCaptchaError(false);
+      })
+      .catch(() => {
+        setCaptcha(null);
+        setCaptchaError(true);
+      });
+  }, []);
+
+  useEffect(() => {
+    loadCaptcha();
+  }, [loadCaptcha]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +73,8 @@ export function LoginView({ onLogin }: LoginViewProps) {
       const data = await postJSON<{ user: User }>("/api/auth/login", {
         identifier: identifier.trim(),
         password,
+        captchaKey: captcha?.key ?? "",
+        captchaValue: captchaValue.trim(),
       });
       onLogin(data.user);
     } catch (err) {
@@ -45,9 +82,15 @@ export function LoginView({ onLogin }: LoginViewProps) {
       // Distinguir errores de red (backend caído) de errores de la API
       if (/fetch|network|failed to/i.test(msg)) {
         setError("No se pudo conectar con el servidor. Verifica que el backend esté corriendo.");
+      } else if (/429|throttl/i.test(msg)) {
+        setError("Demasiados intentos. Espera un minuto e inténtalo de nuevo.");
+      } else if (/captcha/i.test(msg)) {
+        setError(msg);
       } else {
         setError("Credenciales inválidas. Verifica tu código o correo y contraseña.");
       }
+      // El captcha quedó consumido por el intento: pedir uno nuevo
+      loadCaptcha();
     } finally {
       setLoading(false);
     }
@@ -169,6 +212,55 @@ export function LoginView({ onLogin }: LoginViewProps) {
                 aria-invalid={!!error}
                 aria-describedby={error ? "login-error" : undefined}
               />
+            </div>
+
+            {/* Captcha anti fuerza bruta (operación matemática autoalojada) */}
+            <div className="space-y-1.5">
+              <label htmlFor="captcha" className="text-sm font-medium">
+                Verificación humana
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex h-16 flex-1 items-center justify-center overflow-hidden rounded-md border border-border bg-white">
+                  {captcha ? (
+                    <img
+                      src={`${API_BASE}${captcha.image_url}`}
+                      alt="Captcha: resuelve la operación matemática"
+                      className="max-h-full w-auto"
+                    />
+                  ) : (
+                    <span className="px-2 text-center text-xs text-muted-foreground">
+                      {captchaError
+                        ? "No se pudo cargar el captcha"
+                        : "Cargando captcha…"}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={loadCaptcha}
+                  title="Generar otro captcha"
+                  aria-label="Generar otro captcha"
+                  className="h-10 w-10 shrink-0"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </div>
+              <Input
+                id="captcha"
+                type="text"
+                required
+                inputMode="numeric"
+                autoComplete="off"
+                value={captchaValue}
+                onChange={(e) => setCaptchaValue(e.target.value)}
+                placeholder="Resultado de la operación"
+              />
+              <p className="text-xs text-muted-foreground">
+                Resuelve la operación de la imagen para confirmar que no eres
+                un robot.
+              </p>
             </div>
 
             {error && (

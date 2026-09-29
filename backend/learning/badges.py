@@ -138,7 +138,9 @@ def check_and_award_badges(user: User) -> List[BadgeAwardResult]:
     safety_unit = Unit.objects.filter(slug=SAFETY_UNIT_SLUG).first()
     safety_total = 0
     if safety_unit:
-        safety_total = Activity.objects.filter(lesson__unit=safety_unit).count()
+        safety_total = Activity.objects.filter(
+            lesson__unit=safety_unit, lesson__is_published=True
+        ).count()
     safety_progress = next(
         (p for p in progress_rows if p.unit.slug == SAFETY_UNIT_SLUG), None
     )

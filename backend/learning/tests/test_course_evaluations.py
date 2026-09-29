@@ -127,6 +127,15 @@ class TestCourseStatus:
         assert body["diagnosticCompleted"] is True
         assert "diagnosticQuestions" not in body
 
+    def test_no_questions_configured_disables_gate(self, student_client, config):
+        """Sin preguntas de diagnóstico no hay gate: el POST rechazaría el envío
+        (400) y el estudiante quedaría atrapado si el status lo marcara pendiente."""
+        config.diagnostic_questions = []
+        config.save(update_fields=["diagnostic_questions"])
+        body = student_client.get("/api/course/status").json()
+        assert body["diagnosticCompleted"] is True
+        assert "diagnosticQuestions" not in body
+
     def test_status_reflects_final_exam_attempts(self, student_client, student, config, units):
         _complete_all_units(student, units)
         student_client.post("/api/course/final-exam", {"answers": [1, 0, 0, 1]}, format="json")

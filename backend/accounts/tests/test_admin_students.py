@@ -97,6 +97,49 @@ class TestStudentsAdmin:
         assert [c["studentCode"] for c in payload["created"]] == ["EM-0002"]
         assert len(payload["errors"]) == 3
 
+    def test_bulk_create_duplicado_case_insensitive(self, teacher_client, student):
+        # "em-0001" difiere del "EM-0001" existente solo en mayúsculas: el
+        # login por código es case-insensitive, así que debe rechazarse
+        # (antes de este chequeo se creaba y reventaba con IntegrityError 500).
+        resp = teacher_client.post(
+            "/api/admin/students",
+            {"codes": ["em-0001", "EM-0002"]},
+            format="json",
+        )
+        assert resp.status_code == 201
+        payload = resp.json()
+        assert [c["studentCode"] for c in payload["created"]] == ["EM-0002"]
+        assert len(payload["errors"]) == 1
+        assert payload["errors"][0]["studentCode"] == "em-0001"
+
+    def test_bulk_create_codigo_con_arroba_rechazado(self, teacher_client):
+        # Un código con "@" nunca podría entrar: el login interpreta cualquier
+        # identificador con "@" como email de docente.
+        resp = teacher_client.post(
+            "/api/admin/students",
+            {"codes": ["a@b", "EM-0002"]},
+            format="json",
+        )
+        assert resp.status_code == 201
+        payload = resp.json()
+        assert [c["studentCode"] for c in payload["created"]] == ["EM-0002"]
+        assert len(payload["errors"]) == 1
+        assert payload["errors"][0]["studentCode"] == "a@b"
+
+    def test_bulk_create_colision_username_no_explota(self, teacher_client, teacher):
+        # "hermes.mora" ya es el username del docente (sin student_code):
+        # debe reportarse como error del código, no un 500.
+        resp = teacher_client.post(
+            "/api/admin/students",
+            {"codes": ["hermes.mora", "EM-0002"]},
+            format="json",
+        )
+        assert resp.status_code == 201
+        payload = resp.json()
+        assert [c["studentCode"] for c in payload["created"]] == ["EM-0002"]
+        assert len(payload["errors"]) == 1
+        assert payload["errors"][0]["studentCode"] == "hermes.mora"
+
     def test_bulk_create_max_200(self, teacher_client):
         resp = teacher_client.post(
             "/api/admin/students",

@@ -4,15 +4,32 @@ Vistas de currículo — units, lessons.
 Reproducen src/app/api/units/route.ts, units/[slug]/route.ts, lessons/[id]/route.ts.
 Todas requieren sesión real (sin modo demo).
 """
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from learning.models import CourseDiagnosticResult, Progress, PersonalizedUnit
+from learning.models import Attempt, CourseDiagnosticResult, Progress, PersonalizedUnit
 from learning.ai_services import adapt_unit_for_student
 from learning.grading import sanitize_activity_data
 from .models import Activity, Lesson, Unit
+
+
+def _attempt_summary(attempts: list, with_last_answer: bool = False) -> dict:
+    """Resume en memoria los intentos del usuario en una actividad.
+
+    Recibe la lista ya cargada (ordenada por created_at) para evitar una
+    query por actividad (N+1) en los detalles de unidad/lección.
+    """
+    scores = [a.score for a in attempts if a.score is not None]
+    summary = {
+        "attempts": len(attempts),
+        "completed": any(a.correct for a in attempts),
+        "bestScore": max(scores) if scores else None,
+    }
+    if with_last_answer:
+        summary["lastAnswer"] = attempts[-1].answer if attempts else None
+    return summary
 
 
 def _unit_to_dict(unit, lessons=None):
@@ -51,7 +68,9 @@ class UnitsListView(views.APIView):
         }
         activity_counts = {
             row["lesson__unit"]: row["n"]
-            for row in Activity.objects.values("lesson__unit").annotate(n=Count("id"))
+            for row in Activity.objects.filter(lesson__is_published=True)
+            .values("lesson__unit")
+            .annotate(n=Count("id"))
         }
 
         result = []
@@ -96,13 +115,24 @@ class UnitDetailView(views.APIView):
         has_course_diagnostic = CourseDiagnosticResult.objects.filter(user=user).exists()
 
         # Lecciones publicadas con actividades y resumen de intentos del usuario
-        # (los borradores del docente no son visibles para estudiantes)
+        # (los borradores del docente no son visibles para estudiantes).
+        # Los intentos se cargan en UNA sola query para toda la unidad y se
+        # agrupan en memoria (evita el N+1 de 3 queries por actividad).
+        attempts_by_id: dict[str, list] = {}
+        for att in (
+            Attempt.objects.filter(user=user, activity__lesson__unit=unit)
+            .only("activity_id", "score", "correct", "created_at", "answer")
+            .order_by("created_at")
+        ):
+            attempts_by_id.setdefault(att.activity_id, []).append(att)
+
         lessons = []
-        for l in unit.lessons.filter(is_published=True).order_by("order").prefetch_related("activities"):
+        published_lessons = unit.lessons.filter(is_published=True).order_by("order").prefetch_related(
+            Prefetch("activities", queryset=Activity.objects.order_by("order"))
+        )
+        for l in published_lessons:
             activities = []
-            for a in l.activities.order_by("order"):
-                attempts = a.attempts.filter(user=user)
-                best = attempts.order_by("-score").first()
+            for a in l.activities.all():
                 activities.append({
                     "id": a.id,
                     "type": a.type,
@@ -110,11 +140,7 @@ class UnitDetailView(views.APIView):
                     "points": a.points,
                     "difficulty": a.difficulty,
                     "order": a.order,
-                    "attemptSummary": {
-                        "attempts": attempts.count(),
-                        "completed": attempts.filter(correct=True).exists(),
-                        "bestScore": best.score if best else None,
-                    },
+                    "attemptSummary": _attempt_summary(attempts_by_id.get(a.id, [])),
                 })
             lessons.append({
                 "id": l.id, "slug": l.slug, "title": l.title,
@@ -123,9 +149,13 @@ class UnitDetailView(views.APIView):
                 "activities": activities,
             })
 
-        # Progreso real del usuario en la unidad (actividades completadas)
+        # Progreso real del usuario en la unidad (actividades completadas).
+        # El total considera solo lecciones publicadas: las actividades de
+        # borradores no son visibles ni completables por el estudiante.
         prog_obj = Progress.objects.filter(user=user, unit=unit).first()
-        total_activities = Activity.objects.filter(lesson__unit=unit).count()
+        total_activities = Activity.objects.filter(
+            lesson__unit=unit, lesson__is_published=True
+        ).count()
         progress = {
             "completed": prog_obj.completed if prog_obj else 0,
             "total": prog_obj.total if prog_obj else total_activities,
@@ -239,6 +269,16 @@ class LessonDetailView(views.APIView):
             for s in lesson.unit.lessons.filter(is_published=True).order_by("order")
         ]
 
+        # Intentos del usuario en la lección: una sola query agrupada en
+        # memoria (evita el N+1 por actividad).
+        attempts_by_id: dict[str, list] = {}
+        for att in (
+            Attempt.objects.filter(user=user, activity__lesson=lesson)
+            .only("activity_id", "score", "correct", "created_at", "answer")
+            .order_by("created_at")
+        ):
+            attempts_by_id.setdefault(att.activity_id, []).append(att)
+
         activities = []
         for a in lesson.activities.order_by("order"):
             act_dict = {
@@ -253,15 +293,9 @@ class LessonDetailView(views.APIView):
                 "timeLimitMin": a.time_limit_min,
                 "lessonId": lesson.id,
             }
-            attempts = a.attempts.filter(user=user).order_by("-created_at")
-            best = attempts.order_by("-score").first()
-            last = attempts.first()
-            act_dict["attemptSummary"] = {
-                "attempts": attempts.count(),
-                "completed": attempts.filter(correct=True).exists(),
-                "bestScore": best.score if best else None,
-                "lastAnswer": last.answer if last else None,
-            }
+            act_dict["attemptSummary"] = _attempt_summary(
+                attempts_by_id.get(a.id, []), with_last_answer=True
+            )
             activities.append(act_dict)
 
         # attemptsByActivity: map activityId → resumen, consumido por el frontend.

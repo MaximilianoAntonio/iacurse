@@ -22,6 +22,8 @@ urlpatterns = [
     path("api/health", health, name="health"),
     # Auth (Módulo de acceso del lineamiento)
     path("api/", include("accounts.urls")),
+    # Captcha del login (django-simple-captcha: /api/captcha/refresh/, image/<key>/)
+    path("api/captcha/", include("captcha.urls")),
     path("api/", include("curriculum.urls")),
     path("api/", include("learning.urls")),
     path("api/", include("telemetry.urls")),

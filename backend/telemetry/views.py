@@ -100,6 +100,7 @@ class SessionHeartbeatView(views.APIView):
             return Response(
                 {"error": "Falta sessionId"}, status=status.HTTP_400_BAD_REQUEST
             )
+        # Seguridad: solo el dueño puede hacer heartbeat de su sesión
         session = services.heartbeat(session_id, user=request.user)
         if session is None:
             return Response(
@@ -141,13 +142,10 @@ class SessionEndView(views.APIView):
             return Response(
                 {"error": "Falta sessionId"}, status=status.HTTP_400_BAD_REQUEST
             )
-        session = services.end_session(session_id)
+        # Seguridad: la validación de propiedad ocurre ANTES de finalizar
+        # (end_session filtra por user; si no es del usuario, no se muta nada).
+        session = services.end_session(session_id, user=request.user)
         if session is None:
-            return Response(
-                {"error": "Sesión no encontrada"}, status=status.HTTP_404_NOT_FOUND
-            )
-        # Seguridad: validar que la sesión pertenece al usuario autenticado
-        if session.user_id != request.user.pk:
             return Response(
                 {"error": "Sesión no encontrada"}, status=status.HTTP_404_NOT_FOUND
             )

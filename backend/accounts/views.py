@@ -11,7 +11,12 @@ Endpoints:
 El registro público fue eliminado: el docente crea las cuentas de
 estudiantes (ver ``accounts/admin_views.py``).
 """
-from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth import (
+    get_user_model,
+    login,
+    logout,
+    update_session_auth_hash,
+)
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from rest_framework import views
@@ -19,7 +24,6 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
-
 from telemetry.audit import log_security_event
 
 from .serializers import ChangePasswordSerializer, LoginSerializer
@@ -60,8 +64,9 @@ class CsrfTokenView(views.APIView):
 class LoginView(views.APIView):
     """Login por identificador (email docente o código estudiante) + password.
 
-    Protegido con rate limiting (scope ``login``) contra fuerza bruta y
-    registra en auditoría los intentos exitosos y fallidos (2.9).
+    Exige captcha (``LOGIN_CAPTCHA_ENABLED``), aplica rate limit por IP
+    (scope ``login``) contra fuerza bruta y registra en auditoría los intentos
+    exitosos y fallidos.
     """
 
     permission_classes = [AllowAny]
@@ -116,6 +121,10 @@ class ChangePasswordView(views.APIView):
         user.set_password(serializer.validated_data["newPassword"])
         user.must_change_password = False
         user.save(update_fields=["password", "must_change_password", "updated_at"])
+        # Django guarda el hash de la contraseña en la sesión: sin esto la
+        # sesión queda invalidada en el siguiente request y el usuario sale
+        # deslogueado justo después de cambiar su contraseña.
+        update_session_auth_hash(request, user)
         log_security_event("password_change", actor=user, request=request)
         return Response({"ok": True})
 

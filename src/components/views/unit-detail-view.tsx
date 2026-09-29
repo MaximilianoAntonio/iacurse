@@ -131,6 +131,10 @@ export function UnitDetailView() {
   const [draftsLoadedFor, setDraftsLoadedFor] = React.useState<string | null>(null);
   if (currentUnitId && draftsLoadedFor !== currentUnitId) {
     setDraftsLoadedFor(currentUnitId);
+    // La vista no se remonta al cambiar de unidad (view-router la monta sin
+    // key): hay que reiniciar el estado de envío, si no la unidad siguiente
+    // mostraría el banner de "respuestas registradas" sin haberlas enviado.
+    setCheckpointSubmitted(false);
     const storedCheck = localStorage.getItem(`electromed_checkpoint_draft_${currentUnitId}`);
     if (storedCheck) {
       try {

@@ -49,6 +49,8 @@ class SearchView(views.APIView):
                 "snippet": (u.summary or u.description or "")[:150],
             })
 
+        # Solo lecciones publicadas: los borradores del docente no deben
+        # aparecer en la búsqueda de estudiantes (igual que en units/lessons).
         lessons = []
         for l in Lesson.objects.select_related("unit").filter(
             Q(title__icontains=q) | Q(description__icontains=q) | Q(content__icontains=q),

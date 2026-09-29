@@ -10,6 +10,8 @@ import json
 import uuid
 
 from django.conf import settings
+from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -27,6 +29,20 @@ from learning.models import CourseDiagnosticResult, Progress
 from telemetry.audit import log_security_event
 
 
+def _unique_slug(qs, base: str) -> str:
+    """Agrega sufijo numérico hasta que el slug sea único dentro del queryset.
+
+    El default `xxx-N` basado en count() colisiona tras borrados (IntegrityError
+    500): con esto el slug generado siempre está libre.
+    """
+    slug = base
+    n = 2
+    while qs.filter(slug=slug).exists():
+        slug = f"{base}-{n}"
+        n += 1
+    return slug
+
+
 # ---------------------------------------------------------------------------
 # Admin: Units / Lessons / Activities / Objectives / Rubrics (currículo live)
 # ---------------------------------------------------------------------------
@@ -36,7 +52,10 @@ class AdminUnitsView(views.APIView):
     permission_classes = [IsAuthenticated, IsTeacher]
 
     def get(self, request):
-        units = Unit.objects.order_by("order")
+        units = Unit.objects.order_by("order").annotate(
+            lesson_count=Count("lessons", distinct=True),
+            activity_count=Count("lessons__activities", distinct=True),
+        )
         return Response({
             "units": [
                 {
@@ -44,8 +63,8 @@ class AdminUnitsView(views.APIView):
                     "description": u.description, "icon": u.icon, "color": u.color,
                     "order": u.order,
                     "content": u.content,
-                    "lessonCount": u.lessons.count(),
-                    "activityCount": Activity.objects.filter(lesson__unit=u).count(),
+                    "lessonCount": u.lesson_count,
+                    "activityCount": u.activity_count,
                     "sourceCourseId": u.slug[3:] if u.slug.startswith("sc-") else None,
                 }
                 for u in units
@@ -54,9 +73,14 @@ class AdminUnitsView(views.APIView):
 
     def post(self, request):
         order = (Unit.objects.order_by("-order").first().order + 1) if Unit.objects.exists() else 0
+        # El slug por defecto debe ser único aunque se hayan eliminado
+        # unidades antes (count()+1 puede colisionar con un slug existente).
+        slug = request.data.get("slug") or _unique_slug(
+            Unit.objects, f"unit-{Unit.objects.count() + 1}"
+        )
         unit = Unit.objects.create(
             title=request.data.get("title", "Nueva unidad"),
-            slug=request.data.get("slug") or f"unit-{Unit.objects.count() + 1}",
+            slug=slug,
             summary=request.data.get("summary", ""),
             description=request.data.get("description", ""),
             icon=request.data.get("icon", "BookOpen"),
@@ -129,14 +153,31 @@ class AdminUnitDetailView(views.APIView):
                                 "type": a.type,
                                 "title": a.title,
                                 "prompt": a.prompt,
+                                # El editor del Course Builder trabaja el JSON como
+                                # string (pestaña "JSON" del diálogo de actividad).
+                                "data": (
+                                    a.data
+                                    if isinstance(a.data, str)
+                                    else json.dumps(a.data, ensure_ascii=False)
+                                ),
                                 "points": a.points,
                                 "difficulty": a.difficulty,
                                 "order": a.order,
+                                "assessmentType": a.assessment_type,
+                                "bloomLevel": a.bloom_level,
+                                "maxAttempts": a.max_attempts,
+                                "masteryThreshold": a.mastery_threshold,
+                                "weight": a.weight,
+                                "timeLimitMin": a.time_limit_min,
+                                "rubricId": a.rubric_id,
+                                "objectiveIds": [
+                                    ao.objective_id for ao in a.objectives.all()
+                                ],
                             }
                             for a in l.activities.order_by("order")
                         ]
                     }
-                    for l in unit.lessons.order_by("order")
+                    for l in unit.lessons.order_by("order").prefetch_related("activities__objectives")
                 ]
             }
         })
@@ -146,12 +187,13 @@ class AdminLessonsView(views.APIView):
     permission_classes = [IsAuthenticated, IsTeacher]
 
     def post(self, request):
-        unit = Unit.objects.get(pk=request.data.get("unitId"))
+        unit = get_object_or_404(Unit, pk=request.data.get("unitId"))
         order = unit.lessons.count()
         lesson = Lesson.objects.create(
             unit=unit,
             title=request.data.get("title", "Nueva lección"),
-            slug=request.data.get("slug") or f"lesson-{order + 1}",
+            # El slug es único por unidad: tras borrados count()+1 puede colisionar.
+            slug=request.data.get("slug") or _unique_slug(unit.lessons, f"lesson-{order + 1}"),
             description=request.data.get("description", ""),
             content=request.data.get("content", ""),
             duration_min=request.data.get("durationMin", 15),
@@ -163,7 +205,7 @@ class AdminLessonsView(views.APIView):
 
     def patch(self, request):
         lid = request.data.get("lessonId")
-        lesson = Lesson.objects.get(pk=lid)
+        lesson = get_object_or_404(Lesson, pk=lid)
         for k in ("title", "description", "content", "durationMin", "order", "isPublished"):
             if k in request.data:
                 attr = k.replace("durationMin", "duration_min").replace("isPublished", "is_published")
@@ -173,7 +215,7 @@ class AdminLessonsView(views.APIView):
 
     def delete(self, request):
         lid = request.query_params.get("lessonId")
-        lesson = Lesson.objects.get(pk=lid)
+        lesson = get_object_or_404(Lesson, pk=lid)
         unit = lesson.unit
         lesson.delete()
         _resync_progress_totals(unit)
@@ -252,7 +294,7 @@ class AdminActivitiesView(views.APIView):
     permission_classes = [IsAuthenticated, IsTeacher]
 
     def post(self, request):
-        lesson = Lesson.objects.get(pk=request.data.get("lessonId"))
+        lesson = get_object_or_404(Lesson, pk=request.data.get("lessonId"))
         order = lesson.activities.count()
         activity = Activity.objects.create(
             lesson=lesson,
@@ -280,7 +322,7 @@ class AdminActivitiesView(views.APIView):
 
     def patch(self, request):
         aid = request.data.get("activityId")
-        activity = Activity.objects.get(pk=aid)
+        activity = get_object_or_404(Activity, pk=aid)
         for k in ("type", "title", "prompt", "data", "points", "difficulty", "order"):
             if k in request.data:
                 setattr(activity, k, request.data[k])
@@ -301,7 +343,7 @@ class AdminActivitiesView(views.APIView):
 
     def delete(self, request):
         aid = request.query_params.get("activityId")
-        activity = Activity.objects.get(pk=aid)
+        activity = get_object_or_404(Activity, pk=aid)
         unit = activity.lesson.unit
         activity.delete()
         _resync_progress_totals(unit)
@@ -330,7 +372,7 @@ class AdminObjectivesView(views.APIView):
         })
 
     def post(self, request):
-        unit = Unit.objects.get(pk=request.data.get("unitId"))
+        unit = get_object_or_404(Unit, pk=request.data.get("unitId"))
         obj = LearningObjective.objects.create(
             unit=unit,
             lesson_id=request.data.get("lessonId"),
@@ -342,8 +384,16 @@ class AdminObjectivesView(views.APIView):
 
     def patch(self, request):
         oid = request.data.get("objectiveId")
+        # Los nombres de la API (camelCase) no calzan con los del modelo:
+        # traducirlos o .update() lanza FieldError (500).
+        field_map = {
+            "code": "code",
+            "description": "description",
+            "bloomLevel": "bloom_level",
+            "lessonId": "lesson_id",
+        }
         LearningObjective.objects.filter(pk=oid).update(**{
-            k: request.data[k] for k in ("code", "description", "bloomLevel", "lessonId") if k in request.data
+            field_map[k]: request.data[k] for k in field_map if k in request.data
         })
         return Response({"ok": True})
 
@@ -370,10 +420,10 @@ class AdminRubricsView(views.APIView):
         })
 
     def post(self, request):
-        criteria = request.data.get("criteria", "[]")
+        criteria = request.data.get("criteria", [])
         if isinstance(criteria, str):
             try:
-                json.loads(criteria)
+                criteria = json.loads(criteria)  # guarda el objeto parseado, no el string
             except json.JSONDecodeError:
                 return Response({"error": "criteria debe ser JSON válido"}, status=status.HTTP_400_BAD_REQUEST)
         rubric = Rubric.objects.create(
@@ -386,14 +436,17 @@ class AdminRubricsView(views.APIView):
 
     def patch(self, request):
         rid = request.data.get("rubricId")
-        rubric = Rubric.objects.get(pk=rid, author=request.user)
+        rubric = get_object_or_404(Rubric, pk=rid, author=request.user)
         for k in ("name", "description"):
             if k in request.data:
                 setattr(rubric, k, request.data[k])
         if "criteria" in request.data:
             criteria = request.data["criteria"]
             if isinstance(criteria, str):
-                json.loads(criteria)  # valida
+                try:
+                    criteria = json.loads(criteria)  # guarda el objeto parseado
+                except json.JSONDecodeError:
+                    return Response({"error": "criteria debe ser JSON válido"}, status=status.HTTP_400_BAD_REQUEST)
             rubric.criteria = criteria
         rubric.save()
         return Response({"ok": True})
@@ -405,8 +458,8 @@ class AdminRubricsView(views.APIView):
 
 
 def _resync_progress_totals(unit: Unit) -> None:
-    """Re-sync Progress.total para todos los usuarios de una unidad."""
-    total = Activity.objects.filter(lesson__unit=unit).count()
+    """Re-sync Progress.total: solo actividades de lecciones publicadas (visibles)."""
+    total = Activity.objects.filter(lesson__unit=unit, lesson__is_published=True).count()
     Progress.objects.filter(unit=unit).update(total=total)
 
 
