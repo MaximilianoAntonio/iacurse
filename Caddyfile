@@ -1,0 +1,25 @@
+# Caddy — reverse proxy con TLS automático (Let's Encrypt) para la plataforma.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build -d
+#
+# El dominio se define con DOMAIN en .env (p. ej. DOMAIN=electromed.uv.cl).
+# Con un dominio real apuntando al servidor, Caddy emite y renueva el
+# certificado solo (Let's Encrypt, desafío HTTP-01 por el puerto 80).
+# Con DOMAIN=localhost usa su CA interna (autofirmado) para probar el stack
+# TLS en local.
+
+{$DOMAIN:localhost} {
+	encode zstd gzip
+
+	# Backend Django: API, admin y archivos subidos por docentes.
+	# Caddy envía X-Forwarded-Proto automáticamente; prod.py ya confía en él
+	# (SECURE_PROXY_SSL_HEADER).
+	@backend path /api/* /admin/* /media/*
+	handle @backend {
+		reverse_proxy backend:8000
+	}
+
+	# Todo lo demás es el frontend Next.js.
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

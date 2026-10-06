@@ -159,6 +159,11 @@ el frontend que ya llama a `/api/...` cambiando solo el host base.
   checklist de 4 casillas + `POST /api/course/consent/revoke`, visible hasta
   `CONSENT_REVOKE_DEADLINE`); la vista `about` tiene además la sección "Mi
   consentimiento" con el estado actual del consentimiento del estudiante.
+  `cookie-notice.tsx` es el **aviso de cookies** (Ley 21.719): se monta en
+  `layout.tsx` (visible también en el login, donde ya se instalan las
+  cookies de sesión/CSRF), es solo informativo —todas las cookies son
+  esenciales, sin opción de rechazo— y su aceptación persiste por equipo en
+  `localStorage` (`electromed_cookie_notice`, sobrevive al logout).
 - `src/components/course-builder/` — editor de cursos del docente.
 - `src/components/ui/` — componentes shadcn/ui (estilo "new-york", iconos Lucide).
 - `src/store/app-store.ts` — estado global con **Zustand** (`persist`), incluye
@@ -314,6 +319,10 @@ pytest -v                     # verbose
   por la plataforma) y resetea contraseñas; toda contraseña temporal fuerza
   cambio obligatorio (`must_change_password`). El login y la telemetría tienen
   **rate limiting** (DRF throttling, scopes `login`/`telemetry_events`).
+  Las contraseñas se almacenan **hasheadas con Argon2id** (`PASSWORD_HASHERS`
+  en `base.py`, paquete `argon2-cffi`; recomendación OWASP). Los hashers
+  PBKDF2 quedan como fallback solo para verificar hashes antiguos, que Django
+  migra a Argon2 en el próximo login exitoso del usuario.
 - **Auditoría de seguridad**: los eventos sensibles (logins exitosos y fallidos,
   cambios/reset de contraseña, creación de cuentas, moderación de reportes,
   cambios de configuración crítica, registro y retiro del consentimiento
@@ -365,8 +374,16 @@ pytest -v                     # verbose
 - **Estáticos y media en prod**: WhiteNoise sirve `/static/` desde gunicorn
   (middleware + `CompressedManifestStaticFilesStorage` en
   `config/settings/prod.py`); `/media/` lo sirve Django vía
-  `django.views.static.serve` en `config/urls.py` (el stack MVP no incluye
-  nginx). Las subidas de docentes persisten en el volumen `media_data`.
+  `django.views.static.serve` en `config/urls.py`. Las subidas de docentes
+  persisten en el volumen `media_data`.
+- **HTTPS/TLS**: el override `docker-compose.tls.yml` + `Caddyfile` (raíz)
+  agregan **Caddy** como reverse proxy con certificado Let's Encrypt
+  automático (`DOMAIN` en `.env`); enruta `/api/`, `/admin/` y `/media/` al
+  backend y el resto al frontend bajo el mismo origen, y restringe los
+  puertos 3000/8000 a `127.0.0.1`. Arranque: `docker compose -f
+  docker-compose.yml -f docker-compose.tls.yml up --build -d` (DEPLOY.md §9).
+  Cuando `SECURE_SSL_REDIRECT=1`, `prod.py` exime `/api/health` del redirect
+  para no romper el healthcheck interno de Docker.
 - **Cookies en prod**: `prod.py` las toma del entorno con default seguro
   (`SECURE=1`, `SAMESITE=None`). En despliegues HTTP sin TLS hay que definir
   `SESSION_COOKIE_SECURE=0`/`CSRF_COOKIE_SECURE=0`/`SAMESITE=Lax` o el login

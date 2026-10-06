@@ -1,0 +1,60 @@
+# Override TLS/SSL: agrega Caddy como reverse proxy con HTTPS automático
+# (Let's Encrypt) y deja frontend/backend escuchando solo en localhost.
+#
+# Requisitos: DNS del dominio apuntando al servidor y puertos 80/443 abiertos
+# en el firewall (3000/8000 ya no deben abrirse hacia Internet).
+#
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build -d
+#
+# Variables clave en .env (ver DEPLOY.md §9):
+#   DOMAIN=electromed.uv.cl
+#   NEXT_PUBLIC_API_URL=https://electromed.uv.cl   # mismo origen vía proxy
+#   DJANGO_ALLOWED_HOSTS=electromed.uv.cl,backend
+#   CORS_ALLOWED_ORIGINS=https://electromed.uv.cl
+#   CSRF_TRUSTED_ORIGINS=https://electromed.uv.cl
+#   SECURE_SSL_REDIRECT=1
+#   SECURE_HSTS_SECONDS=31536000
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: electromed-caddy
+    environment:
+      DOMAIN: ${DOMAIN:?definir DOMAIN en .env (p. ej. electromed.uv.cl)}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificados y estado ACME. No borrar caddy_data: Let's Encrypt
+      # aplica rate limits si se reemiten certificados desde cero.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:2019/config/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Con TLS todo el tráfico entra por Caddy (80/443); los puertos de las apps
+  # quedan solo en localhost para depuración. Se usa !override porque Compose
+  # fusiona `ports` como lista (sin la etiqueta quedarían AMBAS publicaciones:
+  # la pública del archivo base y la de localhost).
+  backend:
+    ports: !override
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+
+volumes:
+  caddy_data:
+  caddy_config:

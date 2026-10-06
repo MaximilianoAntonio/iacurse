@@ -36,6 +36,10 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", False)
+if SECURE_SSL_REDIRECT:
+    # El healthcheck interno de Docker (curl http://localhost:8000/api/health)
+    # no pasa por el proxy TLS: eximirlo o el redirect a HTTPS lo rompe.
+    SECURE_REDIRECT_EXEMPT = [r"^api/health$"]
 SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
 if SECURE_HSTS_SECONDS > 0:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True

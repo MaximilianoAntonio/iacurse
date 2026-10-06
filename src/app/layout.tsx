@@ -5,6 +5,7 @@ import "./globals.css";
 import "katex/dist/katex.min.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
+import { CookieNotice } from "@/components/app/cookie-notice";
 
 // Tipografía del rediseño: Archivo (display industrial), Hanken Grotesk
 // (texto de trabajo) y JetBrains Mono (datos y medición). Sale de Geist.
@@ -59,6 +60,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
+          <CookieNotice />
         </ThemeProvider>
       </body>
     </html>

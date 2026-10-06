@@ -36,9 +36,8 @@ urlpatterns = [
 
 # Servir archivos subidos (imágenes del editor docente).
 # En desarrollo static() los expone automáticamente; en producción se sirven
-# desde Django/gunicorn porque el stack MVP no incluye nginx/Caddy. A la
-# escala del piloto es suficiente; si se agrega un reverse proxy, conviene
-# servir /media/ (y /static/) directamente allí.
+# desde Django/gunicorn (detrás de Caddy cuando se usa docker-compose.tls.yml).
+# A la escala del piloto es suficiente.
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 else:

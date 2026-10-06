@@ -163,6 +163,18 @@ else:
 # ---------------------------------------------------------------------------
 # Autenticación (Módulo de acceso del lineamiento)
 # ---------------------------------------------------------------------------
+# Hashing de contraseñas (seguridad por diseño: "claves encriptadas").
+# Argon2id como hasher primario (recomendación OWASP: resistente a GPU/ASIC
+# por costo de memoria). Los hashers PBKDF2 quedan como fallback para verificar
+# contraseñas creadas antes del cambio; Django las migra a Argon2
+# automáticamente en el próximo login exitoso del usuario.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+]
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",

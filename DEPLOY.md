@@ -143,8 +143,8 @@ plataforma).
 ## 6. Notas operativas
 
 - Los estáticos del admin/DRF los sirve WhiteNoise desde gunicorn; `/media/`
-  lo sirve Django. Suficiente para la escala del piloto; con más carga,
-  poner un reverse proxy (nginx/Caddy) sirviendo `/static/` y `/media/`.
+  lo sirve Django. Suficiente para la escala del piloto. HTTPS/TLS con
+  dominio: ver §9 (Caddy con Let's Encrypt automático).
 - `NEXT_PUBLIC_API_URL` se incrusta en el bundle en **build-time**:
   cambiarla requiere `docker compose up --build` (no basta reiniciar).
 - Actualizar el código: `git pull && docker compose up --build -d`
@@ -219,7 +219,7 @@ plataforma de estudio es tolerable, pero si se quiere respuesta rápida:
 Costos adicionales a presupuestar:
 
 - **Dominio**: ~US$10–15/año (o subdominio institucional `*.uv.cl` gratis).
-- **TLS**: gratis con Caddy/nginx + Let's Encrypt, o Cloudflare (plan gratis).
+- **TLS**: gratis con el override Caddy incluido (§9) o Cloudflare (plan gratis).
 - **Backups**: incluidos en OVH VPS; +20% del plan en Hetzner/DO; o respaldos
   manuales con `pg_dump` (sección 5) sin costo.
 - **API de IA** (OpenAI/Gemini): según uso; sin key la plataforma funciona con
@@ -242,17 +242,22 @@ imágenes son multi-arch y funciona igual).
 2. Asignar IP pública y configurar acceso **SSH por clave** (subir la clave
    pública al crearla; guardar la privada).
 3. Si el proveedor tiene firewall en consola (Hetzner Cloud Firewall,
-   Security Groups de Lightsail, etc.), abrir TCP `3000` y `8000`
-   (y `80`/`443` si luego se pone un proxy con TLS).
+   Security Groups de Lightsail, etc.), abrir TCP `80` y `443` (HTTPS con
+   Caddy, §9). Los puertos `3000` y `8000` solo hacen falta si se despliega
+   por HTTP plano sin proxy.
 
 ### 8.2 Firewall de la VM (ufw)
 
 ```bash
 sudo ufw allow OpenSSH
-sudo ufw allow 3000/tcp
-sudo ufw allow 8000/tcp
+sudo ufw allow 80/tcp     # HTTP: redirect a HTTPS + desafío ACME de Let's Encrypt
+sudo ufw allow 443/tcp    # HTTPS (Caddy)
 sudo ufw enable
 ```
+
+> Los puertos `3000` y `8000` solo se abren en despliegues **HTTP planos**
+> (red interna, §8.3). Con Caddy (§9) no deben ser accesibles desde Internet:
+> el override TLS los restringe a `127.0.0.1`.
 
 ### 8.3 Instalar Docker y desplegar
 
@@ -290,19 +295,12 @@ docker compose ps                # los 3 servicios healthy
 curl http://localhost:8000/api/health
 ```
 
-App: `http://<IP>:3000`. Si más adelante hay dominio, poner Caddy delante
-(puertos 80/443, TLS automático) y revertir las cookies a
-`SECURE=1`/`SAMESITE=None`. **Con TLS operativo**, activar además en `.env`:
-
-```env
-SECURE_SSL_REDIRECT=1
-SECURE_HSTS_SECONDS=31536000
-```
-
-Nota de seguridad: operar por HTTP plano expone credenciales y cookies de
-sesión en tránsito; para información clasificada como Confidencial (datos
-personales y registros académicos) la política institucional exige TLS 1.2+
-— el despliegue definitivo debe ir detrás de HTTPS.
+App: `http://<IP>:3000`. Este esquema por IP y HTTP plano es solo para
+pruebas en red interna: expone credenciales y cookies de sesión en tránsito,
+y para información clasificada como Confidencial (datos personales y
+registros académicos) la política institucional exige TLS 1.2+. El
+despliegue definitivo debe ir con dominio y HTTPS — ver **§9** (Caddy con
+certificado Let's Encrypt automático).
 
 ### 8.4 Respaldos
 
@@ -334,3 +332,57 @@ gunzip -c backups/electromed_YYYYMMDD_HHMMSS.sql.gz | docker compose exec -T db 
 VM usa ~1,5–2 GB de los 4 GB disponibles. En la práctica aguanta varias
 veces esa concurrencia; el único cuello real es la latencia de las llamadas
 externas a la IA (OpenAI/Gemini), que no pasa por la VM.
+
+## 9. HTTPS / TLS con Caddy (certificado automático)
+
+El repo incluye un override `docker-compose.tls.yml` + `Caddyfile` que ponen
+**Caddy** delante del stack: termina TLS con certificado **Let's Encrypt**
+(emisión y renovación automáticas), redirige HTTP→HTTPS y enruta por path —
+`/api/`, `/admin/` y `/media/` van al backend Django y el resto al frontend
+Next.js, todo bajo el mismo dominio (mismo origen: se acaba el CORS).
+
+### 9.1 Requisitos
+
+1. Un **dominio** (o subdominio `*.uv.cl`) con registro DNS `A` apuntando a
+   la IP pública del servidor.
+2. Puertos `80` y `443` abiertos (ufw §8.2 y firewall del proveedor). El 80
+   es obligatorio: Caddy lo usa para el desafío ACME y para redirigir a HTTPS.
+3. **Docker Compose ≥ 2.24** (el override usa la etiqueta YAML `!override`);
+   cualquier Docker Engine 25+ la incluye.
+
+### 9.2 Configuración de `.env`
+
+```env
+DOMAIN=electromed.uv.cl
+# El navegador solo habla con Caddy: la API queda en el MISMO origen.
+NEXT_PUBLIC_API_URL=https://electromed.uv.cl
+DJANGO_ALLOWED_HOSTS=electromed.uv.cl,backend
+CORS_ALLOWED_ORIGINS=https://electromed.uv.cl
+CSRF_TRUSTED_ORIGINS=https://electromed.uv.cl
+# Cookies seguras (son los defaults de prod.py; quitar los overrides =0/Lax
+# si venías de un despliegue HTTP plano) y endurecer transporte:
+SECURE_SSL_REDIRECT=1
+SECURE_HSTS_SECONDS=31536000
+```
+
+### 9.3 Arranque y verificación
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build -d
+docker compose ps                 # db, backend, frontend y caddy healthy
+docker compose logs -f caddy      # primera emisión del certificado (~30 s)
+curl -I https://electromed.uv.cl/api/health
+```
+
+Notas:
+
+- Con este override los puertos `3000`/`8000` quedan publicados solo en
+  `127.0.0.1` (depuración); todo el tráfico público entra por Caddy.
+- Los certificados viven en el volumen `caddy_data` — **no borrarlo**:
+  Let's Encrypt aplica rate limits si se reemite desde cero.
+- `NEXT_PUBLIC_API_URL` se incrusta en build-time: tras cambiarla hay que
+  rebuildar (`up --build`), no basta reiniciar.
+- El healthcheck interno del backend sigue siendo HTTP plano dentro de la
+  red Docker; por eso `prod.py` exime `/api/health` de `SECURE_SSL_REDIRECT`.
+- Para probar TLS en local sin dominio: `DOMAIN=localhost` — Caddy usa su CA
+  interna (el navegador pedirá confiar en el certificado autofirmado).

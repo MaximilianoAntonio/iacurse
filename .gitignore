@@ -72,6 +72,9 @@ server.log
 # Respaldos de base de datos (contienen datos; nunca versionar)
 /backups/
 
+# Respaldo local del historial git (bundle de seguridad; no versionar)
+*.bundle
+
 # Directorios vacios de scaffolding que no aportan al repo
 /mini-services/
 /upload/
