@@ -6,7 +6,8 @@ import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { cn } from "@/lib/utils";
 import type { Role, ViewKey } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { X, PanelLeftClose, PanelLeftOpen, GraduationCap, HeartPulse } from "lucide-react";
+import { X, PanelLeftClose, PanelLeftOpen, GraduationCap } from "lucide-react";
+import { LogoMark } from "@/components/app/logo";
 
 interface NavItem {
   key: ViewKey;
@@ -83,12 +84,10 @@ export function Sidebar() {
             className="flex min-w-0 items-center gap-3 text-left"
             title="Ir al inicio"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-gold text-brand-ink shadow-sm">
-              <HeartPulse className="h-5 w-5" />
-            </span>
+            <LogoMark className="h-9 w-9 shadow-sm" />
             <span className={cn("min-w-0 leading-tight", navCollapsed && "lg:hidden")}>
               <span className="block truncate font-display text-base font-bold tracking-tight text-sidebar-foreground">
-                ElectroMed IA
+                CAAMI
               </span>
               <span className="block truncate text-xs text-sidebar-foreground/55">
                 Universidad de Valparaíso

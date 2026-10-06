@@ -1,7 +1,8 @@
 "use client";
 
 import { DynamicIcon } from "@/components/app/dynamic-icon";
-import { ShieldCheck, HeartPulse, BookOpen } from "lucide-react";
+import { LogoMark } from "@/components/app/logo";
+import { ShieldCheck, BookOpen } from "lucide-react";
 
 export function Footer() {
   return (
@@ -10,10 +11,8 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-3">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-brand-gold shadow-xs">
-                <HeartPulse className="h-4 w-4" />
-              </div>
-              <span className="font-display text-sm font-bold tracking-tight">ElectroMed IA</span>
+              <LogoMark className="h-8 w-8 shadow-xs" />
+              <span className="font-display text-sm font-bold tracking-tight">CAAMI</span>
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Plataforma web con IA generativa para apoyar el aprendizaje personalizado

@@ -8,6 +8,7 @@ Mapeo 1:1 desde prisma/schema.prisma:
 StudySession ahora se escribe en PRODUCCIÓN vía heartbeat real (telemetría),
 no solo en seed como en la versión Next.js.
 """
+import secrets
 import uuid
 
 from django.conf import settings
@@ -306,4 +307,66 @@ class PersonalizedUnit(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.user} - {self.unit.title} (Personalizada)"
+
+
+class StudentConsent(models.Model):
+    """Registro del consentimiento informado electrónico.
+
+    Evidencia de la decisión del estudiante sobre el uso CIENTÍFICO de los
+    datos académicos generados en la plataforma (formulario versión
+    ``settings.CONSENT_VERSION``). Se registra una sola vez (OneToOne); el
+    retiro posterior solo marca ``revoked_at`` conservando el registro como
+    evidencia del ciclo completo de consentimiento.
+
+    Si el estudiante autoriza, se genera un segundo código aleatorio
+    (``research_code``) para la base científica: lo conoce únicamente el
+    coinvestigador (vía Django admin / acceso staff) y NUNCA se expone al
+    frontend ni a los endpoints docentes — el profesor no tiene forma
+    técnica de conocer la decisión.
+    """
+
+    DECISION_AUTHORIZED = "authorized"
+    DECISION_REJECTED = "rejected"
+    DECISION_CHOICES = [
+        (DECISION_AUTHORIZED, "Autoriza el uso científico de sus datos"),
+        (DECISION_REJECTED, "No autoriza el uso científico de sus datos"),
+    ]
+
+    # Alfabeto sin caracteres ambiguos (0/O, 1/I) para los códigos de investigación.
+    RESEARCH_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+    id = models.CharField(primary_key=True, max_length=40, default=_cuid_default, editable=False)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="consent"
+    )
+    decision = models.CharField("decisión", max_length=10, choices=DECISION_CHOICES)
+    version = models.CharField("versión del consentimiento", max_length=20)
+    research_code = models.CharField(
+        "código de investigación", max_length=12, unique=True, null=True, blank=True
+    )
+    decided_at = models.DateTimeField("fecha/hora de la decisión", auto_now_add=True)
+    revoked_at = models.DateTimeField("fecha/hora del retiro", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "consentimiento informado"
+        verbose_name_plural = "consentimientos informados"
+
+    def __str__(self) -> str:
+        return f"Consentimiento de {self.user} ({self.get_decision_display()})"
+
+    @classmethod
+    def generate_research_code(cls) -> str:
+        """Genera un código aleatorio único (``RX-XXXXXXXXX``) para la base científica."""
+        for _ in range(10):
+            code = "RX-" + "".join(secrets.choice(cls.RESEARCH_CODE_ALPHABET) for _ in range(9))
+            if not cls.objects.filter(research_code=code).exists():
+                return code
+        # Improbable; se deja que la restricción unique falle antes que loop infinito.
+        raise RuntimeError("No se pudo generar un código de investigación único")
+
+    @property
+    def authorized(self) -> bool:
+        """True si autorizó y no ha retirado la autorización."""
+        return self.decision == self.DECISION_AUTHORIZED and self.revoked_at is None
+
 

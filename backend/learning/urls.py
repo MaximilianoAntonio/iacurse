@@ -23,4 +23,11 @@ urlpatterns = [
     path("course/status", views.CourseStatusView.as_view(), name="course-status"),
     path("course/diagnostic", views.CourseDiagnosticView.as_view(), name="course-diagnostic"),
     path("course/final-exam", views.FinalExamView.as_view(), name="course-final-exam"),
+    # Consentimiento informado electrónico (uso científico de datos)
+    path("course/consent", views.CourseConsentView.as_view(), name="course-consent"),
+    path(
+        "course/consent/revoke",
+        views.CourseConsentRevokeView.as_view(),
+        name="course-consent-revoke",
+    ),
 ]

@@ -297,6 +297,12 @@ TELEMETRY_DAILY_USAGE_ALERT_MIN = int(os.environ.get("TELEMETRY_DAILY_USAGE_ALER
 TELEMETRY_RETENTION_DAYS = int(os.environ.get("TELEMETRY_RETENTION_DAYS", "365"))
 AUDIT_LOG_RETENTION_DAYS = int(os.environ.get("AUDIT_LOG_RETENTION_DAYS", "365"))
 
+# Consentimiento informado electrónico (uso científico de datos académicos):
+# versión del documento que se registra como evidencia y plazo máximo para
+# retirar la autorización (fecha ISO; pasada esa fecha el retiro se rechaza).
+CONSENT_VERSION = os.environ.get("CONSENT_VERSION", "2026-08-V2")
+CONSENT_REVOKE_DEADLINE = os.environ.get("CONSENT_REVOKE_DEADLINE", "2026-12-11")
+
 
 # ---------------------------------------------------------------------------
 # Logging — salida estructurada a stdout (recolectable por Docker/gunicorn)

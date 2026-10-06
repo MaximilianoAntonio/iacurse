@@ -1,4 +1,4 @@
-# DESIGN.md — ElectroMed IA
+# DESIGN.md — CAAMI
 
 > Sistema visual del rediseño 2026. Fuente de verdad para todos los agentes y
 > personas que toquen el frontend. Los tokens viven en `src/app/globals.css`
@@ -8,7 +8,7 @@
 
 ## El mundo: "Instrumento de precisión"
 
-ElectroMed IA es una herramienta de estudio (modo **Operate**) para
+CAAMI es una herramienta de estudio (modo **Operate**) para
 Electromedicina II, Universidad de Valparaíso. Su mundo visual es el del
 equipo biomédico bien construido: paneles de porcelana de laboratorio, tinta
 azul profunda, etiquetado técnico preciso y una única señal ámbar que marca lo

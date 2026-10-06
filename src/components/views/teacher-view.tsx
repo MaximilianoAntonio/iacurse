@@ -63,9 +63,11 @@ import {
   Copy,
   UserPlus,
   KeyRound,
+  Dices,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -1250,8 +1252,9 @@ function StudentsAdminSection() {
             <div>
               <CardTitle className="text-base">Cuentas de estudiantes</CardTitle>
               <CardDescription>
-                Crea cuentas anonimizadas por código y reinicia contraseñas.
-                Las contraseñas temporales se muestran una sola vez.
+                Crea cuentas anonimizadas (con tus propios códigos o aleatorios)
+                y reinicia contraseñas. Las contraseñas temporales se muestran
+                una sola vez.
               </CardDescription>
             </div>
           </div>
@@ -1368,6 +1371,15 @@ function StudentsAdminSection() {
   );
 }
 
+// Alfabeto de códigos aleatorios: igual al del backend (sin 0/O, 1/I/L)
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function randomStudentCode(length = 10): string {
+  const bytes = new Uint32Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+}
+
 function CreateStudentsDialog({
   open,
   onOpenChange,
@@ -1378,25 +1390,41 @@ function CreateStudentsDialog({
   onCreated: (created: TemporaryCredential[]) => void;
 }) {
   const [codesText, setCodesText] = useState("");
+  const [generateCount, setGenerateCount] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serverErrors, setServerErrors] = useState<string[]>([]);
+
+  const parsedCodes = codesText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const handleGenerate = () => {
+    const n = Math.min(Math.max(1, Math.floor(generateCount) || 1), 200);
+    const existing = new Set(parsedCodes.map((c) => c.toLowerCase()));
+    const fresh: string[] = [];
+    while (fresh.length < n) {
+      const code = randomStudentCode();
+      if (!existing.has(code.toLowerCase())) {
+        existing.add(code.toLowerCase());
+        fresh.push(code);
+      }
+    }
+    setCodesText((prev) => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n` : "") + fresh.join("\n"));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setServerErrors([]);
-    const codes = codesText
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    if (codes.length === 0) {
-      setError("Ingresa al menos un código (uno por línea).");
+    if (parsedCodes.length === 0) {
+      setError("Ingresa al menos un código (o genéralos aleatoriamente).");
       return;
     }
     setLoading(true);
     try {
-      const resp = await postJSON<BulkCreateResponse>("/api/admin/students", { codes });
+      const resp = await postJSON<BulkCreateResponse>("/api/admin/students", { codes: parsedCodes });
       if (resp.errors.length > 0) {
         setServerErrors(resp.errors.map((e2) => `${e2.studentCode}: ${e2.error}`));
       }
@@ -1418,16 +1446,41 @@ function CreateStudentsDialog({
         <DialogHeader>
           <DialogTitle>Crear estudiantes</DialogTitle>
           <DialogDescription>
-            Ingresa un código por línea (máx. 200). Cada cuenta se crea con una
-            contraseña temporal que el estudiante deberá cambiar en su primer
-            inicio de sesión.
+            Escribe el código de cada cuenta (uno por línea, máx. 200) o
+            genéralos aleatoriamente. Cada cuenta se crea con una contraseña
+            temporal que el estudiante deberá cambiar en su primer inicio de
+            sesión.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex items-end gap-2">
+            <div className="w-28 space-y-1.5">
+              <Label htmlFor="generate-count" className="text-xs">Cantidad</Label>
+              <Input
+                id="generate-count"
+                type="number"
+                min={1}
+                max={200}
+                value={generateCount}
+                onChange={(e) => setGenerateCount(Number(e.target.value))}
+                className="font-mono"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleGenerate}
+            >
+              <Dices className="h-3.5 w-3.5" />
+              Generar aleatorios
+            </Button>
+          </div>
           <Textarea
             value={codesText}
             onChange={(e) => setCodesText(e.target.value)}
-            placeholder={"EM-0001\nEM-0002\nEM-0003"}
+            placeholder={"K7P2Q9XDM4\nCURSO-A-01\nCURSO-A-02"}
             rows={8}
             className="font-mono text-sm"
             aria-label="Códigos de estudiantes, uno por línea"
@@ -1448,7 +1501,7 @@ function CreateStudentsDialog({
           <DialogFooter>
             <Button type="submit" disabled={loading} className="gap-1.5">
               {loading && <RotateCw className="h-3.5 w-3.5 animate-spin" />}
-              Crear cuentas
+              Crear {parsedCodes.length > 0 ? `${parsedCodes.length} ` : ""}cuentas
             </Button>
           </DialogFooter>
         </form>

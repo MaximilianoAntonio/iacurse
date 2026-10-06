@@ -16,10 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Flame, Sparkles, Sun, Moon, LogOut, UserCog, Search } from "lucide-react";
+import { Menu, Flame, Sparkles, Sun, Moon, LogOut, UserCog, Search, ShieldOff } from "lucide-react";
 import { useTheme } from "next-themes";
 import { initials } from "@/lib/course-utils";
-import { postJSON } from "@/hooks/use-fetch";
+import { postJSON, useFetch } from "@/hooks/use-fetch";
+import { RevokeConsentDialog } from "@/components/app/revoke-consent-dialog";
+import type { CourseStatus } from "@/lib/types";
 
 interface HeaderProps {
   onLogout: () => void;
@@ -29,6 +31,22 @@ export function Header({ onLogout }: HeaderProps) {
   const currentUser = useAppStore((s) => s.currentUser);
   const role = useAppStore((s) => s.role);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [revokeOpen, setRevokeOpen] = React.useState(false);
+
+  // Estado del consentimiento informado (solo estudiantes): alimenta la opción
+  // "Revocar mi autorización" del menú de usuario, visible mientras la
+  // autorización esté vigente y dentro del plazo de retiro.
+  const { data: courseStatus, refetch: refetchStatus } = useFetch<CourseStatus>(
+    role === "student" ? "/api/course/status" : null,
+    [role]
+  );
+  const consent = courseStatus?.consent;
+  const today = new Date().toISOString().slice(0, 10);
+  const showRevoke =
+    role === "student" &&
+    !!consent?.completed &&
+    consent.authorized &&
+    (!consent.revokeDeadline || today <= consent.revokeDeadline);
 
   // Atajo de teclado: Ctrl/Cmd + K abre la búsqueda global
   React.useEffect(() => {
@@ -140,6 +158,15 @@ export function Header({ onLogout }: HeaderProps) {
                 <UserCog className="h-3.5 w-3.5" />
                 Acerca del piloto
               </DropdownMenuItem>
+              {showRevoke && (
+                <DropdownMenuItem
+                  onClick={() => setRevokeOpen(true)}
+                  className="gap-2 text-xs"
+                >
+                  <ShieldOff className="h-3.5 w-3.5" />
+                  Revocar mi autorización para el uso científico de datos
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={async () => {
                   try {
@@ -159,6 +186,13 @@ export function Header({ onLogout }: HeaderProps) {
         )}
       </div>
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      {showRevoke && (
+        <RevokeConsentDialog
+          open={revokeOpen}
+          onOpenChange={setRevokeOpen}
+          onRevoked={() => refetchStatus()}
+        />
+      )}
     </header>
   );
 }

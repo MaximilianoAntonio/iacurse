@@ -105,8 +105,9 @@ class AuditLog(models.Model):
 
     Cubre los eventos obligatorios de la política de trazabilidad
     (autenticaciones exitosas y fallidas, cambios de contraseña, resets por
-    el docente, creación de cuentas, moderación de reportes y cambios de
-    configuración crítica del curso). A diferencia de AccessLog/EventLog
+    el docente, creación de cuentas, moderación de reportes, cambios de
+    configuración crítica del curso y registro/retiro del consentimiento
+    informado). A diferencia de AccessLog/EventLog
     (telemetría pedagógica), esta tabla es la evidencia auditable ante un
     incidente: NO se edita ni se borra desde la aplicación; la retención se
     gestiona con ``manage.py purge_telemetry``.
@@ -120,6 +121,8 @@ class AuditLog(models.Model):
         ("student_created", "Creación de cuenta de estudiante"),
         ("report_moderated", "Moderación de reporte"),
         ("course_config_changed", "Cambio de configuración del curso"),
+        ("consent_registered", "Consentimiento informado registrado"),
+        ("consent_revoked", "Consentimiento informado revocado"),
     ]
 
     # Quien ejecuta la acción (null en login_failed sin usuario válido)

@@ -16,8 +16,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { HeartPulse, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { Loader2, RotateCcw, XCircle } from "lucide-react";
 import { API_BASE, postJSON } from "@/hooks/use-fetch";
+import { LogoMark } from "@/components/app/logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { User } from "@/lib/types";
@@ -112,11 +113,9 @@ export function LoginView({ onLogin }: LoginViewProps) {
         />
 
         <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-gold text-brand-ink shadow-sm">
-            <HeartPulse className="h-5 w-5" strokeWidth={2.25} />
-          </div>
+          <LogoMark className="h-10 w-10 shadow-sm" />
           <span className="font-display text-lg font-bold tracking-tight">
-            ElectroMed IA
+            CAAMI
           </span>
         </div>
 
@@ -159,11 +158,9 @@ export function LoginView({ onLogin }: LoginViewProps) {
         <div className="w-full max-w-sm space-y-8 animate-fade-in-up">
           {/* Marca compacta para móvil (el panel lateral está oculto) */}
           <div className="flex items-center gap-3 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-gold text-brand-ink shadow-sm">
-              <HeartPulse className="h-4.5 w-4.5" strokeWidth={2.25} />
-            </div>
+            <LogoMark className="h-9 w-9 shadow-sm" />
             <span className="font-display text-base font-bold tracking-tight">
-              ElectroMed IA
+              CAAMI
             </span>
           </div>
 
@@ -191,7 +188,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
                 required
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="EM-0001 o nombre@uv.cl"
+                placeholder="Tu código o nombre@uv.cl"
                 autoComplete="username"
                 aria-invalid={!!error}
                 aria-describedby={error ? "login-error" : undefined}

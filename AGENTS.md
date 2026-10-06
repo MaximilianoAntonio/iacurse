@@ -14,7 +14,8 @@ Es un monorepo con dos aplicaciones:
 - **Frontend**: Next.js 16 (App Router) + React 19 + TypeScript (carpeta `src/`, raíz del repo).
 
 Funcionalidades principales: módulo de acceso **anonimizado** (los estudiantes
-entran con un `student_code` único asignado externamente — sin email ni nombre
+entran con un `student_code` único — elegido por el docente o generado de
+forma aleatoria por la plataforma al crear la cuenta — sin email ni nombre
 real en la plataforma; el docente entra con email; no hay registro público),
 cambio de contraseña obligatorio en el primer inicio y tras cada reset manual
 del docente, currículo con unidades/lecciones/actividades, evaluación automática
@@ -96,9 +97,12 @@ Los estudiantes entran con **código**, no con email:
 | Estudiante | EM-0002 | demo1234 |
 
 (hay también `EM-0003` y `EM-0004`). Los estudiantes demo tienen
-`must_change_password=False` para poder probar directo; las cuentas creadas
+`must_change_password=False` y el **consentimiento informado pre-registrado**
+(autorizado, con segundo código de investigación) para poder probar directo
+sin pasar por el gate de consentimiento; las cuentas creadas
 por el docente desde el panel (o tras un reset de contraseña) siempre exigen
-cambio obligatorio en el primer inicio.
+cambio obligatorio en el primer inicio y registrar su decisión de
+consentimiento.
 
 ## Estructura del código
 
@@ -108,9 +112,9 @@ Apps Django locales (registradas en `config/settings/base.py`):
 
 | App | Responsabilidad |
 |---|---|
-| `accounts/` | Usuario custom (`accounts.User`, roles `student`/`teacher`). Login por **identificador único**: si contiene `@` busca por email (docentes), si no por `student_code` (estudiantes, anonimizados: sin email/nombre real). El login (`POST /api/auth/login`) exige **captcha autoalojado** (django-simple-captcha, operación matemática: el frontend pide el desafío a `GET /api/captcha/refresh/` — header `X-Requested-With: XMLHttpRequest` requerido — y envía `captchaKey`/`captchaValue`; `CaptchaStore` de un solo uso, `LOGIN_CAPTCHA_ENABLED` como kill switch), tiene **rate limit** por IP (`ScopedRateThrottle`, scope `login`, `LOGIN_THROTTLE_RATE`, default `5/min` → 429) y **auditoría** de intentos exitosos/fallidos (`telemetry.AuditLog`). Campos `student_code` y `must_change_password` (cambio obligatorio vía `POST /api/auth/change-password`; gate a pantalla completa en el frontend). **No hay registro público**: el docente crea/resetea estudiantes desde `admin_views.py` (`GET/POST /api/admin/students`, `POST /api/admin/students/<id>/reset-password`, IsTeacher; las contraseñas temporales se muestran una sola vez). `GET /api/me` y `GET /api/me/data` (exportación completa de datos del titular — derecho de acceso/portabilidad Ley 21.719) |
+| `accounts/` | Usuario custom (`accounts.User`, roles `student`/`teacher`). Login por **identificador único**: si contiene `@` busca por email (docentes), si no por `student_code` (estudiantes, anonimizados: sin email/nombre real). El login (`POST /api/auth/login`) exige **captcha autoalojado** (django-simple-captcha, operación matemática: el frontend pide el desafío a `GET /api/captcha/refresh/` — header `X-Requested-With: XMLHttpRequest` requerido — y envía `captchaKey`/`captchaValue`; `CaptchaStore` de un solo uso, `LOGIN_CAPTCHA_ENABLED` como kill switch), tiene **rate limit** por IP (`ScopedRateThrottle`, scope `login`, `LOGIN_THROTTLE_RATE`, default `5/min` → 429) y **auditoría** de intentos exitosos/fallidos (`telemetry.AuditLog`). Campos `student_code` y `must_change_password` (cambio obligatorio vía `POST /api/auth/change-password`; gate a pantalla completa en el frontend). **No hay registro público**: el docente crea/resetea estudiantes desde `admin_views.py` (`GET/POST /api/admin/students`, `POST /api/admin/students/<id>/reset-password`, IsTeacher; el POST acepta `codes` — códigos explícitos elegidos por el docente — o `count` — N códigos generados de forma totalmente aleatoria: 10 caracteres, mayúsculas+dígitos sin ambiguos, no enumerables —; las contraseñas temporales se muestran una sola vez). `GET /api/me` y `GET /api/me/data` (exportación completa de datos del titular — derecho de acceso/portabilidad Ley 21.719) |
 | `curriculum/` | Units, Lessons, Activities, Objectives, Rubrics + **`CourseConfig`** (singleton: preguntas del diagnóstico general y configuración de la prueba de cierre — preguntas MCQ, `final_exam_pass_score`, `final_exam_max_attempts`) |
-| `learning/` | Attempts, Progress, Badges, Bookmarks, `PersonalizedUnit` (unidad adaptada por IA a partir de las respuestas del **diagnóstico general**; `skipped=True` cuando el estudiante usa "Continuar sin personalizar" — POST `/api/units/<id>` con `{action: "adapt"|"skip"}`; el contenido base de la unidad ya no se muestra al estudiante, solo el adaptado por IA; el prompt de adaptación (`learning/ai_services.py`) instruye Markdown enriquecido — tablas GFM, fórmulas KaTeX `$...$`/`$$...$$`, callouts `[!tipo]`, bloques repaso/glosario — manteniendo intactos el separador `## 🔍 Preguntas de Control` y el fallback al contenido base), `CourseDiagnosticResult` (diagnóstico general, OneToOne por usuario; si el docente edita las preguntas desde el Course Builder se borran los resultados y los estudiantes lo repiten), `FinalExamAttempt` (prueba de cierre; endpoints `GET/POST /api/course/final-exam`, desbloqueo con `all_units_completed()` de `learning/services.py`, +100 pts al aprobar), `GET /api/course/status` y `POST /api/course/diagnostic` (gate del estudiante). Lógica de negocio en `grading.py` (5 tipos de actividad, umbrales exactos — incluye `sanitize_activity_data`, que quita la pauta del payload de `GET /api/lessons/<id>`; el attempt devuelve la pauta completa solo post-envío en `reviewData`), `badges.py` (5 reglas), `streak.py` (3 branches). Los intentos sobre lecciones en borrador (docente) se rechazan con 404 |
+| `learning/` | Attempts, Progress, Badges, Bookmarks, `PersonalizedUnit` (unidad adaptada por IA a partir de las respuestas del **diagnóstico general**; `skipped=True` cuando el estudiante usa "Continuar sin personalizar" — POST `/api/units/<id>` con `{action: "adapt"|"skip"}`; el contenido base de la unidad ya no se muestra al estudiante, solo el adaptado por IA; el prompt de adaptación (`learning/ai_services.py`) instruye Markdown enriquecido — tablas GFM, fórmulas KaTeX `$...$`/`$$...$$`, callouts `[!tipo]`, bloques repaso/glosario — manteniendo intactos el separador `## 🔍 Preguntas de Control` y el fallback al contenido base), `CourseDiagnosticResult` (diagnóstico general, OneToOne por usuario; si el docente edita las preguntas desde el Course Builder se borran los resultados y los estudiantes lo repiten), `FinalExamAttempt` (prueba de cierre; endpoints `GET/POST /api/course/final-exam`, desbloqueo con `all_units_completed()` de `learning/services.py`, +100 pts al aprobar), `GET /api/course/status` y `POST /api/course/diagnostic` (gate del estudiante; el status también expone el bloque `consent` solo a estudiantes), **`StudentConsent`** (consentimiento informado electrónico para el uso científico de datos, OneToOne: decisión `authorized`/`rejected`, `version` del documento — settings `CONSENT_VERSION` —, `decided_at`, `revoked_at` y `research_code` — **segundo código** `RX-…` generado solo al autorizar; la decisión se registra una sola vez vía `POST /api/course/consent` y el retiro vía `POST /api/course/consent/revoke`, con plazo `CONSENT_REVOKE_DEADLINE`; **el profesor nunca conoce la decisión**: ningún endpoint docente la expone — el listado de estudiantes, la analítica y los reportes no la incluyen — y el `research_code` jamás sale al frontend; el canal del coinvestigador es el admin de Django — `learning/admin.py`, solo lectura, restringir cuentas staff — y el comando `manage.py export_research_data --kind consent|mapping|scientific`, que genera los CSV de la ficha de datos: registro de consentimiento §3.2, tabla de correspondencia §3.3 y base científica §3.4 — esta última solo con autorización vigente y solo bajo el segundo código). Lógica de negocio en `grading.py` (5 tipos de actividad, umbrales exactos — incluye `sanitize_activity_data`, que quita la pauta del payload de `GET /api/lessons/<id>`; el attempt devuelve la pauta completa solo post-envío en `reviewData`), `badges.py` (5 reglas), `streak.py` (3 branches). Los intentos sobre lecciones en borrador (docente) se rechazan con 404 |
 | `telemetry/` | `AccessLog` (middleware), `StudySession` (heartbeat, valida que la sesión pertenezca al usuario), `EventLog` (con rate limiting, scope `telemetry_events`), alarma de uso diario, **`AuditLog`** (auditoría de seguridad: logins exitosos/fallidos, cambios/reset de contraseña, creación de cuentas, moderación de reportes y cambios de configuración crítica del curso — registrar vía `telemetry/audit.py::log_security_event`) y `manage.py purge_telemetry` (retención configurable: `TELEMETRY_RETENTION_DAYS`/`AUDIT_LOG_RETENTION_DAYS`, default 365 días) |
 | `analytics/` | Panel docente y progreso del estudiante (`aggregations.py`) |
 | `tutor/` | Capa de abstracción de IA en `tutor/ai/` (`base.py`, `factory.py`, `openai_provider.py`, `gemini_provider.py`, `prompts.py`) + `services.py` con `generate_activity_feedback` (retroalimentación de actividades). El chat socrático (modelo ChatMessage y endpoint `/api/tutor`) fue eliminado del producto |
@@ -128,8 +132,16 @@ el frontend que ya llama a `/api/...` cambiando solo el host base.
   como SPA cliente: `view-router.tsx` + el store deciden qué vista renderizar.
   `page.tsx` también aplica los **gates post-login** en orden: cambio de
   contraseña obligatorio (`force-change-password-view`) y, solo estudiantes,
-  diagnóstico general del curso (`course-diagnostic-view`, consulta
-  `GET /api/course/status`).
+  **consentimiento informado electrónico** (`consent-view`, gate único
+  centrado que registra la decisión vía `POST /api/course/consent` — 6
+  pantallas con el texto COMPLETO de cada sección del formulario; TODAS
+  exigen esperar 10 s y las 5 primeras además exigen marcar "He leído y
+  comprendido esta información" parte por parte; la 6ª resume las secciones
+  leídas y muestra la decisión — Opción 1 autorizo con las 6 casillas
+  checklist del formulario / Opción 2 no autorizo — con "Registrar mi
+  decisión" inactivo por defecto; el PDF del formulario NO se distribuye
+  desde la plataforma) y diagnóstico general del curso
+  (`course-diagnostic-view`, consulta `GET /api/course/status`).
 - `src/components/views/` — vistas principales (login, dashboard, units,
   unit-detail, lesson, activity, final-exam, teacher, progress, achievements,
   bookmarks, course-builder, about).
@@ -141,7 +153,12 @@ el frontend que ya llama a `/api/...` cambiando solo el host base.
   autenticadas; envía `source: "platform"` con `sourceId` contextual
   (`page:<view>;unit:<id>;...`). El diálogo es `report-error-dialog.tsx`
   (reutilizable en modo controlado o con trigger propio; también lo usan
-  unit-detail y lesson-view con `source: "content"`).
+  unit-detail y lesson-view con `source: "content"`). El menú de usuario del
+  header ofrece a estudiantes con autorización vigente la opción **"Revocar mi
+  autorización para el uso científico de datos"** (`revoke-consent-dialog.tsx`,
+  checklist de 4 casillas + `POST /api/course/consent/revoke`, visible hasta
+  `CONSENT_REVOKE_DEADLINE`); la vista `about` tiene además la sección "Mi
+  consentimiento" con el estado actual del consentimiento del estudiante.
 - `src/components/course-builder/` — editor de cursos del docente.
 - `src/components/ui/` — componentes shadcn/ui (estilo "new-york", iconos Lucide).
 - `src/store/app-store.ts` — estado global con **Zustand** (`persist`), incluye
@@ -232,8 +249,8 @@ el frontend que ya llama a `/api/...` cambiando solo el host base.
   email docente, más el captcha (ver `accounts/`). Como la cookie
   es HttpOnly, el frontend guarda un flag `electromed-session` en `localStorage`
   para saber si debe revalidar con `/api/me`. Tras autenticar, `page.tsx`
-  aplica los gates de `mustChangePassword` y del diagnóstico general antes de
-  montar el `AppShell`.
+  aplica los gates de `mustChangePassword`, del consentimiento informado y
+  del diagnóstico general antes de montar el `AppShell`.
 - **CSRF**: antes de cada POST/PATCH/DELETE se asegura la cookie `csrftoken`
   (GET a `/api/auth/csrf`) y se envía el header `X-CSRFToken`. Usa siempre los
   helpers `postJSON`/`patchJSON`/`deleteURL` en lugar de `fetch` directo.
@@ -264,8 +281,8 @@ Solo el **backend** tiene tests (el frontend no tiene infraestructura de pruebas
 
 ```bash
 cd backend
-pytest                        # todos los tests (~160)
-pytest learning/tests/        # grading / badges / streak / attempt / seguridad
+pytest                        # todos los tests (~208)
+pytest learning/tests/        # grading / badges / streak / attempt / consent / seguridad
 pytest telemetry/tests/       # telemetría
 pytest -v                     # verbose
 ```
@@ -293,14 +310,27 @@ pytest -v                     # verbose
   estudiantes — **los estudiantes son anónimos dentro de la plataforma** (sin
   email ni nombre real; la tabla que mapea código ↔ identidad se mantiene fuera
   del sistema). No existe registro público: solo el docente crea cuentas
-  (`/api/admin/students`) y resetea contraseñas; toda contraseña temporal fuerza
+  (`/api/admin/students`, con códigos elegidos por él o aleatorios generados
+  por la plataforma) y resetea contraseñas; toda contraseña temporal fuerza
   cambio obligatorio (`must_change_password`). El login y la telemetría tienen
   **rate limiting** (DRF throttling, scopes `login`/`telemetry_events`).
 - **Auditoría de seguridad**: los eventos sensibles (logins exitosos y fallidos,
   cambios/reset de contraseña, creación de cuentas, moderación de reportes,
-  cambios de configuración crítica) se registran en `telemetry.AuditLog` vía
+  cambios de configuración crítica, registro y retiro del consentimiento
+  informado — `consent_registered`/`consent_revoked`) se registran en
+  `telemetry.AuditLog` vía
   `log_security_event` — cualquier vista nueva con acciones sensibles debe
   usarlo. La retención se aplica con `manage.py purge_telemetry`.
+- **Consentimiento informado (investigación)**: la decisión del estudiante
+  sobre el uso científico de sus datos es **invisible para el profesor**
+  (ficha de datos §6-§7): ningún endpoint docente la expone y el
+  `research_code` (segundo código) nunca sale al frontend. El canal del
+  coinvestigador es el admin de Django (`StudentConsent`, solo lectura) y
+  `manage.py export_research_data`; **el docente de la asignatura no debe
+  tener cuenta staff del admin en producción** (el listado revela la
+  decisión y la correspondencia de códigos). La versión del documento se
+  fija con `CONSENT_VERSION` y el plazo de retiro con
+  `CONSENT_REVOKE_DEADLINE` (ver `.env.example`).
 - **CORS/CSRF**: orígenes permitidos en `CORS_ALLOWED_ORIGINS` y
   `CSRF_TRUSTED_ORIGINS` (default: localhost:3000); `CORS_ALLOW_CREDENTIALS=True`
   es necesario para las cookies cross-origin. Restringir en producción.

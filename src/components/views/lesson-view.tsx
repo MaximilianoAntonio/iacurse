@@ -89,7 +89,7 @@ export function LessonView() {
   // Actualizar el título del documento con el nombre de la lección
   React.useEffect(() => {
     if (data?.lesson) {
-      document.title = `${data.lesson.title} · ElectroMed IA`;
+      document.title = `${data.lesson.title} · CAAMI`;
     }
   }, [data?.lesson?.id]);
 

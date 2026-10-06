@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
 import { LoginView } from "@/components/views/login-view";
 import { ForceChangePasswordView } from "@/components/views/force-change-password-view";
+import { ConsentView } from "@/components/views/consent-view";
 import { CourseDiagnosticView } from "@/components/views/course-diagnostic-view";
 import type { CourseStatus, User } from "@/lib/types";
 
@@ -48,6 +49,8 @@ export default function Home() {
   const [authState, setAuthState] = useState<AuthState>("loading");
   // Gate de cambio de contraseña obligatorio: true una vez completado en esta sesión
   const [passwordChanged, setPasswordChanged] = useState(false);
+  // Gate del consentimiento informado: true una vez registrada la decisión en esta sesión
+  const [consentDone, setConsentDone] = useState(false);
   // Gate del diagnóstico general del curso: true una vez enviado en esta sesión
   const [diagnosticDone, setDiagnosticDone] = useState(false);
 
@@ -56,15 +59,13 @@ export default function Home() {
   const meUrl = authState === "authenticated" ? "/api/me" : null;
   const { data: meData, error } = useFetch<{ user: User }>(meUrl, [authState]);
 
-  // Estado del curso (diagnóstico general): solo para estudiantes autenticados.
-  // Los docentes saltan este gate.
+  // Estado del curso (diagnóstico general + consentimiento): solo para
+  // estudiantes autenticados. Los docentes saltan estos gates.
   const isStudent = meData?.user?.role === "student";
   const statusUrl =
     authState === "authenticated" && isStudent ? "/api/course/status" : null;
-  const { data: courseStatus, loading: statusLoading } = useFetch<CourseStatus>(
-    statusUrl,
-    [authState, isStudent]
-  );
+  const { data: courseStatus, loading: statusLoading, refetch: refetchStatus } =
+    useFetch<CourseStatus>(statusUrl, [authState, isStudent]);
 
   // Al montar: comprobar si hay sesión previa para reanudarla.
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function Home() {
     clearLocalSessionData();
     setUser(null);
     setPasswordChanged(false);
+    setConsentDone(false);
     setDiagnosticDone(false);
     setAuthState("anonymous");
   };
@@ -129,8 +131,27 @@ export default function Home() {
           />
         );
       }
+      // Consentimiento informado electrónico (uso científico de datos):
+      // solo estudiantes, después del cambio de contraseña y antes del
+      // diagnóstico. La decisión se registra una sola vez; si
+      // /api/course/status falla no se bloquea el acceso (fail-open).
+      if (meData.user.role === "student" && !consentDone) {
+        if (courseStatus?.consent && !courseStatus.consent.completed) {
+          return (
+            <ConsentView
+              onCompleted={() => {
+                setConsentDone(true);
+                refetchStatus();
+              }}
+            />
+          );
+        }
+        if (!courseStatus && statusLoading) {
+          return <LoadingScreen />;
+        }
+      }
       // Diagnóstico general del curso (obligatorio, sin opción de saltar):
-      // solo estudiantes, después del cambio de contraseña y antes de la app.
+      // solo estudiantes, después del consentimiento y antes de la app.
       // Si /api/course/status falla no se bloquea el acceso (fail-open).
       if (meData.user.role === "student" && !diagnosticDone) {
         if (courseStatus && !courseStatus.diagnosticCompleted) {

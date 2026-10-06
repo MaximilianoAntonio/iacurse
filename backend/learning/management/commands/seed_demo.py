@@ -25,7 +25,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from curriculum.models import Activity, CourseConfig, LearningObjective, Lesson, Rubric, Unit
-from learning.models import Badge, StudySession
+from learning.models import Badge, StudentConsent, StudySession
 
 User = get_user_model()
 
@@ -730,6 +730,23 @@ class Command(BaseCommand):
             students.append(s)
 
         self.stdout.write(self.style.SUCCESS(f"Usuarios: 1 docente + {len(students)} estudiantes."))
+
+        # Consentimiento informado pre-registrado para los estudiantes demo:
+        # así el flujo demo/QA no se detiene en el gate de consentimiento.
+        # (En producción cada estudiante decide en su primer ingreso; aquí es
+        # un entorno de pruebas con cuentas ficticias.)
+        from django.conf import settings as _settings
+
+        for s in students:
+            consent, created = StudentConsent.objects.get_or_create(
+                user=s,
+                defaults={
+                    "decision": StudentConsent.DECISION_AUTHORIZED,
+                    "version": getattr(_settings, "CONSENT_VERSION", "2026-08-V2"),
+                    "research_code": StudentConsent.generate_research_code(),
+                },
+            )
+        self.stdout.write(self.style.SUCCESS("Consentimiento demo: autorizado para los estudiantes de prueba."))
 
         # --- Configuración del curso: diagnóstico general + prueba de cierre ---
         # Solo se siembra si no hay nada configurado (no pisa ediciones del docente).

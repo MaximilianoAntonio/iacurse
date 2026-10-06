@@ -31,6 +31,7 @@ urlpatterns = [
     path("api/", include("sandbox.urls")),
     path("api/", include("reports.urls")),
     path("api/", include("search.urls")),
+    # Consentimiento informado: rutas en learning.urls (/api/course/consent[/revoke])
 ]
 
 # Servir archivos subidos (imágenes del editor docente).

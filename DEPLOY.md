@@ -45,6 +45,23 @@ Editar `.env` y ajustar **obligatoriamente**:
 
 Sin este ajuste el login no persiste (el navegador descarta la cookie).
 
+### Consentimiento informado (investigación)
+
+La plataforma registra el consentimiento electrónico de los estudiantes para
+el uso científico de sus datos (ficha de datos del estudio). Variables
+opcionales en `.env` (tienen default):
+
+| Variable | Descripción |
+|---|---|
+| `CONSENT_VERSION` | Versión del documento de consentimiento que se registra como evidencia (default `2026-08-V2`). Debe calzar con el PDF servido en `public/consentimiento-informado.pdf`: si el documento cambia, actualizar ambos. |
+| `CONSENT_REVOKE_DEADLINE` | Fecha ISO límite para que un estudiante retire su autorización (default `2026-12-11`, sugerido: cierre de notas del semestre). Pasada esa fecha el retiro se rechaza. |
+
+**Importante (ficha §6-§7)**: el profesor de la asignatura no debe conocer
+las decisiones individuales. No crear cuentas *staff* del admin de Django
+para el docente en producción: el listado `StudentConsent` del admin revela
+la decisión y la correspondencia de códigos. La cuenta staff es solo para el
+**coinvestigador**.
+
 ## 3. Build y arranque
 
 ```bash
@@ -103,6 +120,25 @@ caliente; `TELEMETRY_RETENTION_DAYS` / `AUDIT_LOG_RETENTION_DAYS`):
 docker compose exec backend python manage.py purge_telemetry
 # Programar p. ej. semanal:  41 4 * * 0  cd /ruta/iacurse && docker compose exec -T backend python manage.py purge_telemetry
 ```
+
+Exportación de los datos de investigación (a cargo del **coinvestigador**,
+ficha de datos §3). Genera CSV en `backend/research_export/<timestamp>/`
+(dentro del contenedor; copiarlos con `docker compose cp` o ejecutar con
+`--out` sobre un volumen):
+
+```bash
+# Registro del consentimiento (§3.2): primer código, decisión, fecha/hora, versión, estado
+docker compose exec backend python manage.py export_research_data --kind consent
+# Tabla de correspondencia primer ↔ segundo código (§3.3)
+docker compose exec backend python manage.py export_research_data --kind mapping
+# Base científica (§3.4): solo autorizaciones vigentes, solo segundo código
+docker compose exec backend python manage.py export_research_data --kind scientific
+```
+
+La custodia de estos CSV es en la cuenta institucional de Microsoft 365 del
+coinvestigador, y las tablas con primer código se eliminan una vez subidas
+las notas al registro académico (ficha §8-§9: proceso manual, fuera de la
+plataforma).
 
 ## 6. Notas operativas
 

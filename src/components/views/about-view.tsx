@@ -8,6 +8,11 @@
  * "Instrumento de precisión").
  */
 
+import { ShieldCheck } from "lucide-react";
+import { useFetch } from "@/hooks/use-fetch";
+import { useAppStore } from "@/store/app-store";
+import type { CourseStatus } from "@/lib/types";
+
 // ---------- Contenido estático ----------
 
 const PROJECT_META: { label: string; value: string }[] = [
@@ -77,7 +82,82 @@ const PRIVACY_POINTS: string[] = [
 
 // ---------- Componente principal ----------
 
+/** Descripción legible del estado del consentimiento del estudiante. */
+function consentStateLabel(status: CourseStatus["consent"]): string {
+  if (!status || !status.completed) return "Pendiente: aún no registras tu decisión.";
+  if (status.decision === "rejected")
+    return "No autorizaste el uso científico de tus datos.";
+  if (status.revokedAt) return "Autorización retirada.";
+  return "Autorización vigente para el uso científico de tus datos.";
+}
+
+/**
+ * Sección "Mi consentimiento" (solo estudiantes): muestra el estado actual
+ * de la decisión sobre el uso científico de los datos (ficha de datos §6 y
+ * §10). El retiro de la autorización se realiza desde la opción "Revocar mi
+ * autorización" del menú de usuario (header), disponible mientras la
+ * autorización esté vigente y dentro del plazo. El profesor no tiene acceso
+ * a esta información.
+ */
+function ConsentSection() {
+  const { data, loading } = useFetch<CourseStatus>("/api/course/status");
+
+  const consent = data?.consent;
+  if (loading) return null;
+  if (!consent) return null;
+
+  const canRevoke =
+    consent.completed && consent.decision === "authorized" && !consent.revokedAt;
+
+  return (
+    <section className="space-y-4 border-t border-border pt-8">
+      <h2 className="font-display text-title font-semibold">Mi consentimiento</h2>
+      <div className="flex items-start gap-3">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <div className="space-y-2 text-sm leading-relaxed">
+          <p>
+            <span className="font-medium">Estado actual: </span>
+            {consentStateLabel(consent)}
+          </p>
+          {consent.completed && (
+            <p className="text-muted-foreground">
+              Documento versión {consent.version}
+              {consent.revokedAt
+                ? ` · retirada el ${new Date(consent.revokedAt).toLocaleString("es-CL")}`
+                : ""}
+            </p>
+          )}
+          <p className="text-muted-foreground">
+            Tu decisión es voluntaria, no afecta tu evaluación y el profesor no
+            la conoce.
+          </p>
+          {canRevoke && (
+            <p className="text-muted-foreground">
+              Puedes retirar tu autorización desde la opción{" "}
+              <span className="font-medium text-foreground">
+                "Revocar mi autorización"
+              </span>{" "}
+              del menú de usuario (arriba a la derecha)
+              {consent.revokeDeadline && (
+                <>
+                  , hasta el{" "}
+                  {new Date(`${consent.revokeDeadline}T12:00:00`).toLocaleDateString(
+                    "es-CL",
+                    { day: "numeric", month: "long", year: "numeric" }
+                  )}
+                </>
+              )}
+              .
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function AboutView() {
+  const role = useAppStore((s) => s.role);
   return (
     <div className="mx-auto max-w-3xl space-y-10 p-4 lg:p-8">
       {/* ---------- Encabezado ---------- */}
@@ -165,6 +245,9 @@ export function AboutView() {
           enseñanza durante una experiencia piloto de innovación educativa?”
         </blockquote>
       </section>
+
+      {/* ---------- Mi consentimiento (solo estudiantes) ---------- */}
+      {role === "student" && <ConsentSection />}
 
       {/* ---------- Privacidad y protección de datos ---------- */}
       <section className="space-y-4 border-t border-border pt-8">

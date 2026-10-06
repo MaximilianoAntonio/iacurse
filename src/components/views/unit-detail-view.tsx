@@ -256,7 +256,7 @@ export function UnitDetailView() {
   // Actualizar el título del documento con el nombre de la unidad
   React.useEffect(() => {
     if (data?.unit) {
-      document.title = `${data.unit.title} · ElectroMed IA`;
+      document.title = `${data.unit.title} · CAAMI`;
     }
   }, [data?.unit?.id]);
 

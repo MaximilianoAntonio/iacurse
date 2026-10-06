@@ -13,6 +13,9 @@ Orden reproducido fielmente desde src/app/api/activities/[id]/attempt/route.ts:
 9. Unit-completion detection
 10. Badge check (check_and_award_badges)
 """
+from datetime import date
+
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Max
 from django.utils import timezone
@@ -22,6 +25,7 @@ from rest_framework.response import Response
 
 from accounts.models import User
 from curriculum.models import Activity, CourseConfig, Unit
+from telemetry.audit import log_security_event
 from .badges import check_and_award_badges
 from .grading import grade, parse_activity_data
 from .models import (
@@ -31,6 +35,7 @@ from .models import (
     CourseDiagnosticResult,
     FinalExamAttempt,
     Progress,
+    StudentConsent,
     UserBadge,
 )
 from .services import all_units_completed
@@ -493,6 +498,11 @@ class CourseStatusView(views.APIView):
                 "passScore": config.final_exam_pass_score,
             },
         }
+        # Estado del consentimiento informado (gate de estudiantes). El
+        # docente no recibe este bloque: no debe conocer decisiones ajenas.
+        if user.is_student:
+            consent = StudentConsent.objects.filter(user=user).first()
+            body["consent"] = _serialize_consent(consent)
         # Las preguntas solo se exponen mientras el diagnóstico está pendiente.
         if not diagnostic_completed:
             body["diagnosticQuestions"] = config.diagnostic_questions or []
@@ -555,6 +565,150 @@ class CourseDiagnosticView(views.APIView):
             user=user, defaults={"answers": clean_answers}
         )
         return Response({"ok": True, "diagnosticCompleted": True})
+
+
+# ---------------------------------------------------------------------------
+# Consentimiento informado electrónico (uso científico de datos)
+# ---------------------------------------------------------------------------
+def _consent_revoke_deadline():
+    """Parsea ``settings.CONSENT_REVOKE_DEADLINE`` (fecha ISO) a ``date``.
+
+    Si el valor es inválido se ignora el bloqueo por plazo (fail-open) y se
+    deja constancia en el log: un typo en una variable de entorno no debe
+    impedir que un estudiante ejerza su derecho de retiro.
+    """
+    import logging
+
+    raw = getattr(settings, "CONSENT_REVOKE_DEADLINE", "") or ""
+    try:
+        return date.fromisoformat(raw.strip())
+    except ValueError:
+        logging.getLogger("security").warning(
+            "CONSENT_REVOKE_DEADLINE inválido (%r): se ignora el bloqueo por plazo", raw
+        )
+        return None
+
+
+def _serialize_consent(consent) -> dict:
+    """Serializa el estado del consentimiento para el PROPIO estudiante.
+
+    Nunca incluye ``research_code`` (ese código es de la base científica y
+    solo lo conoce el coinvestigador) ni se expone en endpoints docentes.
+    """
+    return {
+        "completed": consent is not None,
+        "authorized": bool(consent and consent.authorized),
+        "decision": consent.decision if consent else None,
+        "revokedAt": consent.revoked_at.isoformat() if consent and consent.revoked_at else None,
+        "revokeDeadline": getattr(settings, "CONSENT_REVOKE_DEADLINE", ""),
+        "version": getattr(settings, "CONSENT_VERSION", ""),
+    }
+
+
+class CourseConsentView(views.APIView):
+    """POST /api/course/consent — registra la decisión del consentimiento
+    informado (obligatorio para estudiantes tras el cambio de contraseña).
+
+    La decisión se registra UNA sola vez con la versión del documento, la
+    fecha/hora y el usuario (primer código): es la evidencia del
+    consentimiento. Si autoriza, se genera el segundo código aleatorio
+    (``research_code``) que solo conoce el coinvestigador.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if not user.is_student:
+            return Response(
+                {"error": "El consentimiento informado es solo para estudiantes"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        decision = request.data.get("decision")
+        valid = {StudentConsent.DECISION_AUTHORIZED, StudentConsent.DECISION_REJECTED}
+        if decision not in valid:
+            return Response(
+                {"error": "Decisión inválida: debe ser 'authorized' o 'rejected'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if StudentConsent.objects.filter(user=user).exists():
+            return Response(
+                {"error": "La decisión de consentimiento ya fue registrada"},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        consent = StudentConsent(
+            user=user,
+            decision=decision,
+            version=getattr(settings, "CONSENT_VERSION", ""),
+        )
+        if decision == StudentConsent.DECISION_AUTHORIZED:
+            consent.research_code = StudentConsent.generate_research_code()
+        consent.save()
+
+        log_security_event(
+            "consent_registered",
+            actor=user,
+            request=request,
+            metadata={"decision": decision, "version": consent.version},
+        )
+        return Response({"ok": True, "consent": _serialize_consent(consent)})
+
+
+class CourseConsentRevokeView(views.APIView):
+    """POST /api/course/consent/revoke — retira la autorización del uso
+    científico de los datos (disponible hasta CONSENT_REVOKE_DEADLINE).
+
+    El retiro conserva el registro (evidencia del ciclo de consentimiento)
+    y no afecta el uso pedagógico de la plataforma ni las calificaciones.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if not user.is_student:
+            return Response(
+                {"error": "El consentimiento informado es solo para estudiantes"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        consent = StudentConsent.objects.filter(user=user).first()
+        if consent is None or consent.decision != StudentConsent.DECISION_AUTHORIZED:
+            return Response(
+                {"error": "No tienes una autorización vigente que retirar"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if consent.revoked_at is not None:
+            return Response(
+                {"error": "La autorización ya fue retirada anteriormente"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        deadline = _consent_revoke_deadline()
+        if deadline is not None and date.today() > deadline:
+            return Response(
+                {
+                    "error": (
+                        "El plazo para retirar la autorización finalizó el "
+                        f"{deadline.strftime('%d-%m-%Y')}"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        consent.revoked_at = timezone.now()
+        consent.save(update_fields=["revoked_at"])
+
+        log_security_event(
+            "consent_revoked",
+            actor=user,
+            request=request,
+            metadata={"version": consent.version},
+        )
+        return Response({"ok": True, "consent": _serialize_consent(consent)})
 
 
 # Puntos fijos otorgados al aprobar la prueba de cierre (no gatilla insignias).

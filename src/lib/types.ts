@@ -86,6 +86,21 @@ export interface CourseStatus {
     maxAttempts: number;
     passScore: number;
   };
+  /** Consentimiento informado electrónico (solo estudiantes). */
+  consent?: ConsentStatus;
+}
+
+/** Estado del consentimiento informado del estudiante (uso científico de datos). */
+export interface ConsentStatus {
+  completed: boolean;
+  /** True si autorizó y no ha retirado la autorización. */
+  authorized: boolean;
+  decision: "authorized" | "rejected" | null;
+  revokedAt: string | null;
+  /** Fecha ISO límite para retirar la autorización. */
+  revokeDeadline: string;
+  /** Versión del documento de consentimiento registrada como evidencia. */
+  version: string;
 }
 
 /** Pregunta de la prueba de cierre (sin la respuesta correcta). */

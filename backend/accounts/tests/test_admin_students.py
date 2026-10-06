@@ -2,8 +2,11 @@
 Tests de la gestión de estudiantes por el docente (/api/admin/students).
 
 Cubre:
-- Creación en lote (temporal segura, must_change_password, email placeholder)
-- Duplicados en payload y en DB
+- Creación en lote con códigos aleatorios (count, formato, unicidad,
+  temporal segura, must_change_password, email placeholder)
+- Creación con códigos explícitos elegidos por el docente (codes),
+  incluidos duplicados en payload/DB, '@' y colisiones de username
+- Validación de 'count' (faltante, tipo, rango)
 - Permisos: estudiante recibe 403
 - Reset de contraseña: ok (nueva temporal + flag) y 404 si no es estudiante
 - Reportes: GET /api/report identifica al reportante por reporterCode
@@ -64,15 +67,19 @@ class TestStudentsAdmin:
     def test_bulk_create_ok(self, teacher_client):
         resp = teacher_client.post(
             "/api/admin/students",
-            {"codes": ["EM-0002", "EM-0003"]},
+            {"count": 2},
             format="json",
         )
         assert resp.status_code == 201
         payload = resp.json()
         assert payload["errors"] == []
         created = {c["studentCode"]: c["temporaryPassword"] for c in payload["created"]}
-        assert set(created) == {"EM-0002", "EM-0003"}
+        assert len(created) == 2
         for code, temp in created.items():
+            # Código aleatorio: 10 chars, mayúsculas+dígitos sin ambiguos
+            assert len(code) == 10
+            assert code.isalnum() and code == code.upper()
+            assert not set(code) & set("01IOL")
             user = User.objects.get(student_code=code)
             assert user.role == User.ROLE_STUDENT
             assert user.must_change_password is True
@@ -83,6 +90,40 @@ class TestStudentsAdmin:
             assert 10 <= len(temp) <= 12
             assert temp.isalnum()
             assert not set(temp) & set("l1IO0")
+
+    def test_bulk_create_codigos_no_enumerables(self, teacher_client):
+        # Dos llamadas distintas jamás deben repetir códigos ni seguir
+        # un patrón secuencial (los códigos son totalmente aleatorios).
+        codes = set()
+        for _ in range(2):
+            resp = teacher_client.post(
+                "/api/admin/students", {"count": 5}, format="json"
+            )
+            assert resp.status_code == 201
+            batch = {c["studentCode"] for c in resp.json()["created"]}
+            assert len(batch) == 5
+            assert codes.isdisjoint(batch)
+            codes |= batch
+
+    def test_bulk_create_codigos_explicitos(self, teacher_client):
+        # El docente puede elegir los códigos de las cuentas al crearlas.
+        resp = teacher_client.post(
+            "/api/admin/students",
+            {"codes": ["CURSO-A-01", "CURSO-A-02"]},
+            format="json",
+        )
+        assert resp.status_code == 201
+        payload = resp.json()
+        assert payload["errors"] == []
+        created = {c["studentCode"]: c["temporaryPassword"] for c in payload["created"]}
+        assert set(created) == {"CURSO-A-01", "CURSO-A-02"}
+        for code, temp in created.items():
+            user = User.objects.get(student_code=code)
+            assert user.role == User.ROLE_STUDENT
+            assert user.must_change_password is True
+            assert user.email == f"{code.lower()}@students.local"
+            assert user.username == code
+            assert user.check_password(temp)
 
     def test_bulk_create_duplicados(self, teacher_client, student):
         # EM-0001 ya existe en DB; em-0002 duplica a EM-0002 en el payload;
@@ -140,10 +181,27 @@ class TestStudentsAdmin:
         assert len(payload["errors"]) == 1
         assert payload["errors"][0]["studentCode"] == "hermes.mora"
 
-    def test_bulk_create_max_200(self, teacher_client):
+    def test_bulk_create_max_200_codigos(self, teacher_client):
         resp = teacher_client.post(
             "/api/admin/students",
             {"codes": [f"EM-{i:04d}" for i in range(201)]},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_bulk_create_count_invalido(self, teacher_client):
+        for bad in (None, "3", 0, -1, True, 2.5):
+            resp = teacher_client.post(
+                "/api/admin/students",
+                {"count": bad} if bad is not None else {},
+                format="json",
+            )
+            assert resp.status_code == 400, f"count={bad!r} debió rechazarse"
+
+    def test_bulk_create_max_200(self, teacher_client):
+        resp = teacher_client.post(
+            "/api/admin/students",
+            {"count": 201},
             format="json",
         )
         assert resp.status_code == 400
@@ -153,7 +211,7 @@ class TestStudentsAdmin:
         client.force_authenticate(user=student)
         assert client.get("/api/admin/students").status_code == 403
         assert client.post(
-            "/api/admin/students", {"codes": ["EM-0009"]}, format="json"
+            "/api/admin/students", {"count": 1}, format="json"
         ).status_code == 403
 
 

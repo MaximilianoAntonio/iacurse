@@ -161,6 +161,7 @@ class MeDataExportView(views.APIView):
             FinalExamAttempt,
             PersonalizedUnit,
             Progress,
+            StudentConsent,
             StudySession,
             UserBadge,
         )
@@ -214,6 +215,17 @@ class MeDataExportView(views.APIView):
             "courseDiagnostic": (
                 lambda d: {"answers": d.answers, "createdAt": d.created_at.isoformat()} if d else None
             )(CourseDiagnosticResult.objects.filter(user=user).first()),
+            # Consentimiento informado: decisión, versión y fechas. NO incluye
+            # research_code: ese código pertenece a la base científica (solo
+            # coinvestigador), no es un dato del titular.
+            "consent": (
+                lambda c: {
+                    "decision": c.decision,
+                    "version": c.version,
+                    "decidedAt": c.decided_at.isoformat(),
+                    "revokedAt": c.revoked_at.isoformat() if c.revoked_at else None,
+                } if c else None
+            )(StudentConsent.objects.filter(user=user).first()),
             "personalizedUnits": [
                 {
                     "unitId": p.unit_id,

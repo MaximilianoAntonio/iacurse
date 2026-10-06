@@ -26,10 +26,11 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ElectroMed IA · Plataforma de Aprendizaje Adaptativo",
+  title: "CAAMI · Plataforma de Aprendizaje Adaptativo",
   description:
-    "Plataforma web con IA generativa para apoyar el aprendizaje personalizado en Electromedicina II. Piloto de innovación docente, Universidad de Valparaíso.",
+    "CAAMI: plataforma web con IA generativa para apoyar el aprendizaje personalizado en Electromedicina II. Piloto de innovación docente, Universidad de Valparaíso.",
   keywords: [
+    "CAAMI",
     "Electromedicina",
     "IA generativa",
     "aprendizaje adaptativo",
@@ -38,9 +39,6 @@ export const metadata: Metadata = {
     "innovación docente",
   ],
   authors: [{ name: "Prof. Hermes Mora · Escuela de Ingeniería Civil Biomédica, UV" }],
-  icons: {
-    icon: "/logo.svg",
-  },
 };
 
 export default function RootLayout({

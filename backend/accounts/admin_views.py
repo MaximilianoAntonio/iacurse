@@ -1,8 +1,10 @@
 """
 Gestión de estudiantes por el docente (cuentas anonimizadas).
 
-El docente crea cuentas en lote a partir de códigos asignados externamente
-y resetea contraseñas manualmente. Las contraseñas temporales se generan en
+El docente crea cuentas en lote de dos formas: con códigos explícitos
+elegidos por él (lista ``codes``) o dejando que la plataforma genere
+códigos totalmente aleatorios (entero ``count``, no enumerables). También
+resetea contraseñas manualmente. Las contraseñas temporales se generan en
 el servidor y se muestran UNA sola vez en la respuesta; el estudiante está
 obligado a cambiarla en su próximo inicio de sesión
 (``must_change_password=True``).
@@ -30,8 +32,20 @@ User = get_user_model()
 # Máximo de cuentas por llamada de creación en lote
 MAX_BULK_CREATE = 200
 
+# Longitud de los códigos de estudiante generados
+STUDENT_CODE_LENGTH = 10
+
+# Alfabeto de códigos de estudiante: mayúsculas + dígitos sin caracteres
+# ambiguos (0/O, 1/I/L), fácil de leer, dictar y tipear.
+_STUDENT_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
 # Alfabeto de contraseñas temporales: sin caracteres ambiguos (l/1/I, O/0)
 _TEMP_PASSWORD_ALPHABET = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+
+def generate_student_code(length: int = STUDENT_CODE_LENGTH) -> str:
+    """Código de estudiante totalmente aleatorio (no enumerable)."""
+    return "".join(secrets.choice(_STUDENT_CODE_ALPHABET) for _ in range(length))
 
 
 def generate_temporary_password(length: int = 11) -> str:
@@ -76,6 +90,35 @@ class StudentsAdminView(views.APIView):
         return Response({"students": [_serialize_student_admin(s) for s in students]})
 
     def post(self, request):
+        """Creación en lote: con 'codes' (explícitos) o con 'count' (aleatorios)."""
+        if "codes" in request.data:
+            return self._post_explicit_codes(request)
+        return self._post_random_codes(request)
+
+    def _create_student(self, request, code):
+        """Crea una cuenta de estudiante y audita; propaga IntegrityError."""
+        temp_password = generate_temporary_password()
+        user = User(
+            username=code,
+            student_code=code,
+            # Email placeholder único y no identificable (el modelo lo exige)
+            email=f"{code.lower()}@students.local",
+            name="",
+            role=User.ROLE_STUDENT,
+            must_change_password=True,
+        )
+        user.set_password(temp_password)
+        # Savepoint por cuenta: un conflicto residual no debe botar toda la
+        # llamada.
+        with transaction.atomic():
+            user.save()
+        log_security_event(
+            "student_created", actor=request.user, request=request, target=code
+        )
+        return {"studentCode": code, "temporaryPassword": temp_password}
+
+    def _post_explicit_codes(self, request):
+        """Crea cuentas con los códigos elegidos por el docente."""
         codes = request.data.get("codes")
         if not isinstance(codes, list) or not codes:
             return Response(
@@ -134,22 +177,8 @@ class StudentsAdminView(views.APIView):
             if code.lower() in existing:
                 errors.append({"studentCode": code, "error": "El código ya existe."})
                 continue
-            temp_password = generate_temporary_password()
-            user = User(
-                username=code,
-                student_code=code,
-                # Email placeholder único y no identificable (el modelo lo exige)
-                email=f"{code.lower()}@students.local",
-                name="",
-                role=User.ROLE_STUDENT,
-                must_change_password=True,
-            )
-            user.set_password(temp_password)
             try:
-                # Savepoint por código: un conflicto residual (p. ej. username
-                # ya usado por otra cuenta) no debe botar toda la llamada.
-                with transaction.atomic():
-                    user.save()
+                created.append(self._create_student(request, code))
             except IntegrityError:
                 errors.append(
                     {
@@ -157,13 +186,46 @@ class StudentsAdminView(views.APIView):
                         "error": "Conflicto con un usuario existente (usuario o correo ya en uso).",
                     }
                 )
-                continue
-            created.append(
-                {"studentCode": code, "temporaryPassword": temp_password}
+
+        return Response(
+            {"created": created, "errors": errors},
+            status=status.HTTP_201_CREATED if created else status.HTTP_400_BAD_REQUEST,
+        )
+
+    def _post_random_codes(self, request):
+        """Crea 'count' cuentas con códigos aleatorios generados en el servidor."""
+        count = request.data.get("count")
+        if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+            return Response(
+                {"error": "Se esperaba 'codes' (lista de códigos) o 'count' (entero positivo)."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-            log_security_event(
-                "student_created", actor=request.user, request=request, target=code
+        if count > MAX_BULK_CREATE:
+            return Response(
+                {"error": f"Máximo {MAX_BULK_CREATE} cuentas por llamada."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        created = []
+        errors = []
+        failures = 0
+        while len(created) < count:
+            try:
+                # Una colisión (improbable con códigos aleatorios de 10 chars)
+                # reintenta con otro código en vez de botar la llamada.
+                created.append(
+                    self._create_student(request, generate_student_code())
+                )
+            except IntegrityError:
+                failures += 1
+                if failures >= 10:
+                    errors.append(
+                        {
+                            "studentCode": "",
+                            "error": "No se pudieron generar códigos únicos; reintenta.",
+                        }
+                    )
+                    break
 
         return Response(
             {"created": created, "errors": errors},

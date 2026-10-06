@@ -202,7 +202,7 @@ export function ActivityView() {
     if (data?.lesson && currentActivityId) {
       const act = data.lesson.activities.find((a) => a.id === currentActivityId);
       if (act) {
-        document.title = `${act.title} · ElectroMed IA`;
+        document.title = `${act.title} · CAAMI`;
       }
     }
   }, [data?.lesson?.id, currentActivityId]);
