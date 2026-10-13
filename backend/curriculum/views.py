@@ -4,15 +4,29 @@ Vistas de currículo — units, lessons.
 Reproducen src/app/api/units/route.ts, units/[slug]/route.ts, lessons/[id]/route.ts.
 Todas requieren sesión real (sin modo demo).
 """
+from django.conf import settings
 from django.db.models import Count, Prefetch, Q
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from learning.models import Attempt, CourseDiagnosticResult, Progress, PersonalizedUnit
 from learning.ai_services import adapt_unit_for_student
 from learning.grading import sanitize_activity_data
+from learning.services import is_unit_unlocked, locked_unit_ids
 from .models import Activity, Lesson, Unit
+
+
+def _unit_locked_response() -> Response:
+    """403 estándar cuando la unidad está bloqueada por desbloqueo secuencial."""
+    return Response(
+        {
+            "detail": "Debes completar la unidad anterior para desbloquear este módulo.",
+            "code": "unit_locked",
+        },
+        status=status.HTTP_403_FORBIDDEN,
+    )
 
 
 def _attempt_summary(attempts: list, with_last_answer: bool = False) -> dict:
@@ -72,6 +86,9 @@ class UnitsListView(views.APIView):
             .values("lesson__unit")
             .annotate(n=Count("id"))
         }
+        # Desbloqueo secuencial: unidad bloqueada hasta completar la anterior
+        # (docentes: siempre vacío, ven todo el contenido).
+        locked = locked_unit_ids(user)
 
         result = []
         for u in units:
@@ -83,6 +100,7 @@ class UnitsListView(views.APIView):
             d["activityCount"] = total_activities
             d["hasAdaptedContent"] = has_adapted
             d["diagnosticSkipped"] = pers_units.get(u.id, False) if has_adapted else False
+            d["locked"] = u.id in locked
             d["progress"] = {
                 "completed": prog_obj.completed if prog_obj else 0,
                 "total": prog_obj.total if prog_obj else total_activities,
@@ -100,12 +118,28 @@ class UnitDetailView(views.APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    # Límite de uso de IA por usuario (hallazgo 2.18): solo la acción
+    # "adapt" gatilla una llamada al proveedor; el GET no se limita.
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "ai"
+
+    def check_throttles(self, request):
+        if request.method != "POST":
+            return
+        if (request.data or {}).get("action") != "adapt":
+            return
+        # Con AI_PROVIDER=fallback la adaptación es local (sin costo externo).
+        if getattr(settings, "AI_PROVIDER", "fallback") == "fallback":
+            return
+        super().check_throttles(request)
 
     def get(self, request, slug):
         unit = Unit.objects.filter(Q(slug=slug) | Q(pk=slug)).first()
         if not unit:
             return Response({"error": "Unidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
+        if not is_unit_unlocked(user, unit):
+            return _unit_locked_response()
 
         # Buscar unidad personalizada (adaptada con IA o con contenido base)
         pers_unit = PersonalizedUnit.objects.filter(user=user, unit=unit).first()
@@ -194,6 +228,9 @@ class UnitDetailView(views.APIView):
         if not unit:
             return Response({"error": "Unidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
+        # No se permite adaptar/saltar una unidad bloqueada por orden.
+        if not is_unit_unlocked(user, unit):
+            return _unit_locked_response()
 
         action = request.data.get("action")
         if action not in ("adapt", "skip"):
@@ -263,6 +300,10 @@ class LessonDetailView(views.APIView):
         if not lesson:
             return Response({"error": "Lección no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
+        # Las lecciones son accesibles por id directo: aplicar el mismo gate
+        # de desbloqueo secuencial que al detalle de la unidad.
+        if not is_unit_unlocked(user, lesson.unit):
+            return _unit_locked_response()
 
         sibling_lessons = [
             {"id": s.id, "slug": s.slug, "title": s.title, "order": s.order, "durationMin": s.duration_min}

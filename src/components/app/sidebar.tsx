@@ -20,6 +20,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { key: "dashboard", label: "Inicio", icon: "LayoutDashboard", roles: ["student", "teacher"], description: "Resumen general" },
   { key: "units", label: "Unidades", icon: "BookOpen", roles: ["student", "teacher"], description: "Contenido del curso" },
+  { key: "course-diagnostic", label: "Diagnóstico inicial", icon: "Stethoscope", roles: ["student"], description: "Evaluación de partida del curso" },
   { key: "final-exam", label: "Prueba de cierre", icon: "GraduationCap", roles: ["student"], description: "Examen final del curso" },
   { key: "bookmarks", label: "Guardados", icon: "Bookmark", roles: ["student"], description: "Actividades que guardaste" },
   { key: "teacher", label: "Panel docente", icon: "Users", roles: ["teacher"], description: "Seguimiento de estudiantes" },

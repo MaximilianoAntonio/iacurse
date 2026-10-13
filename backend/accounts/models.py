@@ -6,6 +6,8 @@ del schema Prisma original (role, points, streak, weeklyGoalMin, lastActive, ava
 
 Lineamiento (Sección 12): "Módulo de acceso: registro y autenticación de estudiantes."
 """
+import uuid
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -84,3 +86,33 @@ class User(AbstractUser):
         if not self.name:
             self.name = self.username or self.email.split("@")[0]
         super().save(*args, **kwargs)
+
+
+class MFAChallenge(models.Model):
+    """Desafío de segundo factor para docentes (hallazgo 2.9).
+
+    Tras validar la contraseña de un docente se genera un código de un solo
+    uso (6 dígitos) que se envía a su email institucional. El código se
+    guarda SOLO como hash SHA-256, expira a los pocos minutos y tolera un
+    número limitado de intentos. Los estudiantes (anonimizados, sin email
+    real) no pasan por este flujo.
+    """
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="mfa_challenges"
+    )
+    # Identificador público del desafío (no enumerable: el PK es secuencial).
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    used = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "desafío MFA"
+        verbose_name_plural = "desafíos MFA"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"MFA {self.user.email} ({'usado' if self.used else 'vigente'})"

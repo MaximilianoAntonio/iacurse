@@ -293,3 +293,180 @@ class TestLoginThrottle:
             assert resp.status_code == 400
         resp = client.post("/api/auth/login", payload, format="json")
         assert resp.status_code == 429
+
+
+# ---------------------------------------------------------------------------
+# MFA docente (hallazgo 2.9): OTP de 6 dígitos enviado al email institucional
+# ---------------------------------------------------------------------------
+from accounts.mfa import _hash  # noqa: E402
+from accounts.models import MFAChallenge  # noqa: E402
+
+
+@pytest.fixture
+def mfa_enabled(settings):
+    settings.TEACHER_MFA_ENABLED = True
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
+
+def _extraer_codigo(outbox) -> str:
+    """Extrae el código de 6 dígitos del cuerpo del correo enviado."""
+    import re
+
+    return re.search(r"\b(\d{6})\b", outbox[-1].body).group(1)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("mfa_enabled")
+class TestMFALogin:
+    def test_docente_recibe_desafio_y_no_sesion(self, teacher):
+        from django.core import mail
+
+        client = APIClient()
+        resp = client.post(
+            "/api/auth/login",
+            {"identifier": "hermes.mora@uv.cl", "password": "Docente-123"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["mfaRequired"] is True
+        assert body["challengeId"]
+        # Sin sesión todavía: /api/me debe rechazar
+        assert client.get("/api/me").status_code in (401, 403)
+        # El código llegó al email institucional (solo hash en la DB)
+        assert len(mail.outbox) == 1
+        assert mail.outbox[0].to == ["hermes.mora@uv.cl"]
+        challenge = MFAChallenge.objects.get(token=body["challengeId"])
+        assert challenge.code_hash != _extraer_codigo(mail.outbox)
+
+    def test_verificacion_correcta_crea_sesion(self, teacher):
+        from django.core import mail
+
+        client = APIClient()
+        resp = client.post(
+            "/api/auth/login",
+            {"identifier": "hermes.mora@uv.cl", "password": "Docente-123"},
+            format="json",
+        )
+        challenge_id = resp.json()["challengeId"]
+        code = _extraer_codigo(mail.outbox)
+        resp = client.post(
+            "/api/auth/login/mfa",
+            {"challengeId": challenge_id, "code": code},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["user"]["role"] == "teacher"
+        assert client.get("/api/me").status_code == 200
+
+    def test_codigo_de_un_solo_uso(self, teacher):
+        from django.core import mail
+
+        client = APIClient()
+        resp = client.post(
+            "/api/auth/login",
+            {"identifier": "hermes.mora@uv.cl", "password": "Docente-123"},
+            format="json",
+        )
+        challenge_id = resp.json()["challengeId"]
+        code = _extraer_codigo(mail.outbox)
+        client.post(
+            "/api/auth/login/mfa",
+            {"challengeId": challenge_id, "code": code},
+            format="json",
+        )
+        # Reusar el mismo código con el mismo desafío debe fallar
+        otro = APIClient()
+        resp = otro.post(
+            "/api/auth/login/mfa",
+            {"challengeId": challenge_id, "code": code},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_codigo_incorrecto_y_agotamiento_de_intentos(self, teacher, settings):
+        settings.MFA_MAX_ATTEMPTS = 3
+        client = APIClient()
+        resp = client.post(
+            "/api/auth/login",
+            {"identifier": "hermes.mora@uv.cl", "password": "Docente-123"},
+            format="json",
+        )
+        challenge_id = resp.json()["challengeId"]
+        for _ in range(3):
+            resp = client.post(
+                "/api/auth/login/mfa",
+                {"challengeId": challenge_id, "code": "000000"},
+                format="json",
+            )
+            assert resp.status_code == 400
+        challenge = MFAChallenge.objects.get(token=challenge_id)
+        assert challenge.used is True  # desafío invalidado al agotar intentos
+
+    def test_codigo_expirado(self, teacher):
+        from django.core import mail
+
+        client = APIClient()
+        resp = client.post(
+            "/api/auth/login",
+            {"identifier": "hermes.mora@uv.cl", "password": "Docente-123"},
+            format="json",
+        )
+        challenge_id = resp.json()["challengeId"]
+        code = _extraer_codigo(mail.outbox)
+        MFAChallenge.objects.filter(token=challenge_id).update(
+            expires_at=timezone.now() - timedelta(minutes=1)
+        )
+        resp = client.post(
+            "/api/auth/login/mfa",
+            {"challengeId": challenge_id, "code": code},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_reenvio_regenera_codigo(self, teacher):
+        from django.core import mail
+
+        client = APIClient()
+        resp = client.post(
+            "/api/auth/login",
+            {"identifier": "hermes.mora@uv.cl", "password": "Docente-123"},
+            format="json",
+        )
+        challenge_id = resp.json()["challengeId"]
+        resp = client.post(
+            "/api/auth/login/mfa",
+            {"challengeId": challenge_id, "resend": True},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["resent"] is True
+        assert len(mail.outbox) == 2
+        # El código nuevo (del segundo correo) es el que verifica
+        code = _extraer_codigo(mail.outbox)
+        resp = client.post(
+            "/api/auth/login/mfa",
+            {"challengeId": challenge_id, "code": code},
+            format="json",
+        )
+        assert resp.status_code == 200
+
+    def test_estudiante_exento_de_mfa(self, student):
+        client = APIClient()
+        resp = client.post(
+            "/api/auth/login",
+            {"identifier": "EM-0001", "password": "Temporal-123"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert "user" in resp.json()
+        assert client.get("/api/me").status_code == 200
+
+    def test_challenge_id_inexistente_400(self, db):
+        client = APIClient()
+        resp = client.post(
+            "/api/auth/login/mfa",
+            {"challengeId": "00000000-0000-0000-0000-000000000000", "code": "123456"},
+            format="json",
+        )
+        assert resp.status_code == 400

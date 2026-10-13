@@ -13,6 +13,7 @@ export type ViewKey =
   | "bookmarks"
   | "teacher"
   | "course-builder"
+  | "course-diagnostic"
   | "final-exam"
   | "about";
 
@@ -21,7 +22,9 @@ export type ActivityType =
   | "guided_problem"
   | "case_analysis"
   | "progressive_exercise"
-  | "self_assessment";
+  | "self_assessment"
+  | "short_answer"
+  | "scale_rating";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -57,6 +60,9 @@ export interface Unit {
   hasAdaptedContent?: boolean;
   /** true cuando el estudiante saltó la personalización (continúa sin contenido adaptado). */
   diagnosticSkipped?: boolean;
+  /** true cuando la unidad está bloqueada por el desbloqueo secuencial
+   *  (requiere completar la unidad anterior; los docentes nunca la ven en true). */
+  locked?: boolean;
   lessons?: {
     id: string;
     slug: string;
@@ -75,6 +81,8 @@ export interface Unit {
 /** Estado del diagnóstico general y de la prueba de cierre (GET /api/course/status). */
 export interface CourseStatus {
   diagnosticCompleted: boolean;
+  /** True si el docente configuró preguntas de diagnóstico. */
+  diagnosticConfigured: boolean;
   /** Preguntas del diagnóstico general (solo presente si está pendiente). */
   diagnosticQuestions?: string[];
   allUnitsCompleted: boolean;
@@ -134,6 +142,28 @@ export interface ErrorReportItem {
   createdAt: string;
 }
 
+/** Nivel de andamiaje CAAMI (ayuda progresiva A1–A5). */
+export type ScaffoldLevel = "A1" | "A2" | "A3" | "A4" | "A5";
+
+/**
+ * Intervención de ayuda progresiva (andamiaje CAAMI). Llega en la respuesta de
+ * POST /api/activities/<id>/help (campo `help`) o dentro del resultado del
+ * intento (campo `scaffold` de POST /api/activities/<id>/attempt).
+ * `errorType` y `source` son metadatos internos: no se muestran al estudiante.
+ */
+export interface ScaffoldHelp {
+  level: ScaffoldLevel;
+  supportType: string;
+  /** Texto de la intervención (en A5, la explicación completa). */
+  message: string;
+  /** Pasos de la secuencia guiada (solo A4). */
+  steps?: { step: number; prompt: string }[] | null;
+  keyConcepts?: string[] | null;
+  errorType?: string;
+  source?: "ai" | "fallback";
+  verificationRequired?: boolean;
+}
+
 export interface Activity {
   id: string;
   lessonId: string;
@@ -184,4 +214,28 @@ export interface SelfAssessmentData {
   prompt: string;
   rubric: string[];
   autoGradeKeywords: string[];
+}
+
+export interface ShortAnswerData {
+  question: string;
+  /** Límite de palabras de la respuesta (default 30). */
+  maxWords?: number;
+  /** Palabras clave para corrección automática (vacío = participación). */
+  keywords?: string[];
+  /** Respuesta modelo (pauta; solo visible post-envío). */
+  modelAnswer?: string;
+  explanation?: string;
+}
+
+export interface ScaleRatingData {
+  question: string;
+  /** Extremos de la escala (defaults 1 y 5). */
+  min?: number;
+  max?: number;
+  /** Etiquetas de los extremos de la escala. */
+  minLabel?: string;
+  maxLabel?: string;
+  /** Valor correcto (null = pregunta de opinión, todo valor en rango es correcto). */
+  correctValue?: number | null;
+  explanation?: string;
 }

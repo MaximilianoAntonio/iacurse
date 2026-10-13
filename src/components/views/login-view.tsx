@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, RotateCcw, XCircle } from "lucide-react";
+import { Loader2, MailCheck, RotateCcw, XCircle } from "lucide-react";
 import { API_BASE, postJSON } from "@/hooks/use-fetch";
 import { LogoMark } from "@/components/app/logo";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,12 @@ interface CaptchaChallenge {
   image_url: string;
 }
 
+interface LoginResponse {
+  user?: User;
+  mfaRequired?: boolean;
+  challengeId?: string;
+}
+
 export function LoginView({ onLogin }: LoginViewProps) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -40,6 +46,12 @@ export function LoginView({ onLogin }: LoginViewProps) {
   const [captchaError, setCaptchaError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // MFA docente (hallazgo 2.9): tras validar la contraseña, el backend envía
+  // un código de un solo uso al email institucional del docente.
+  const [mfaChallenge, setMfaChallenge] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaNotice, setMfaNotice] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // El captcha es de un solo uso: se pide uno nuevo al montar la vista y tras
   // cada intento de login (éxito o fallo). Requiere el header X-Requested-With.
@@ -66,18 +78,32 @@ export function LoginView({ onLogin }: LoginViewProps) {
     loadCaptcha();
   }, [loadCaptcha]);
 
+  // Cooldown del botón de reenvío del código MFA (60 s entre envíos).
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const data = await postJSON<{ user: User }>("/api/auth/login", {
+      const data = await postJSON<LoginResponse>("/api/auth/login", {
         identifier: identifier.trim(),
         password,
         captchaKey: captcha?.key ?? "",
         captchaValue: captchaValue.trim(),
       });
-      onLogin(data.user);
+      if (data.mfaRequired && data.challengeId) {
+        // Docente: la contraseña es correcta; falta el código enviado al email.
+        setMfaChallenge(data.challengeId);
+        setMfaNotice(null);
+        setResendCooldown(60);
+        return;
+      }
+      if (data.user) onLogin(data.user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error al iniciar sesión";
       // Distinguir errores de red (backend caído) de errores de la API
@@ -95,6 +121,57 @@ export function LoginView({ onLogin }: LoginViewProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaChallenge) return;
+    setError(null);
+    setMfaNotice(null);
+    setLoading(true);
+    try {
+      const data = await postJSON<{ user: User }>("/api/auth/login/mfa", {
+        challengeId: mfaChallenge,
+        code: mfaCode.trim(),
+      });
+      onLogin(data.user);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error al verificar el código";
+      if (/fetch|network|failed to/i.test(msg)) {
+        setError("No se pudo conectar con el servidor. Verifica que el backend esté corriendo.");
+      } else if (/429|throttl/i.test(msg)) {
+        setError("Demasiados intentos. Espera un minuto e inténtalo de nuevo.");
+      } else {
+        setError(msg || "Código incorrecto o expirado.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaResend = async () => {
+    if (!mfaChallenge || resendCooldown > 0) return;
+    setError(null);
+    setMfaNotice(null);
+    try {
+      await postJSON("/api/auth/login/mfa", {
+        challengeId: mfaChallenge,
+        resend: true,
+      });
+      setMfaNotice("Te enviamos un código nuevo a tu correo institucional.");
+      setResendCooldown(60);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se pudo reenviar el código";
+      setError(msg);
+    }
+  };
+
+  const handleMfaBack = () => {
+    setMfaChallenge(null);
+    setMfaCode("");
+    setMfaNotice(null);
+    setError(null);
+    loadCaptcha();
   };
 
   return (
@@ -174,6 +251,94 @@ export function LoginView({ onLogin }: LoginViewProps) {
             </p>
           </div>
 
+          {mfaChallenge ? (
+            /* ---- Segundo paso: código MFA enviado al email docente ---- */
+            <form
+              onSubmit={handleMfaSubmit}
+              className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-sm animate-fade-in-up"
+            >
+              <div className="flex items-start gap-3 rounded-md bg-primary/5 px-3 py-2.5 text-sm">
+                <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>
+                  Enviamos un código de verificación de 6 dígitos a tu correo
+                  institucional. Vence en 10 minutos.
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="mfa-code" className="text-sm font-medium">
+                  Código de verificación
+                </label>
+                <Input
+                  id="mfa-code"
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="123456"
+                  className="font-mono text-lg tracking-[0.5em]"
+                  aria-invalid={!!error}
+                  aria-describedby={error ? "login-error" : undefined}
+                />
+              </div>
+
+              {mfaNotice && (
+                <p role="status" className="text-xs text-muted-foreground">
+                  {mfaNotice}
+                </p>
+              )}
+
+              {error && (
+                <div
+                  id="login-error"
+                  role="alert"
+                  className="flex items-start gap-2.5 rounded-md bg-destructive/10 px-3 py-2.5 text-sm text-destructive animate-fade-in"
+                >
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                size="lg"
+                disabled={loading || mfaCode.length !== 6}
+                className="w-full font-semibold"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verificando código…
+                  </>
+                ) : (
+                  "Verificar e ingresar"
+                )}
+              </Button>
+
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={handleMfaBack}
+                  className="text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMfaResend}
+                  disabled={resendCooldown > 0}
+                  className="text-primary underline-offset-4 hover:underline disabled:text-muted-foreground disabled:no-underline"
+                >
+                  {resendCooldown > 0
+                    ? `Reenviar código (${resendCooldown}s)`
+                    : "Reenviar código"}
+                </button>
+              </div>
+            </form>
+          ) : (
           <form
             onSubmit={handleSubmit}
             className="stagger-children space-y-5 rounded-xl border border-border bg-card p-6 shadow-sm"
@@ -287,6 +452,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
               )}
             </Button>
           </form>
+          )}
 
           <p className="text-xs leading-relaxed text-muted-foreground">
             ¿Olvidaste tu contraseña? Solicita al docente que la reinicie.

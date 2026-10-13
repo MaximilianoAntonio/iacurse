@@ -3,7 +3,8 @@ Vistas de cuentas — Módulo de acceso del lineamiento.
 
 Endpoints:
 - GET    /api/auth/csrf            — token CSRF para el frontend React
-- POST   /api/auth/login           — login (cookie de sesión)
+- POST   /api/auth/login           — login (cookie de sesión; docentes pasan a MFA)
+- POST   /api/auth/login/mfa       — segundo factor del login docente (OTP por email)
 - POST   /api/auth/logout          — logout
 - POST   /api/auth/change-password — cambio de contraseña (obligatorio con flag)
 - GET    /api/me                   — usuario actual
@@ -11,6 +12,9 @@ Endpoints:
 El registro público fue eliminado: el docente crea las cuentas de
 estudiantes (ver ``accounts/admin_views.py``).
 """
+import logging
+
+from django.conf import settings
 from django.contrib.auth import (
     get_user_model,
     login,
@@ -19,16 +23,19 @@ from django.contrib.auth import (
 )
 from django.middleware.csrf import get_token
 from django.utils import timezone
-from rest_framework import views
+from rest_framework import status, views
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from telemetry.audit import log_security_event
 
+from .mfa import create_challenge, refresh_challenge, verify_challenge
+from .models import MFAChallenge
 from .serializers import ChangePasswordSerializer, LoginSerializer
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def _serialize_user(user):
@@ -86,11 +93,82 @@ class LoginView(views.APIView):
             )
             raise
         user = serializer.validated_data["user"]
+        # MFA docente (hallazgo 2.9): la contraseña no basta; se exige un
+        # código de un solo uso enviado al email institucional. Los
+        # estudiantes (anonimizados, sin email real) quedan exentos.
+        if user.is_teacher and getattr(settings, "TEACHER_MFA_ENABLED", False):
+            try:
+                challenge = create_challenge(user)
+            except Exception:
+                logger.exception("No se pudo enviar el código MFA a %s", user.email)
+                log_security_event("mfa_send_failed", actor=user, request=request)
+                return Response(
+                    {"error": "No se pudo enviar el código de verificación. "
+                              "Inténtalo más tarde o contacta al administrador."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            log_security_event("mfa_challenge_sent", actor=user, request=request)
+            return Response({"mfaRequired": True, "challengeId": str(challenge.token)})
         login(request, user)
         log_security_event("login_success", actor=user, request=request)
         # last_active se actualiza vía middleware, pero forzamos en login
         User.objects.filter(pk=user.pk).update(last_active=timezone.now())
         return Response({"user": _serialize_user(user)})
+
+
+class MFALoginView(views.APIView):
+    """POST /api/auth/login/mfa — segundo factor del login docente.
+
+    Recibe ``{challengeId, code}`` (o ``{challengeId, resend: true}`` para
+    reenviar el código) y completa la sesión. El ``challengeId`` es un UUID
+    no enumerable entregado por el primer paso del login. Mismo rate limit
+    por IP que el login (scope ``login``).
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
+
+    def _get_challenge(self, request):
+        token = str(request.data.get("challengeId", "")).strip()
+        if not token:
+            return None
+        return MFAChallenge.objects.filter(token=token).select_related("user").first()
+
+    def post(self, request):
+        challenge = self._get_challenge(request)
+        if challenge is None or challenge.used:
+            log_security_event("mfa_failed", request=request, target="desafio_invalido")
+            return Response(
+                {"error": "El desafío de verificación no es válido o ya fue utilizado. "
+                          "Inicia sesión nuevamente."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if request.data.get("resend"):
+            try:
+                refresh_challenge(challenge)
+            except Exception:
+                logger.exception("No se pudo reenviar el código MFA")
+                return Response(
+                    {"error": "No se pudo reenviar el código. Inténtalo más tarde."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            log_security_event("mfa_challenge_resent", actor=challenge.user, request=request)
+            return Response({"ok": True, "resent": True})
+
+        code = str(request.data.get("code", ""))
+        if verify_challenge(challenge, code):
+            user = challenge.user
+            login(request, user)
+            log_security_event("mfa_verified", actor=user, request=request)
+            log_security_event("login_success", actor=user, request=request)
+            User.objects.filter(pk=user.pk).update(last_active=timezone.now())
+            return Response({"user": _serialize_user(user)})
+        log_security_event("mfa_failed", actor=challenge.user, request=request)
+        return Response(
+            {"error": "Código incorrecto o expirado."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 class LogoutView(views.APIView):

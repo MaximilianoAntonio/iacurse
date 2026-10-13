@@ -10,6 +10,11 @@ import { PageHeader } from "@/components/app/page-header";
 import { DynamicIcon } from "@/components/app/dynamic-icon";
 import { Celebration } from "@/components/app/celebration";
 import { BookmarkButton } from "@/components/app/bookmark-button";
+import {
+  ScaffoldHelpEntry,
+  ScaffoldHelpPanel,
+  ScaffoldVerificationNotice,
+} from "@/components/app/scaffold-help-panel";
 import { useToast } from "@/hooks/use-toast";
 import {
   getUnitColor,
@@ -26,6 +31,9 @@ import type {
   CaseAnalysisData,
   ProgressiveExerciseData,
   SelfAssessmentData,
+  ShortAnswerData,
+  ScaleRatingData,
+  ScaffoldHelp,
 } from "@/lib/types";
 
 import {
@@ -78,6 +86,7 @@ import {
   EyeOff,
   BookOpen,
   Flag,
+  LifeBuoy,
 } from "lucide-react";
 
 // ---------- types ----------
@@ -135,6 +144,10 @@ interface AttemptResult {
     unitTitle?: string;
     unitColor?: string;
     unitIcon?: string;
+    /** Andamiaje CAAMI entregado junto a la corrección (opcional). */
+    scaffold?: ScaffoldHelp | null;
+    /** true cuando el estudiante debe verificar su comprensión con un nuevo intento. */
+    verificationRequired?: boolean;
   };
 }
 
@@ -374,6 +387,11 @@ function ActivityInner(props: ActivityInnerProps) {
   const [reported, setReported] = useState(false);
   const [sessionAttempts, setSessionAttempts] = useState(0); // attempts in this session
   const [hintsUsed, setHintsUsed] = useState(0);
+  // Ayuda progresiva A1–A5: historial de intervenciones recibidas en esta
+  // actividad. El estado se reinicia solo al cambiar de actividad porque
+  // ActivityView monta ActivityInner con key={activity.id} (remount).
+  const [helpHistory, setHelpHistory] = useState<ScaffoldHelp[]>([]);
+  const [helpLoading, setHelpLoading] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
 
   const currentAttemptNumber = totalAttempts + sessionAttempts;
@@ -460,6 +478,28 @@ function ActivityInner(props: ActivityInnerProps) {
     [activity.id, submitting, toast, hintsUsed]
   );
 
+  const handleRequestHelp = useCallback(async () => {
+    if (helpLoading || submitting) return;
+    setHelpLoading(true);
+    try {
+      const res = await postJSON<{ help: ScaffoldHelp }>(
+        `/api/activities/${activity.id}/help`,
+        {}
+      );
+      setHelpHistory((h) => [...h, res.help]);
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "No se pudo obtener ayuda";
+      toast({
+        title: "Ayuda no disponible",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setHelpLoading(false);
+    }
+  }, [activity.id, helpLoading, submitting, toast]);
+
   const handleRetry = useCallback(() => {
     setResult(null);
     setSubmitted(false);
@@ -471,6 +511,8 @@ function ActivityInner(props: ActivityInnerProps) {
     setBadgeCelebration(null);
     setUnitCelebration(null);
     setHintsUsed(0);
+    setHelpHistory([]);
+    setHelpLoading(false);
   }, []);
 
   const handleNext = useCallback(() => {
@@ -660,6 +702,27 @@ function ActivityInner(props: ActivityInnerProps) {
         />
       )}
 
+      {/* Ayuda progresiva A1–A5: botón de solicitud + historial de
+          intervenciones (disponible antes de enviar y tras un intento
+          incorrecto, antes de reintentar). */}
+      {(!submitted || (result && !result.correct) || helpHistory.length > 0) && (
+        <section className="space-y-3">
+          {(!submitted || (result && !result.correct)) && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRequestHelp}
+              disabled={helpLoading || submitting}
+            >
+              <LifeBuoy className="mr-1.5 h-4 w-4" />
+              {helpLoading ? "Solicitando ayuda..." : "Solicitar ayuda"}
+            </Button>
+          )}
+          <ScaffoldHelpPanel items={helpHistory} />
+        </section>
+      )}
+
       {/* Navegación entre actividades */}
       <ActivityNavFooter
         activities={lesson.activities}
@@ -690,6 +753,10 @@ function ActivityRenderer(props: ActivityComponentProps) {
       return <ProgressiveExerciseActivity {...props} />;
     case "self_assessment":
       return <SelfAssessmentActivity {...props} />;
+    case "short_answer":
+      return <ShortAnswerActivity {...props} />;
+    case "scale_rating":
+      return <ScaleRatingActivity {...props} />;
     default:
       return null;
   }
@@ -1489,6 +1556,261 @@ function SelfAssessmentActivity({
   );
 }
 
+// ---------- short answer ----------
+
+function ShortAnswerActivity({
+  activity,
+  submitted,
+  submitting,
+  reviewData,
+  onSubmit,
+}: ActivityComponentProps) {
+  const data = useMemo(() => {
+    const base = parseActivityData<ShortAnswerData>(activity.data);
+    return submitted && reviewData ? { ...base, ...reviewData } : base;
+  }, [activity.data, submitted, reviewData]);
+  const maxWords = data.maxWords ?? 30;
+  const keywords = data.keywords ?? [];
+
+  const [answer, setAnswer, draft] = useDraftGuard<string>({
+    type: "short_answer",
+    id: activity.id,
+    initialValue: "",
+    isEmpty: (v) => v.trim().length === 0,
+    validate: (v) => typeof v === "string",
+    disabled: submitted,
+  });
+
+  // Conteo de palabras paritario con el backend (split por whitespace)
+  const wordCount = useMemo(
+    () => (answer.trim() ? answer.trim().split(/\s+/).length : 0),
+    [answer]
+  );
+  const overLimit = wordCount > maxWords;
+  const canSubmit = wordCount > 0 && !overLimit && !submitting;
+
+  const matchedKeywords = useMemo(() => {
+    const lower = answer.toLowerCase();
+    return keywords.map((k) => ({
+      keyword: k,
+      present: lower.includes(String(k).toLowerCase()),
+    }));
+  }, [answer, keywords]);
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    onSubmit(answer.trim());
+  };
+
+  return (
+    <div className="space-y-5">
+      {data.question && (
+        <div className="rounded-xl border border-border bg-muted/30 p-4">
+          <p className="text-sm leading-relaxed">{data.question}</p>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Textarea
+          value={answer}
+          onChange={(e) => !submitted && setAnswer(e.target.value)}
+          placeholder="Escribe tu respuesta breve..."
+          rows={3}
+          disabled={submitted}
+        />
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            {overLimit
+              ? "Te pasaste del límite: acorta tu respuesta para poder enviarla"
+              : "Responde de forma breve y concreta"}
+          </span>
+          <span
+            className={cn(
+              "font-mono tabular-nums",
+              overLimit
+                ? "font-semibold text-destructive"
+                : wordCount > 0 && "text-brand dark:text-brand-gold"
+            )}
+          >
+            {wordCount}/{maxWords} palabras
+          </span>
+        </div>
+      </div>
+
+      {!submitted && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="w-full sm:w-auto"
+          >
+            <Send className="mr-1.5 h-4 w-4" />
+            {submitting ? "Enviando..." : "Enviar respuesta"}
+          </Button>
+          <DraftSavedNote visible={draft.hasDraft} />
+        </div>
+      )}
+
+      {submitted && (
+        <div className="animate-fade-in-up space-y-4">
+          {keywords.length > 0 && (
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <Sparkles className="h-4 w-4 text-amber-600 dark:text-brand-gold" /> Conceptos clave
+                detectados
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {matchedKeywords.map(({ keyword, present }) => (
+                  <Badge
+                    key={keyword}
+                    variant={present ? "default" : "outline"}
+                    className={cn(
+                      present
+                        ? "bg-brand/10 text-brand hover:bg-brand/10 dark:bg-brand-gold/15 dark:text-brand-gold"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {present && <CheckCircle2 className="mr-1 h-3 w-3" />}
+                    {keyword}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.modelAnswer && (
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
+              <p className="font-medium">Respuesta modelo</p>
+              <p className="mt-1 leading-relaxed text-muted-foreground">
+                {data.modelAnswer}
+              </p>
+            </div>
+          )}
+          {data.explanation && (
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
+              <p className="font-medium">Explicación</p>
+              <p className="mt-1 leading-relaxed text-muted-foreground">
+                {data.explanation}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- scale rating ----------
+
+function ScaleRatingActivity({
+  activity,
+  submitted,
+  submitting,
+  reviewData,
+  onSubmit,
+}: ActivityComponentProps) {
+  const data = useMemo(() => {
+    const base = parseActivityData<ScaleRatingData>(activity.data);
+    return submitted && reviewData ? { ...base, ...reviewData } : base;
+  }, [activity.data, submitted, reviewData]);
+  const min = data.min ?? 1;
+  const max = data.max ?? 5;
+  const values = useMemo(
+    () => Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i),
+    [min, max]
+  );
+  const hasCorrect = data.correctValue !== null && data.correctValue !== undefined;
+
+  const [selected, setSelected] = useState<number | null>(null);
+
+  const canSubmit = selected !== null && !submitting;
+
+  const handleSubmit = () => {
+    if (selected === null) return;
+    onSubmit(String(selected));
+  };
+
+  return (
+    <div className="space-y-5">
+      {data.question && (
+        <div className="rounded-xl border border-border bg-muted/30 p-4">
+          <p className="text-sm leading-relaxed">{data.question}</p>
+        </div>
+      )}
+
+      <div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {values.map((v) => {
+            const isSelected = selected === v;
+            const isCorrect = hasCorrect && v === data.correctValue;
+            return (
+              <button
+                key={v}
+                type="button"
+                onClick={() => !submitted && setSelected(v)}
+                disabled={submitted}
+                aria-label={`Valor ${v} de ${max}`}
+                className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-lg border font-mono text-sm font-medium tabular-nums transition-all duration-200 ease-out-expo",
+                  !submitted &&
+                    (isSelected
+                      ? "border-primary bg-primary text-primary-foreground ring-1 ring-primary/30"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-accent/40"),
+                  submitted &&
+                    isCorrect &&
+                    "border-brand/40 bg-brand/5 text-brand dark:border-brand-gold/50 dark:bg-brand-gold/10 dark:text-brand-gold",
+                  submitted &&
+                    isSelected &&
+                    !isCorrect &&
+                    hasCorrect &&
+                    "border-destructive/50 bg-destructive/5 text-destructive",
+                  submitted &&
+                    isSelected &&
+                    !hasCorrect &&
+                    "border-primary bg-primary text-primary-foreground",
+                  submitted && !isSelected && !isCorrect && "border-border opacity-60"
+                )}
+              >
+                {v}
+              </button>
+            );
+          })}
+          {selected !== null && (
+            <span className="ml-2 font-mono text-sm font-medium tabular-nums">
+              {selected}/{max}
+            </span>
+          )}
+        </div>
+        {(data.minLabel || data.maxLabel) && (
+          <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+            <span>{data.minLabel ?? ""}</span>
+            <span>{data.maxLabel ?? ""}</span>
+          </div>
+        )}
+      </div>
+
+      {!submitted && (
+        <Button
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="w-full sm:w-auto"
+        >
+          <Send className="mr-1.5 h-4 w-4" />
+          {submitting ? "Enviando..." : "Enviar respuesta"}
+        </Button>
+      )}
+
+      {submitted && data.explanation && (
+        <div className="animate-fade-in-up rounded-xl border border-border bg-muted/30 p-4 text-sm">
+          <p className="font-medium">Explicación</p>
+          <p className="mt-1 leading-relaxed text-muted-foreground">
+            {data.explanation}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- result panel ----------
 
 interface ResultPanelProps {
@@ -1627,6 +1949,17 @@ function ResultPanel({
               {result.feedback}
             </p>
           </div>
+
+          {/* Andamiaje CAAMI entregado junto a la corrección del intento */}
+          {result.scaffold && (
+            <ScaffoldHelpEntry
+              help={result.scaffold}
+              verificationRequired={result.verificationRequired}
+            />
+          )}
+          {!result.scaffold && result.verificationRequired && (
+            <ScaffoldVerificationNotice />
+          )}
 
           {/* Puntaje */}
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3">

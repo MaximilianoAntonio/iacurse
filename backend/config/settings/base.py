@@ -183,8 +183,10 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Sesiones por cookie (front React en otro origen)
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 días
+# Sesiones por cookie (front React en otro origen).
+# SESSION_COOKIE_AGE_DAYS: días de INACTIVIDAD antes de expirar (con
+# SESSION_SAVE_EVERY_REQUEST en prod la cookie se renueva con cada request).
+SESSION_COOKIE_AGE = 60 * 60 * 24 * int(os.environ.get("SESSION_COOKIE_AGE_DAYS", "7"))
 SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", False)
 SESSION_COOKIE_HTTPONLY = True
@@ -274,6 +276,9 @@ REST_FRAMEWORK = {
         "user": os.environ.get("THROTTLE_USER", "600/minute"),
         "login": os.environ.get("LOGIN_THROTTLE_RATE", os.environ.get("THROTTLE_LOGIN", "5/min")),
         "telemetry_events": os.environ.get("THROTTLE_TELEMETRY", "240/minute"),
+        # Límite de uso de IA por usuario (hallazgo 2.18): endpoints que
+        # gatillan llamadas al proveedor externo (feedback y adaptación).
+        "ai": os.environ.get("AI_THROTTLE_RATE", "30/hour"),
     },
 }
 
@@ -281,10 +286,14 @@ REST_FRAMEWORK = {
 # ---------------------------------------------------------------------------
 # IA generativa — capa abstracta configurable (lineamiento)
 # ---------------------------------------------------------------------------
-# settings.AI_PROVIDER: "openai" | "gemini"
+# settings.AI_PROVIDER: "fallback" | "openai" | "gemini"
+# Hallazgo 2.3 (informe de seguridad oct-2026): la IA queda DESACTIVADA por
+# defecto ("fallback", sin envío de datos a terceros) hasta regularizar la
+# transferencia a proveedores externos (certificación DTIC + pronunciamiento
+# del DPO). Para reactivarla: AI_PROVIDER=openai|gemini con su API key.
 # Con OPENAI_BASE_URL se puede apuntar a cualquier API OpenAI-compatible
 # (p. ej. Kimi/Moonshot: https://api.kimi.com/coding/v1).
-AI_PROVIDER = os.environ.get("AI_PROVIDER", "openai")
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "fallback")
 AI_MODEL = os.environ.get("AI_MODEL", "gpt-4o-mini")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "")
@@ -292,6 +301,22 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
 # Si no hay API key, los servicios de IA usan fallbacks (no bloquean el piloto)
 AI_FALLBACK_ENABLED = True
+
+# CAAMI — Ciclo de Aprendizaje Adaptativo Mediado por IA (tutor/)
+# CAAMI_ENABLED: activa la clasificación de error y la generación de
+# andamiaje con IA. Con False (o AI_PROVIDER=fallback) las intervenciones
+# usan los fallbacks pedagógicos de tutor/ai/prompts.py — el MOTOR de niveles
+# (tutor/caami.py) es determinista y funciona siempre.
+CAAMI_ENABLED = env_bool("CAAMI_ENABLED", True)
+# RAG básico (retrieval del corpus KnowledgeChunk, similitud coseno en Python,
+# sin pgvector). Desactivado por defecto: requiere corpus ingerido
+# (manage.py ingest_corpus) y un provider con embeddings.
+RAG_ENABLED = env_bool("RAG_ENABLED", False)
+# Modelo de embeddings del provider (OpenAI: text-embedding-3-small; Gemini:
+# models/text-embedding-004) y versión del corpus vigente para el retrieval.
+AI_EMBEDDING_MODEL = os.environ.get("AI_EMBEDDING_MODEL", "text-embedding-3-small")
+KB_VERSION = os.environ.get("KB_VERSION", "KB_v1")
+RAG_TOP_K = int(os.environ.get("RAG_TOP_K", "3"))
 
 
 # ---------------------------------------------------------------------------
@@ -314,6 +339,32 @@ AUDIT_LOG_RETENTION_DAYS = int(os.environ.get("AUDIT_LOG_RETENTION_DAYS", "365")
 # retirar la autorización (fecha ISO; pasada esa fecha el retiro se rechaza).
 CONSENT_VERSION = os.environ.get("CONSENT_VERSION", "2026-08-V2")
 CONSENT_REVOKE_DEADLINE = os.environ.get("CONSENT_REVOKE_DEADLINE", "2026-12-11")
+
+
+# ---------------------------------------------------------------------------
+# Email — envío del código MFA docente (hallazgo 2.9)
+# ---------------------------------------------------------------------------
+# En dev/test el default es la consola (el código aparece en los logs del
+# backend). En producción prod.py EXIGE SMTP real si el MFA está activo.
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "25"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", "Plataforma Electromedicina II <no-reply@uv.cl>"
+)
+
+# MFA docente por código de un solo uso (OTP de 6 dígitos) enviado al email
+# institucional tras validar la contraseña. Los estudiantes (anonimizados,
+# sin email real) quedan exentos. Default False en dev/test; prod.py lo
+# activa por defecto.
+TEACHER_MFA_ENABLED = env_bool("TEACHER_MFA_ENABLED", False)
+MFA_CODE_TTL_MINUTES = int(os.environ.get("MFA_CODE_TTL_MINUTES", "10"))
+MFA_MAX_ATTEMPTS = int(os.environ.get("MFA_MAX_ATTEMPTS", "5"))
 
 
 # ---------------------------------------------------------------------------

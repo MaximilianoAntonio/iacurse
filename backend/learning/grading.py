@@ -181,6 +181,56 @@ def grade_self_assessment(activity, answer: str, data: dict) -> GradeResult:
     return GradeResult(is_correct=is_correct, score=score, correct_answer=correct_answer)
 
 
+def grade_short_answer(activity, answer: str, data: dict) -> GradeResult:
+    """Respuesta breve: texto libre con límite de palabras (default 30).
+
+    Superar ``maxWords`` → incorrecto con score 0. Con ``keywords``: correcto
+    si el ratio de keywords presentes (substring, case-insensitive) es >= 0.6
+    y la respuesta no está vacía; en parcial, floor 0.3. Sin keywords basta
+    la participación (cualquier respuesta no vacía dentro del límite).
+    """
+    text = answer or ""
+    max_words = data.get("maxWords", 30)
+    model_answer = data.get("modelAnswer") or ""
+    if len(text.split()) > max_words:
+        return GradeResult(is_correct=False, score=0, correct_answer=model_answer)
+    keywords = data.get("keywords") or []
+    if keywords:
+        lower = text.lower()
+        matched = [k for k in keywords if str(k).lower() in lower]
+        ratio = len(matched) / len(keywords)
+        is_correct = ratio >= 0.6 and bool(text.strip())
+        score = activity.points if is_correct else round(activity.points * max(ratio, 0.3))
+    else:
+        is_correct = bool(text.strip())
+        score = activity.points if is_correct else 0
+    return GradeResult(is_correct=is_correct, score=score, correct_answer=model_answer)
+
+
+def grade_scale_rating(activity, answer: str, data: dict) -> GradeResult:
+    """Escala de valoración: número entero dentro de [min, max] (default 1–5).
+
+    Fuera de rango o no numérico → incorrecto con score 0. Con
+    ``correctValue``: match exacto → 100%, distinto → 20% (espejo del MCQ).
+    Sin ``correctValue``: cualquier valor en rango → correcto con score pleno.
+    """
+    min_v = data.get("min", 1)
+    max_v = data.get("max", 5)
+    correct = data.get("correctValue")
+    try:
+        value = int(str(answer).strip())
+    except (ValueError, TypeError):
+        value = None
+    if value is None or not (min_v <= value <= max_v):
+        correct_answer = str(correct) if correct is not None else ""
+        return GradeResult(is_correct=False, score=0, correct_answer=correct_answer)
+    if correct is not None:
+        is_correct = value == correct
+        score = activity.points if is_correct else round(activity.points * 0.2)
+        return GradeResult(is_correct=is_correct, score=score, correct_answer=str(correct))
+    return GradeResult(is_correct=True, score=activity.points, correct_answer="")
+
+
 def grade_default(activity, answer: str) -> GradeResult:
     """Tipo desconocido: correcto si hay respuesta no vacía."""
     is_correct = bool(answer and answer.strip())
@@ -195,6 +245,8 @@ GRADERS = {
     "progressive_exercise": grade_progressive_exercise,
     "case_analysis": grade_case_analysis,
     "self_assessment": grade_self_assessment,
+    "short_answer": grade_short_answer,
+    "scale_rating": grade_scale_rating,
 }
 
 
@@ -214,7 +266,7 @@ def grade(activity, answer: str) -> GradeResult:
 # Sanitización de datos de actividad hacia el cliente
 # ---------------------------------------------------------------------------
 # Claves de primer nivel que revelan la respuesta correcta o la pauta.
-_ANSWER_KEYS_TOP = {"correctIndex", "finalAnswer", "autoGradeKeywords", "explanation"}
+_ANSWER_KEYS_TOP = {"correctIndex", "finalAnswer", "autoGradeKeywords", "explanation", "modelAnswer", "keywords", "correctValue"}
 # Claves por ítem dentro de las listas de pasos/niveles/preguntas.
 _ANSWER_KEYS_NESTED = {"answer", "explanation"}
 # Listas anidadas que contienen respuestas por ítem.
@@ -225,7 +277,8 @@ def sanitize_activity_data(data: Any) -> dict:
     """Copia de ``data`` sin las claves que revelan la respuesta correcta.
 
     Seguridad: el GET de lección nunca debe exponer ``correctIndex``,
-    ``finalAnswer``, ``autoGradeKeywords`` ni los ``answer``/``explanation``
+    ``finalAnswer``, ``autoGradeKeywords``, ``modelAnswer``, ``keywords``,
+    ``correctValue`` ni los ``answer``/``explanation``
     por paso/nivel/pregunta (el estudiante podría leerlos en DevTools y hacer
     trampa). El cliente recibe la pauta completa solo DESPUÉS de enviar su
     respuesta, en el campo ``reviewData`` de la respuesta del attempt.

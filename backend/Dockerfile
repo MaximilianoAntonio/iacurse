@@ -17,9 +17,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Instalar dependencias Python primero (mejor cache de Docker)
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Instalar dependencias Python primero (mejor cache de Docker).
+# Lockfile con hashes (hallazgo 2.20): builds reproducibles y verificados;
+# requirements.txt declara los rangos, requirements.lock los pins exactos.
+COPY requirements.lock .
+RUN pip install --upgrade pip && pip install --require-hashes -r requirements.lock
 
 # Copiar el resto del código
 COPY . .

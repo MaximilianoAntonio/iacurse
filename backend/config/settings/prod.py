@@ -17,17 +17,37 @@ if SECRET_KEY == "dev-insecure-key-change-in-prod":  # noqa: F405
     )
 
 # Cookies seguras por defecto (despliegue detrás de HTTPS).
-# Si el piloto se despliega por HTTP plano (sin TLS), definir en el .env:
+# Con Caddy (docker-compose.tls.yml) frontend y API van bajo el mismo origen,
+# por lo que SameSite=Lax es suficiente y endurece la protección CSRF
+# (hallazgo 2.9 del informe de seguridad oct-2026). Solo si el frontend y la
+# API se sirven desde orígenes distintos, definir en el .env:
+#   SESSION_COOKIE_SAMESITE=None
+#   CSRF_COOKIE_SAMESITE=None
+# Si el piloto se despliega por HTTP plano (sin TLS), definir además:
 #   SESSION_COOKIE_SECURE=0
 #   CSRF_COOKIE_SECURE=0
-#   SESSION_COOKIE_SAMESITE=Lax
-#   CSRF_COOKIE_SAMESITE=Lax
 # Ojo: los navegadores rechazan cookies SameSite=None sin Secure.
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", True)
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", True)
-SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "None")  # noqa: F405
-CSRF_COOKIE_SAMESITE = os.environ.get("CSRF_COOKIE_SAMESITE", "None")  # noqa: F405
+SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")  # noqa: F405
+CSRF_COOKIE_SAMESITE = os.environ.get("CSRF_COOKIE_SAMESITE", "Lax")  # noqa: F405
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Expiración de sesión POR INACTIVIDAD (hallazgo 2.9 / 2.24.1): la cookie se
+# renueva en cada request autenticado, así que SESSION_COOKIE_AGE cuenta
+# desde la última actividad y no desde el login. El heartbeat del frontend
+# mantiene viva la sesión solo mientras el usuario está activo.
+SESSION_SAVE_EVERY_REQUEST = True
+
+# MFA docente por OTP por email (hallazgo 2.9): activo por defecto en
+# producción. Requiere SMTP real: el backend de consola no entrega correos.
+TEACHER_MFA_ENABLED = env_bool("TEACHER_MFA_ENABLED", True)
+if TEACHER_MFA_ENABLED and "console" in EMAIL_BACKEND:  # noqa: F405
+    raise ImproperlyConfigured(
+        "TEACHER_MFA_ENABLED=1 exige un backend de email real en producción: "
+        "configura EMAIL_BACKEND=smtp + EMAIL_HOST/EMAIL_PORT/EMAIL_HOST_USER/"
+        "EMAIL_HOST_PASSWORD (o desactiva explícitamente TEACHER_MFA_ENABLED=0)."
+    )
 
 # Cabeceras de seguridad de transporte (SecurityMiddleware). Inactivas por
 # defecto porque el piloto puede ir por HTTP plano; ACTIVAR junto con TLS:

@@ -45,6 +45,8 @@ import {
   Compass,
   MessageCircleQuestion,
   Bookmark,
+  TextCursorInput,
+  SlidersHorizontal,
   type LucideProps,
 } from "lucide-react";
 
@@ -93,6 +95,8 @@ const iconMap: Record<string, React.ComponentType<LucideProps>> = {
   Compass,
   MessageCircleQuestion,
   Bookmark,
+  TextCursorInput,
+  SlidersHorizontal,
 };
 
 export function DynamicIcon({

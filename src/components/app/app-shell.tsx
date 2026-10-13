@@ -8,11 +8,18 @@ import { Footer } from "@/components/app/footer";
 import { ViewRouter } from "@/components/app/view-router";
 import { GlobalReportFab } from "@/components/app/global-report-fab";
 
+import type { ViewKey } from "@/lib/types";
+
 interface AppShellProps {
   onLogout: () => void;
+  /** Vista forzada (p. ej. diagnóstico obligatorio pendiente): el router
+   * ignora la navegación del store mientras esté definida. */
+  forceView?: ViewKey;
+  /** Callback para que la vista de diagnóstico avise un envío exitoso. */
+  onDiagnosticSubmitted?: () => void;
 }
 
-export function AppShell({ onLogout }: AppShellProps) {
+export function AppShell({ onLogout, forceView, onDiagnosticSubmitted }: AppShellProps) {
   const view = useAppStore((s) => s.view);
   const navCollapsed = useAppStore((s) => s.navCollapsed);
   const hydrateFromUrl = useAppStore((s) => s.hydrateFromUrl);
@@ -53,9 +60,9 @@ export function AppShell({ onLogout }: AppShellProps) {
         }`}
       >
         <Header onLogout={onLogout} />
-        <main id="main-content" className="flex-1" key={view} tabIndex={-1}>
+        <main id="main-content" className="flex-1" key={forceView ?? view} tabIndex={-1}>
           <div className="animate-fade-in-up">
-            <ViewRouter />
+            <ViewRouter forceView={forceView} onDiagnosticSubmitted={onDiagnosticSubmitted} />
           </div>
         </main>
         <Footer />

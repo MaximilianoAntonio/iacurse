@@ -104,6 +104,8 @@ const typeLabels: Record<string, string> = {
   case_analysis: "Análisis de caso",
   progressive_exercise: "Ejercicio progresivo",
   self_assessment: "Autoevaluación",
+  short_answer: "Respuesta breve",
+  scale_rating: "Escala de valoración",
 };
 
 export function CurriculumTab() {

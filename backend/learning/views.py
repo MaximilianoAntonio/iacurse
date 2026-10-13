@@ -25,6 +25,7 @@ from rest_framework.response import Response
 
 from accounts.models import User
 from curriculum.models import Activity, CourseConfig, Unit
+from rest_framework.throttling import ScopedRateThrottle
 from telemetry.audit import log_security_event
 from .badges import check_and_award_badges
 from .grading import grade, parse_activity_data
@@ -38,7 +39,7 @@ from .models import (
     StudentConsent,
     UserBadge,
 )
-from .services import all_units_completed
+from .services import all_units_completed, is_unit_unlocked
 from .streak import update_streak
 
 
@@ -49,6 +50,17 @@ class AttemptView(views.APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    # Límite de uso de IA por usuario (hallazgo 2.18): cada intento gatilla
+    # una llamada al proveedor para la retroalimentación.
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "ai"
+
+    def check_throttles(self, request):
+        # El límite solo aplica con un proveedor de IA real activo; con
+        # AI_PROVIDER=fallback el feedback es local y no tiene costo externo.
+        if getattr(settings, "AI_PROVIDER", "fallback") == "fallback":
+            return
+        super().check_throttles(request)
 
     def post(self, request, activity_id):
         user = request.user
@@ -79,6 +91,17 @@ class AttemptView(views.APIView):
         # Los borradores del docente no son respondibles por estudiantes
         if not activity.lesson.is_published:
             return Response({"error": "Actividad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Desbloqueo secuencial: no se puede responder en una unidad bloqueada
+        # (los docentes nunca se bloquean; ver learning/services.py).
+        if not is_unit_unlocked(user, activity.lesson.unit):
+            return Response(
+                {
+                    "detail": "Debes completar la unidad anterior para desbloquear este módulo.",
+                    "code": "unit_locked",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # --- 1. maxAttempts check ---
         if activity.max_attempts > 0:
@@ -488,6 +511,7 @@ class CourseStatusView(views.APIView):
 
         body = {
             "diagnosticCompleted": diagnostic_completed,
+            "diagnosticConfigured": len(diagnostic_questions) > 0,
             "allUnitsCompleted": all_units_completed(user),
             "finalExam": {
                 "configured": len(final_questions) > 0,

@@ -1,0 +1,656 @@
+
+===== PAGINA 1 =====
+ESTRUCTURA DE DESARROLLO DEL MVP (PLATAFORMA) 
+La intervención se establece como un ciclo pedagógico adaptativo estudiante –IA, donde la innovación no 
+proviene de agregar funciones, sino de establecer una secuencia reproducible, reglas explícitas de decisión 
+y niveles graduados de andamiaje usando exclusivamente información que el formulario ya contempla. 
+El d iseño se mantiene: diagnóstico inicial, actividades guiadas, resolución de problemas, 
+retroalimentación automática, apoyo tutorial mediante IA, adaptación dinámica según desempeño, 
+metacognición, seguimiento del progreso y evaluación preliminar.  
+El formulario establece explícitamente las variables de : adaptación del desempeño diagnóstico, error 
+conceptual, error procedimental, número de intentos, avance, solicitud de ayuda, cambio de desempeño y 
+tiempo de interacción. 
+1. Principio metodológico 
+Nombre: Ciclo de Aprendizaje Adaptativo Mediado por IA (CAAMI). 
+1.1. El protocolo científicamente es: 
+𝐷𝑖𝑎𝑔𝑛𝑜𝑠𝑡𝑖𝑐𝑎𝑟 → 𝑅𝑒𝑠𝑜𝑙𝑣𝑒𝑟 → 𝐷𝑒𝑡𝑒𝑐𝑡𝑎𝑟 → 𝐴𝑛𝑑𝑎𝑚𝑖𝑎𝑟 → 𝑅𝑒𝑖𝑛𝑡𝑒𝑛𝑡𝑎𝑟 → 𝑉𝑒𝑟𝑖𝑓𝑖𝑐𝑎𝑟 → 𝑅𝑒𝑓𝑙𝑒𝑥𝑖𝑜𝑛𝑎𝑟 → 𝑃𝑟𝑜𝑔𝑟𝑒𝑠𝑎𝑟  
+1.2. La regla transversal es: 
+La IA entrega el menor nivel de apoyo suficiente para permitir siempre un nuevo intento  
+El estudiante no recibe automáticamente una solución completa ante un error . Se establece que el error 
+procedimental puede producir una pista o secuencia guiada, que el número de intentos puede activar ayuda 
+gradual y que una solicitud voluntaria puede producir una pista, explicación o ejemplo. 
+2. Tabla formal de la metodología: 
+Fase Paso Entrada a la IA Respuesta/acción 
+de la IA 
+Regla de decisión 
+y nivel de 
+andamiaje 
+Registro → variable 
+“aprobada” 
+F0. 
+Diagnóstico 
+0.1 
+Diagnóstico 
+inicial 
+Respuestas del 
+estudiante a 
+actividades 
+diagnósticas 
+comparables 
+definidas por el 
+docente. 
+Evalúa desempeño 
+por contenido y 
+procedimiento 
+según criterios 
+previamente 
+definidos. 
+No entrega 
+adaptación 
+permanente. 
+Determina 
+únicamente el 
+punto inicial 
+recomendado. 
+Resultado → 
+Desempeño 
+diagnóstico; 
+respuestas → % 
+respuestas correctas 
+por contenido ; errores 
+→ Error conceptual / 
+procedimental. 
+F0. 
+Diagnóstico 
+0.2 Confianza 
+inicial 
+Respuesta del 
+estudiante a la 
+escala breve de 
+confianza ya 
+contemplada. 
+Registra la 
+autopercepción. No 
+infiere capacidad, 
+motivación, 
+personalidad ni 
+estado psicológico. 
+La confianza 
+complementa la 
+caracterización 
+inicial; no determina 
+por sí sola dificultad 
+ni ruta. 
+Respuesta → Confianza 
+inicial. 
+F0. 
+Diagnóstico 
+0.3 Punto 
+inicial 
+Desempeño 
+diagnóstico + errores 
+detectados + 
+desempeño 
+prerrequisito. 
+Recomienda 
+actividad inicial 
+apropiada: inicial, 
+intermedia o 
+avanzada, o repaso 
+de prerrequisito. 
+Se utiliza 
+desempeño 
+observable. La 
+recomendación es 
+dinámica, no 
+permanente y no 
+restringe acceso. 
+Recomendación basada 
+en → Desempeño 
+diagnóstico / 
+desempeño en 
+ejercicios 
+prerrequisitos. 
+===== PAGINA 2 =====
+F1. Desafío 1.1 
+Presentación 
+del problema 
+Actividad validada 
+correspondiente al 
+contenido y nivel 
+definido. 
+Presenta problema, 
+caso, simulación o 
+ejercicio progresivo 
+sin entregar la 
+solución. 
+Nivel determinado 
+por diagnóstico o en 
+el progreso anterior. 
+Actividad 
+asignada/completada → 
+Avance / actividades 
+completadas. 
+F1. Desafío 1.2 
+Resolución 
+autónoma 
+Respuesta o 
+desarrollo del /la 
+estudiante. 
+Contrasta la 
+respuesta con 
+criterios académicos 
+previamente 
+definidos (libros/ref.) 
+e identifica resultado 
+y, cuando 
+corresponda, tipo de 
+error. 
+Correcta → F4. 
+Incorrecta → F2. 
+No interpreta r 
+tiempo/clics como 
+capacidad o 
+motivación del/la 
+estudiante. 
+Respuesta/resultado → 
+% respuestas 
+correctas por 
+contenido; intento → 
+Número de intentos. 
+F2. 
+Diagnóstico 
+del error 
+2.1 
+Clasificación 
+pedagógica 
+Respuesta 
+incorrecta + 
+procedimiento 
+desarrollado + 
+criterios docentes. 
+Clasifica únicamente 
+como error 
+conceptual, error 
+procedimental o 
+combinación de 
+ambos cuando 
+exista evidencia 
+suficiente. 
+No genera 
+categorías 
+psicológicas ni 
+perfiles 
+permanentes. Si no 
+puede clasificar con 
+seguridad, solicita 
+aclaración/reintento 
+en vez de inferir. 
+Clasificación → Error 
+conceptual / Error 
+procedimental. 
+F2. 
+Diagnóstico 
+del error 
+2.2 Selección 
+de apoyo 
+Tipo de error + 
+número de intentos + 
+solicitud de ayuda + 
+desempeño previo 
+comparable. 
+Selecciona el nivel 
+mínimo de 
+andamiaje 
+establecido por las 
+reglas de la F3. 
+El apoyo aumenta 
+por necesidad 
+observable, no por 
+perfil del estudiante. 
+Decisión basada en → 
+Error 
+conceptual/procedime
+ntal + Número de 
+intentos + Solicitud de 
+ayuda + Cambio de 
+desempeño. 
+F3. 
+Andamiaje 
+3.1 Nivel A1: 
+pregunta 
+orientadora 
+Primer error 
+susceptible de 
+autocorrección o 
+solicitud de ayuda 
+mínima. 
+Formula una 
+pregunta 
+orientadora que 
+dirige la atención al 
+concepto o paso 
+relevante sin 
+proporcionar la 
+respuesta. 
+Nivel inicial de 
+ayuda ante 
+dificultad corregible 
+mediante reflexión. 
+Uso del apoyo → Tipo 
+de apoyo utilizado / 
+Solicitud de ayuda. 
+F3. 
+Andamiaje 
+3.2 Nivel A2: 
+pista 
+específica 
+Persistencia del 
+error después de A1 
+o error claramente 
+identificado. 
+Proporciona una 
+pista conceptual o 
+procedimental 
+específica, sin 
+resolver el problema. 
+Error conceptual → 
+pista conceptual. 
+Error procedimental 
+→ pista sobre 
+paso/procedimiento
+. 
+Apoyo → Tipo de apoyo 
+utilizado; dificultad → 
+Error 
+conceptual/procedime
+ntal. 
+F3. 
+Andamiaje 
+3.3 Nivel A3: 
+explicación o 
+ejemplo 
+Persistencia 
+después de A2 o 
+solicitud explícita de 
+mayor ayuda. 
+Entrega explicación 
+focalizada o 
+ejemplo análogo , 
+manteniendo sin 
+resolver la actividad 
+objetivo. 
+Escala después de 
+intentos definidos o 
+solicitud explícita. 
+Apoyo → Tipo de apoyo 
+utilizado / Número de 
+intentos / Solicitud de 
+ayuda. 
+F3. 
+Andamiaje 
+3.4 Nivel A4: 
+secuencia 
+guiada 
+Persistencia del 
+error después de A3. 
+Divide el 
+procedimiento en 
+pasos/preguntas 
+Máximo andamiaje 
+ordinario antes de 
+mostrar una 
+Apoyo → Tipo de apoyo 
+utilizado / Número de 
+intentos / Necesidad de 
+===== PAGINA 3 =====
+sucesivas para que 
+el estudiante 
+complete la 
+resolución. 
+resolución 
+explicada. 
+retroalimentación 
+adicional. 
+F3. 
+Andamiaje 
+3.5 Nivel A5: 
+resolución 
+explicada 
+Persistencia 
+después de A4 o 
+agotamiento del 
+ciclo definido. 
+Presenta una 
+resolución 
+explicada, 
+vinculando 
+procedimiento con 
+fundamentos 
+conceptuales y 
+material autorizado. 
+Último nivel. No 
+finaliza el 
+aprendizaje: obliga 
+posteriormente a 
+verificar 
+comprensión 
+mediante actividad 
+comparable. 
+Apoyo → Tipo de apoyo 
+utilizado / Número de 
+intentos. 
+F4. 
+Reintento 
+4.1 Nueva 
+resolución 
+Nueva respuesta del 
+estudiante después 
+del andamiaje. 
+Evalúa nuevamente 
+sin penalizar 
+académicamente el 
+uso de ayudas como 
+indicador de 
+capacidad. 
+Correcta → F5. 
+Incorrecta → 
+siguiente nivel de 
+andamiaje hasta 
+A5. 
+Resultado → Número 
+de intentos / Resultado 
+de actividad / Cambio 
+de desempeño. 
+F5. 
+Verificación 
+5.1 Problema 
+comparable 
+Respuesta a un 
+ejercicio de 
+contenido/dificultad 
+comparable. 
+Comprueba si el 
+estudiante puede 
+aplicar el 
+concepto/procedimi
+ento con menor o 
+ningún apoyo. 
+Mejora → 
+progresión. 
+Persistencia de 
+dificultad → 
+repaso/recomenda
+ción adicional. 
+Comparación → 
+Cambio de desempeño 
+/ progreso entre 
+actividades de 
+dificultad comparable. 
+F5. 
+Verificación 
+5.2 
+Identificación 
+de errores 
+Solución o 
+procedimiento que 
+contiene un error 
+conceptual/procedim
+ental definido 
+pedagógicamente. 
+Solicita identificar el 
+error y justificar la 
+corrección; 
+posteriormente 
+entrega 
+retroalimentación. 
+No se evalúa “si 
+confía en la IA”, 
+sino la capacidad 
+ya aprobada de 
+identificar errores. 
+Resultado → 
+Identificación de 
+errores / errores 
+correctamente 
+identificados. 
+F6. 
+Metacognici
+ón 
+6.1 Reflexión Respuesta a 
+pregunta breve de 
+reflexión asociada a 
+la actividad/error. 
+Entrega 
+retroalimentación 
+sobre la reflexión sin 
+inferir características 
+psicológicas. 
+Se aplica en 
+actividades 
+previamente 
+seleccionadas, 
+especialmente 
+después de 
+error/andamiaje. 
+Respuesta → 
+Actividades 
+pedagógicas de 
+reflexión / evidencias 
+de autorregulación. 
+F7. 
+Progresión 
+7.1 Decisión 
+adaptativa 
+Resultado + error + 
+intentos + apoyo + 
+desempeño en 
+actividad 
+comparable. 
+Recomienda: 
+avanzar, actividad 
+adicional 
+equivalente, 
+repasar concepto o 
+repasar 
+prerrequisito. 
+La decisión es 
+temporal y 
+reversible. Un 
+desempeño 
+posterior modifica la 
+recomendación. 
+Decisión basada en → 
+Avance / Cambio de 
+desempeño / 
+actividades 
+completadas / 
+desempeño 
+prerrequisito. 
+F7. 
+Progresión 
+7.2 Nuevo 
+ciclo 
+Estado actualizado 
+de las variables 
+anteriores. 
+Selecciona la 
+siguiente actividad y 
+reinicia F1. 
+Nunca crea perfil 
+fijo. Cada actividad 
+constituye una 
+nueva oportunidad 
+de demostrar 
+desempeño. 
+Ciclo → Progreso por 
+unidad / actividades 
+completadas / Cambio 
+de desempeño. 
+ 
+3. Cinco niveles exactos de andamiaje 
+===== PAGINA 4 =====
+Esto debe ser determinístico antes de programar , porque constituye una de las partes centrales de la 
+metodología. 
+Nivel Nombre La IA puede La IA no debe 
+A1 Pregunta 
+orientadora 
+Formular una pregunta que dirija la 
+atención al concepto o paso relevante. 
+Dar la solución o indicar 
+directamente el procedimiento 
+completo. 
+A2 Pista específica Señalar concepto, relación, principio o 
+paso que debe reconsiderarse. 
+Resolver la actividad. 
+A3 Explicación / 
+ejemplo análogo 
+Explicar el concepto problemático o 
+resolver un ejemplo diferente pero 
+equivalente. 
+Resolver el problema objetivo. 
+A4 Secuencia guiada Fragmentar la resolución en pasos y 
+solicitar que el estudiante complete cada 
+uno. 
+Sustituir al estudiante en la 
+ejecución de los pasos. 
+A5 Resolución 
+explicada 
+Mostrar la solución razonada después de 
+agotado el andamiaje previo. 
+Dar por adquirido el aprendizaje; 
+debe seguir F5 para comprobarlo. 
+ 
+4. Reglas de decisión por programar  
+Se debe evitar que el LLM  “decida pedagógicamente” de manera libre. La plataforma deberá controlar la 
+política de andamiaje, mientras que la IA genera la intervención correspondiente. 
+La versión mínima viable será: 
+Respuesta correcta ⇒ 𝐹5 
+Error en intento 1 ⇒ 𝐴1 
+Error después de A1 ⇒ 𝐴2 
+Error después de A2 ⇒ 𝐴3 
+Error después de A3 ⇒ 𝐴4 
+Error después de A4 ⇒ 𝐴5 
+La solicitud explícita de ayuda  permite activar el nivel correspondiente sin obligar a acumular respuestas 
+incorrectas innecesariamente. Ante un error conceptual/procedimental inequívoco, A2 puede focalizar 
+directamente la pista en ese error. 
+Después de A5: 𝐴5 ⇒ actividad comparable de verificación 
+No es: 𝐴5 ⇒ actividad superada 
+Este punto es fundamental, ya que recibir una solución no constituye evidencia de aprendizaje. 
+ 
+5. Qué decide el algoritmo y qué decide la IA generativa 
+5.1. Motor pedagógico determinista 
+Decide: A1 / A2 / A3 / A4 / A5 
+y: avanzar / verificar / reforzar / repasar prerrequisito. 
+Utiliza solamente: {𝒅𝒆𝒔𝒆𝒎𝒑𝒆ñ𝒐, 𝒆𝒓𝒓𝒐𝒓,  𝒊𝒏𝒕𝒆𝒏𝒕𝒐𝒔,  𝒂𝒗𝒂𝒏𝒄𝒆,  𝒔𝒐𝒍𝒊𝒄𝒊𝒕𝒖𝒅 𝒅𝒆 𝒂𝒚𝒖𝒅𝒂,  𝒄𝒂𝒎𝒃𝒊𝒐 𝒅𝒆 𝒅𝒆𝒔𝒆𝒎𝒑𝒆ñ𝒐} 
+Por lo tanto, el motor pedagógico controla la decisión y el LLM controla principalmente la generación de 
+la respuesta. 
+===== PAGINA 5 =====
+5.2. IA generativa 
+No decide libremente la estrategia; recibe una instrucción estructurada como: 
+Actividad (X) + respuesta del estudiante + error conceptual identificado + nivel A2 + contenido 
+autorizado. 
+Y su función es generar: una pista conceptual específica de nivel A2. 
+Esto permite hacer la intervención reproducible y auditable. 
+Dos estudiantes pueden recibir textos distintos, pero ambos están recibiendo el mismo tratamiento 
+pedagógico A2. 
+ 
+6. Mapeo uno a uno con las variables aprobadas 
+Registro generado por el 
+ciclo 
+Variable/dimensión ya aprobada Función 
+Resultado diagnóstico Desempeño diagnóstico Adaptación + análisis 
+Respuesta 
+correcta/incorrecta 
+% respuestas correctas por contenido 
+/ resultado actividad 
+Adaptación + análisis 
+Concepto aplicado 
+incorrectamente 
+Error conceptual Adaptación + análisis 
+Paso/procedimiento 
+incorrecto 
+Error procedimental Adaptación + análisis 
+Intento 1, 2... Número de intentos Adaptación + análisis 
+Actividad finalizada/nivel 
+alcanzado 
+Avance / actividades completadas Adaptación + análisis 
+Estudiante solicita apoyo Solicitud de ayuda Adaptación + análisis 
+Pista/explicación/ejemplo 
+utilizado 
+Tipo de apoyo utilizado Adaptación + análisis 
+Requiere escalamiento 
+A1→A2... 
+Necesidad de retroalimentación 
+adicional 
+Adaptación + análisis 
+Resultado en actividad 
+comparable 
+Cambio de desempeño / progreso 
+entre actividades comparables 
+Adaptación + análisis 
+Desempeño en conocimiento 
+previo 
+Desempeño en ejercicios 
+prerrequisitos 
+Adaptación 
+Duración aproximada Tiempo de interacción Contextual/técnica; nunca inferencia 
+psicológica 
+Confianza declarada Confianza inicial/final prevista en 
+instrumentos 
+Caracterización/comparación 
+Identificación correcta de 
+error 
+Identificación de errores Desempeño 
+Reflexión pedagógica Actividades de reflexión / evidencia de 
+autorregulación 
+Análisis cualitativo 
+Actividad/unidad completada Progreso por unidad Seguimiento 
+===== PAGINA 6 =====
+Hay que considerar que tanto A1-A5 no necesitan tratarse como cinco nuevas variables educativas . Son 
+categorías operativas del registro ya aprobado “tipo de apoyo utilizado”. 
+ 
+7. NO incorporar al MVP 
+Por ahora NO incorporar: 
+• perfil cognitivo generado por IA; 
+• estilo de aprendizaje; 
+• nivel de inteligencia; 
+• motivación inferida; 
+• atención inferida por tiempo; 
+• estado emocional; 
+• personalidad; 
+• “dependencia de IA” como diagnóstico del/la estudiante; 
+• clasificación permanente en nivel bajo/medio/alto; 
+• predicción automática de riesgo académico. 
+ 
+8. La novedad está entonces en:  
+Con esta formalización, la innovación dejaría de ser: “chatbot especializado en Electromedicina II” 
+La unidad metodológica pasa a ser el nivel innovador presente en el proyecto: 
+𝐴𝑐𝑡𝑖𝑣𝑖𝑑𝑎𝑑 → 𝐼𝑛𝑡𝑒𝑛𝑡𝑜 𝑎𝑢𝑡ó𝑛𝑜𝑚𝑜 → 𝐷𝑖𝑎𝑔𝑛ó𝑠𝑡𝑖𝑐𝑜 𝑑𝑒𝑙 𝑒𝑟𝑟𝑜𝑟 → 𝐴𝑛𝑑𝑎𝑚𝑖𝑎𝑗𝑒 𝑚í𝑛𝑖𝑚𝑜 𝑝𝑟𝑜𝑔𝑟𝑒𝑠𝑖𝑣𝑜 → 𝑅𝑒𝑖𝑛𝑡𝑒𝑛𝑡𝑜 →
+𝑉𝑒𝑟𝑖𝑓𝑖𝑐𝑎𝑐𝑖ó𝑛 𝑖𝑛𝑑𝑒𝑝𝑒𝑛𝑑𝑖𝑒𝑛𝑡𝑒 → 𝑅𝑒𝑓𝑙𝑒𝑥𝑖ó𝑛 → 𝐴𝑑𝑎𝑝𝑡𝑎𝑐𝑖ó𝑛 𝑑𝑖𝑛á𝑚𝑖𝑐𝑎  
+Por estudiante y actividad queda una secuencia observable mucho mayor que n= 10: 
+𝑬𝒊𝒋 = {𝒓𝒆𝒔𝒖𝒍𝒕𝒂𝒅𝒐,  𝒕𝒊𝒑𝒐 𝒅𝒆 𝒆𝒓𝒓𝒐𝒓,  𝒊𝒏𝒕𝒆𝒏𝒕𝒐,  𝒂𝒑𝒐𝒚𝒐,  𝒓𝒆𝒊𝒏𝒕𝒆𝒏𝒕𝒐,  𝒓𝒆𝒔𝒖𝒍𝒕𝒂𝒅𝒐 𝒄𝒐𝒎𝒑𝒂𝒓𝒂𝒃𝒍𝒆} 
+Si bien, no puede tratar esos episodios como estudiantes estadísticamente independientes , sí se puede 
+describir cómo opera el mecanismo pedagógico dentro de cada trayectoria, coherentemente con el carácter 
+de MVP, investigación-acción, piloto y análisis exploratorio ya establecido en el proyecto. 
+9. Correspondencia final con pregunta y objetivos: 
+Elemento aprobado Cómo lo responde CAAMI 
+Comprensión conceptual Errores conceptuales + desempeño diagnóstico/final + actividades 
+comparables 
+Autonomía Reintento, autorregulación, reflexión y progresión con apoyo adaptativo 
+Participación Actividades completadas, progreso y métricas de utilización previstas 
+Percepción de utilidad Instrumentos de percepción/usabilidad ya comprometidos 
+Aprendizaje adaptativo Motor de decisión dinámico basado exclusivamente en desempeño 
+observable 
+Retroalimentación 
+automática 
+A1 - A5 
+===== PAGINA 7 =====
+Actividades guiadas Ciclo completo F1 - F6 
+Seguimiento del progreso F7 + variables ya aprobadas 
+MVP Implementación mínima del ciclo, no sistema de personalización ilimitado 
+Viabilidad pedagógica Determinar si el ciclo puede ejecutarse coherentemente en contexto real 
+Viabilidad tecnológica Determinar si la plataforma implementa correctamente las reglas y registros 
+Adopción Uso efectivo de las actividades y funcionalidades previstas 
+ 
+ 

@@ -3,7 +3,10 @@
 /**
  * Pestaña "Evaluaciones" del Course Builder.
  *
- * Configura las dos evaluaciones globales del curso (singleton CourseConfig):
+ * Configura las evaluaciones globales y la progresión del curso (singleton
+ * CourseConfig):
+ * - Progresión: desbloqueo secuencial de unidades (cada unidad se habilita
+ *   al completar la anterior; GET/PATCH /api/admin/course/settings).
  * - Diagnóstico general: preguntas abiertas obligatorias al primer uso; sus
  *   respuestas alimentan la personalización por IA de cada unidad. Al guardar
  *   se borran las respuestas existentes (los estudiantes lo repiten).
@@ -20,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { AlertTriangle, Brain, GraduationCap, Plus, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, Brain, GraduationCap, Lock, Plus, Save, Trash2 } from "lucide-react";
 
 interface ExamQuestion {
   question: string;
@@ -37,9 +40,81 @@ interface FinalExamConfig {
 export function EvaluationsTab() {
   return (
     <div className="space-y-6">
+      <ProgressionSettings />
       <DiagnosticEditor />
       <FinalExamEditor />
     </div>
+  );
+}
+
+// ============ Progresión del curso (desbloqueo secuencial) ============
+
+function ProgressionSettings() {
+  const { data, loading, refetch } = useFetch<{ sequentialUnlock: boolean }>(
+    "/api/admin/course/settings",
+    []
+  );
+  const { toast } = useToast();
+  const [saving, setSaving] = React.useState(false);
+
+  const handleToggle = async (value: boolean) => {
+    setSaving(true);
+    try {
+      await patchJSON("/api/admin/course/settings", { sequentialUnlock: value });
+      refetch();
+      toast({
+        title: value ? "Desbloqueo secuencial activado" : "Desbloqueo secuencial desactivado",
+        description: value
+          ? "Cada unidad se habilita al completar la anterior."
+          : "Todas las unidades quedan disponibles desde el inicio.",
+      });
+    } catch (e) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="skeleton h-28 w-full rounded-xl" />;
+  }
+
+  const enabled = data?.sequentialUnlock ?? true;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <Lock className="h-4 w-4 text-primary" />
+          <CardTitle className="text-sm">Progresión del curso</CardTitle>
+        </div>
+        <CardDescription className="text-xs">
+          Controla si las unidades se bloquean en orden o están todas disponibles.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-3">
+          <input
+            type="checkbox"
+            checked={enabled}
+            disabled={saving}
+            onChange={(e) => handleToggle(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-primary"
+          />
+          <span>
+            <span className="block text-sm font-medium">
+              Bloquear unidades hasta completar la anterior
+            </span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Con el desbloqueo secuencial activo, cada estudiante solo ve habilitada la
+              primera unidad pendiente; las siguientes se desbloquean al completarla
+              (todas las actividades correctas). Las unidades sin actividades no bloquean
+              el avance y el cambio se aplica de inmediato.
+            </span>
+          </span>
+        </label>
+      </CardContent>
+    </Card>
   );
 }
 

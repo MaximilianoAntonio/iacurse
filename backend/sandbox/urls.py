@@ -15,6 +15,8 @@ urlpatterns = [
     # Evaluaciones del curso (diagnóstico general + prueba de cierre)
     path("admin/course/diagnostic", views.AdminCourseDiagnosticView.as_view(), name="admin-course-diagnostic"),
     path("admin/course/final-exam", views.AdminFinalExamView.as_view(), name="admin-course-final-exam"),
+    # Ajustes generales del curso (desbloqueo secuencial de unidades)
+    path("admin/course/settings", views.AdminCourseSettingsView.as_view(), name="admin-course-settings"),
     # Subida de imágenes para el editor de contenido
     path("uploads", views.UploadImageView.as_view(), name="uploads"),
 ]

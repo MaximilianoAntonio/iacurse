@@ -247,7 +247,7 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
   // Sube la imagen al backend (/api/uploads) y la inserta como nodo imagen
   const uploadAndInsertImage = async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      setUploadError("El archivo debe ser una imagen (JPG, PNG, GIF, WebP o SVG)");
+      setUploadError("El archivo debe ser una imagen (JPG, PNG, GIF o WebP)");
       return;
     }
     setUploading(true);
@@ -383,7 +383,7 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-            title="Subir imagen (JPG/PNG/GIF/WebP/SVG, máx. 5 MB)"
+            title="Subir imagen (JPG/PNG/GIF/WebP, máx. 5 MB)"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading || sourceMode}
           >
@@ -392,7 +392,7 @@ export function MarkdownEditor({ value, onChange, placeholder = "Escribe aquí e
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+            accept="image/jpeg,image/png,image/gif,image/webp"
             className="hidden"
             onChange={handleImagePicked}
           />

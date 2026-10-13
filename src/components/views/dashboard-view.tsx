@@ -8,7 +8,7 @@ import { FetchError } from "@/components/app/loading";
 import { UnitCard, unitProgressStatus } from "@/components/views/unit-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, BookOpen, CheckCircle2, ArrowRight, GraduationCap, Lock } from "lucide-react";
+import { Sparkles, BookOpen, CheckCircle2, ArrowRight, GraduationCap, Lock, Stethoscope } from "lucide-react";
 import type { CourseStatus, Unit, User } from "@/lib/types";
 
 /** Skeleton de carga del panel: replica la estructura hero + grid con shimmer. */
@@ -120,6 +120,46 @@ export function DashboardView() {
           </dl>
         </div>
       </section>
+
+      {/* CTA del diagnóstico inicial (solo estudiantes, si está configurado) */}
+      {isStudent && courseStatus?.diagnosticConfigured && (
+        <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 shadow-sm animate-fade-in-up sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+              courseStatus.diagnosticCompleted
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "bg-brand-gold/15 text-brand-ink dark:text-brand-gold"
+            }`}>
+              {courseStatus.diagnosticCompleted ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
+                <Stethoscope className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <h2 className="font-semibold">
+                {courseStatus.diagnosticCompleted
+                  ? "Diagnóstico inicial completado"
+                  : "Diagnóstico inicial pendiente"}
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {courseStatus.diagnosticCompleted
+                  ? "Tus respuestas ya personalizan con IA el contenido de cada unidad."
+                  : "Es obligatorio para acceder a las unidades: tus respuestas personalizan el contenido con IA."}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant={courseStatus.diagnosticCompleted ? "outline" : "default"}
+            size="sm"
+            onClick={() => navigate("course-diagnostic")}
+            className="shrink-0"
+          >
+            {courseStatus.diagnosticCompleted ? "Ver diagnóstico" : "Rendir diagnóstico"}
+            <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        </section>
+      )}
 
       {/* CTA de la prueba de cierre (solo estudiantes, si está configurada) */}
       {isStudent && courseStatus?.finalExam.configured && (

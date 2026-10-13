@@ -34,6 +34,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Lock,
   Sparkles,
   Brain,
   PenTool,
@@ -272,6 +273,29 @@ export function UnitDetailView() {
   }
 
   if (error) {
+    // 403 con code "unit_locked": la unidad está bloqueada por el desbloqueo
+    // secuencial — vista dedicada en vez del error genérico con reintentar.
+    if (error.includes("403")) {
+      return (
+        <div className="mx-auto max-w-4xl p-4 lg:p-8">
+          <Button variant="ghost" onClick={() => navigate("units")} className="mb-4">
+            <ArrowLeft className="mr-1 h-4 w-4" /> Volver a unidades
+          </Button>
+          <Card className="flex flex-col items-center gap-4 border-border p-10 text-center shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+              <Lock className="h-7 w-7" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">Unidad bloqueada</h2>
+              <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                Este módulo se desbloquea al completar la unidad anterior. Avanza en orden para habilitarlo.
+              </p>
+            </div>
+            <Button onClick={() => navigate("units")}>Ir a mis unidades</Button>
+          </Card>
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-5xl space-y-8 p-4 lg:p-8">
         <PageHeader title="Unidad" />
@@ -291,8 +315,9 @@ export function UnitDetailView() {
   const pct = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
   const mastery = Math.min(100, progress?.mastery ?? 0);
 
-  // Unidades hermanas para la navegación anterior/siguiente del pie
-  const siblings = unitsList?.units ?? [];
+  // Unidades hermanas para la navegación anterior/siguiente del pie.
+  // Las bloqueadas (desbloqueo secuencial) no son destinos navegables.
+  const siblings = (unitsList?.units ?? []).filter((s) => !s.locked);
   const unitIdx = siblings.findIndex((s) => s.id === unit.id);
   const prevUnit = unitIdx > 0 ? siblings[unitIdx - 1] : null;
   const nextUnit = unitIdx >= 0 && unitIdx < siblings.length - 1 ? siblings[unitIdx + 1] : null;

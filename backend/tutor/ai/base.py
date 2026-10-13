@@ -6,10 +6,14 @@ texto y retroalimentación automatizada".
 
 La implementación concreta se elige vía settings.AI_PROVIDER ("openai" | "gemini").
 Si no hay API key configurada, se usan fallbacks (no bloquean el piloto).
+
+CAAMI: la interfaz incluye las operaciones del motor pedagógico
+(classify_error / generate_scaffold) y embeddings para el RAG básico. Todas
+devuelven AIResult (payload + metadatos de la llamada para AIInteraction).
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -18,6 +22,24 @@ class ChatMessage:
 
     role: str  # "system" | "user" | "assistant"
     content: str
+
+
+@dataclass
+class AIResult:
+    """Resultado estructurado de una llamada de IA (CAAMI).
+
+    ``payload`` es el JSON ya parseado y validado según el schema de la
+    operación; los demás campos alimentan el registro de trazabilidad
+    (tutor.AIInteraction).
+    """
+
+    payload: Dict
+    model: str
+    prompt_version: str
+    latency_ms: int
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    provider: str = ""
 
 
 class AIProvider(ABC):
@@ -55,6 +77,56 @@ class AIProvider(ABC):
         """Genera retroalimentación formativa para una respuesta de actividad."""
         ...
 
+    @abstractmethod
+    def classify_error(
+        self,
+        *,
+        activity_type: str,
+        activity_title: str,
+        prompt: str,
+        student_answer: str,
+        correct_answer: Optional[str] = None,
+        context: Optional[str] = None,
+        rag_chunks: str = "",
+    ) -> AIResult:
+        """Clasifica la respuesta del estudiante (result + error_type).
+
+        Devuelve AIResult con payload según el schema de
+        ``build_classify_prompt``. Errores → AIServiceError (con un retry
+        técnico interno antes de fallar).
+        """
+        ...
+
+    @abstractmethod
+    def generate_scaffold(
+        self,
+        *,
+        level: str,
+        activity_type: str,
+        activity_title: str,
+        prompt: str,
+        student_answer: str,
+        correct_answer: Optional[str] = None,
+        error_type: str = "indeterminate",
+        context: Optional[str] = None,
+        rag_chunks: str = "",
+    ) -> AIResult:
+        """Genera el texto de la intervención de andamiaje del nivel indicado.
+
+        ``level`` es la etiqueta "A1".."A5" decidida por el motor CAAMI; el
+        payload sigue el schema de ese nivel y se valida pedagógicamente
+        (tutor/ai/validation.py). Errores → AIServiceError.
+        """
+        ...
+
+    @abstractmethod
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        """Devuelve un embedding por texto (para el retrieval del RAG).
+
+        Si el proveedor no soporta embeddings, lanza AIServiceError.
+        """
+        ...
+
 
 class AIServiceError(Exception):
     """Error al invocar el proveedor de IA (triggers fallback)."""
@@ -71,4 +143,13 @@ class FallbackProvider(AIProvider):
         raise AIServiceError("No AI provider configured")
 
     def generate_feedback(self, **kwargs):
+        raise AIServiceError("No AI provider configured")
+
+    def classify_error(self, **kwargs):
+        raise AIServiceError("No AI provider configured")
+
+    def generate_scaffold(self, **kwargs):
+        raise AIServiceError("No AI provider configured")
+
+    def embed(self, texts):
         raise AIServiceError("No AI provider configured")

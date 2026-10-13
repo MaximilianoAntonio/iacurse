@@ -64,6 +64,9 @@ class CourseConfig(models.Model):
     final_exam_questions = models.JSONField("preguntas de la prueba de cierre", default=list)
     final_exam_pass_score = models.IntegerField("puntaje mínimo de aprobación (%)", default=70)
     final_exam_max_attempts = models.IntegerField("intentos máximos de la prueba de cierre", default=3)
+    # Desbloqueo secuencial: cada unidad se habilita al completar la anterior
+    # (ver learning/services.py::locked_unit_ids). Los docentes nunca se bloquean.
+    sequential_unlock = models.BooleanField("desbloqueo secuencial de unidades", default=True)
 
     class Meta:
         verbose_name = "configuración del curso"
@@ -136,6 +139,7 @@ class Activity(TimeStampedModel):
     Tipos (activity.type):
     - multiple_choice | guided_problem | case_analysis
     - progressive_exercise | self_assessment
+    - short_answer | scale_rating
 
     ``data`` es un JSON cuya forma depende del tipo (ver learning/grading.py).
     """
@@ -145,12 +149,16 @@ class Activity(TimeStampedModel):
     TYPE_CASE_ANALYSIS = "case_analysis"
     TYPE_PROGRESSIVE_EXERCISE = "progressive_exercise"
     TYPE_SELF_ASSESSMENT = "self_assessment"
+    TYPE_SHORT_ANSWER = "short_answer"
+    TYPE_SCALE_RATING = "scale_rating"
     TYPE_CHOICES = [
         (TYPE_MULTIPLE_CHOICE, "Selección múltiple"),
         (TYPE_GUIDED_PROBLEM, "Problema guiado"),
         (TYPE_CASE_ANALYSIS, "Análisis de caso"),
         (TYPE_PROGRESSIVE_EXERCISE, "Ejercicio progresivo"),
         (TYPE_SELF_ASSESSMENT, "Autoevaluación"),
+        (TYPE_SHORT_ANSWER, "Respuesta breve"),
+        (TYPE_SCALE_RATING, "Escala de valoración"),
     ]
 
     ASSESSMENT_DIAGNOSTIC = "diagnostic"

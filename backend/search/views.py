@@ -38,10 +38,18 @@ class SearchView(views.APIView):
         show_drafts = getattr(request.user, "is_teacher", False)
         draft_filter = {} if show_drafts else {"is_published": True}
 
+        # Desbloqueo secuencial: las unidades bloqueadas (y su contenido) no
+        # aparecen en la búsqueda de estudiantes; para docentes el set es vacío.
+        from learning.services import locked_unit_ids
+
+        locked = locked_unit_ids(request.user)
+
         units = []
         for u in Unit.objects.filter(
             Q(title__icontains=q) | Q(summary__icontains=q) | Q(description__icontains=q)
         ):
+            if u.id in locked:
+                continue
             units.append({
                 "id": u.id, "title": u.title,
                 "summary": (u.summary or "")[:200],
@@ -56,6 +64,8 @@ class SearchView(views.APIView):
             Q(title__icontains=q) | Q(description__icontains=q) | Q(content__icontains=q),
             **draft_filter,
         ):
+            if l.unit_id in locked:
+                continue
             lessons.append({
                 "id": l.id, "title": l.title,
                 "description": (l.description or "")[:200],
@@ -73,6 +83,8 @@ class SearchView(views.APIView):
             Q(title__icontains=q) | Q(prompt__icontains=q),
             **activity_draft_filter,
         ):
+            if a.lesson.unit_id in locked:
+                continue
             activities.append({
                 "id": a.id, "title": a.title, "type": a.type,
                 "difficulty": a.difficulty, "points": a.points,

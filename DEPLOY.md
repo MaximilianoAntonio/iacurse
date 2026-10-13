@@ -27,14 +27,18 @@ Editar `.env` y ajustar **obligatoriamente**:
 | `CORS_ALLOWED_ORIGINS` | URL pública del frontend, p. ej. `https://midominio.uv.cl` |
 | `CSRF_TRUSTED_ORIGINS` | igual que `CORS_ALLOWED_ORIGINS` |
 | `NEXT_PUBLIC_API_URL` | URL pública del backend tal como la ve el navegador |
-| `OPENAI_API_KEY` / `GEMINI_API_KEY` | según el `AI_PROVIDER` elegido (opcional; sin key hay fallbacks) |
+| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP institucional para el código MFA docente (**obligatorio**: `prod.py` aborta si el MFA está activo sin SMTP real) |
+| `OPENAI_API_KEY` / `GEMINI_API_KEY` | **IA desactivada por defecto** (`AI_PROVIDER=fallback`, hallazgo 2.3: sin envío de datos a terceros hasta regularizarlo con DTIC/DPO). Solo si se reactiva: `AI_PROVIDER=openai`/`gemini` + su key |
 
 ### Cookies según el esquema (HTTPS vs HTTP)
 
-- **Con HTTPS** (reverse proxy con TLS delante): dejar los defaults
-  (`SESSION_COOKIE_SECURE=1`, `SAMESITE=None`). No hace falta definirlas.
+- **Con HTTPS** (reverse proxy con TLS delante, §9): dejar los defaults
+  (`SESSION_COOKIE_SECURE=1`, `SAMESITE=Lax`). No hace falta definirlas.
+  Con Caddy frontend y API van bajo el mismo origen, así que `Lax` es
+  suficiente y más seguro (hallazgo 2.9). Usar `SAMESITE=None` solo si el
+  frontend y la API se sirven desde orígenes distintos.
 - **HTTP plano** (piloto en red interna sin TLS): los navegadores rechazan
-  cookies `Secure` y `SameSite=None` sin `Secure`. Definir en `.env`:
+  cookies `Secure`. Definir en `.env`:
 
   ```env
   SESSION_COOKIE_SECURE=0
@@ -44,6 +48,25 @@ Editar `.env` y ajustar **obligatoriamente**:
   ```
 
 Sin este ajuste el login no persiste (el navegador descarta la cookie).
+
+La sesión expira **por inactividad** (`SESSION_COOKIE_AGE_DAYS`, default 7
+días desde la última actividad; la cookie se renueva con cada request
+autenticado).
+
+### MFA docente (segundo factor por email)
+
+En producción las cuentas **docentes** exigen un código de un solo uso
+enviado a su email institucional tras la contraseña (hallazgo 2.9; los
+estudiantes, seudonimizados y sin email real, quedan exentos). Variables:
+
+| Variable | Descripción |
+|---|---|
+| `TEACHER_MFA_ENABLED` | `1` por defecto en prod; `0` lo desactiva explícitamente (documentar la justificación en el expediente). En dev/test el default es `0`. |
+| `EMAIL_BACKEND` | `django.core.mail.backends.smtp.EmailBackend` en producción (default: `console` en dev, el código sale en los logs del backend). |
+| `EMAIL_HOST` / `EMAIL_PORT` | Servidor SMTP institucional (p. ej. `smtp.uv.cl` / `587`). |
+| `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | Credenciales SMTP si el servidor las exige. |
+| `DEFAULT_FROM_EMAIL` | Remitente del código (default `no-reply@uv.cl`). |
+| `MFA_CODE_TTL_MINUTES` / `MFA_MAX_ATTEMPTS` | Vigencia del código (default 10 min) e intentos máximos (default 5). |
 
 ### Consentimiento informado (investigación)
 
@@ -103,15 +126,26 @@ Dos volúmenes nombrados; respaldarlos para no perder información:
 - `postgres_data` — base de datos completa.
 - `media_data` — imágenes subidas por docentes desde el Course Builder.
 
-Respaldo automatizado (script incluido en el repo, con retención de 30 días):
+Respaldo automatizado **cifrado** (script incluido en el repo, con retención
+de 30 días; hallazgo 2.14 — el script aborta sin cifrado configurado):
 
 ```bash
+# Elegir UNA vía de cifrado en el entorno (p. ej. en .env o el crontab):
+#   BACKUP_GPG_RECIPIENT=seguridad@uv.cl   (clave pública del responsable; recomendado)
+#   BACKUP_PASSPHRASE=<frase fuerte>       (AES-256 con OpenSSL)
 # Desde la raíz del proyecto en el servidor:
 sh backend/scripts/backup.sh
 # Cron diario sugerido (03:23) — los respaldos son además el archivo en frío
 # de los logs de auditoría/telemetría (política de retención 12m + 24m):
 #   23 3 * * *  cd /ruta/iacurse && sh backend/scripts/backup.sh >> /var/log/electromed-backup.log 2>&1
 ```
+
+**Copia fuera del servidor (obligatoria)**: un respaldo en el mismo disco no
+es respaldo. Copiar `backups/` periódicamente a almacenamiento institucional
+(rsync/OneDrive/object storage). **Prueba de restauración mensual**: el
+procedimiento está documentado en el encabezado de `backend/scripts/backup.sh`
+(restorar en una base desechable `restore_test`, verificar conteos y
+eliminarla).
 
 Purga periódica de registros según la política de retención (12 meses en
 caliente; `TELEMETRY_RETENTION_DAYS` / `AUDIT_LOG_RETENTION_DAYS`):
@@ -285,8 +319,12 @@ SESSION_COOKIE_SECURE=0
 CSRF_COOKIE_SECURE=0
 SESSION_COOKIE_SAMESITE=Lax
 CSRF_COOKIE_SAMESITE=Lax
-# IA (opcional; sin key hay fallbacks)
-OPENAI_API_KEY=...
+# MFA docente: en prod exige SMTP real; en una prueba interna sin SMTP se
+# puede desactivar explícitamente (documentar la justificación):
+#TEACHER_MFA_ENABLED=0
+# IA desactivada por defecto (hallazgo 2.3); reactivar solo tras regularizar:
+#AI_PROVIDER=openai
+#OPENAI_API_KEY=...
 ```
 
 ```bash
@@ -305,17 +343,23 @@ certificado Let's Encrypt automático).
 ### 8.4 Respaldos
 
 ```bash
-# Script del repo (retención 30 días, configurable con BACKUP_RETENTION_DAYS):
+# Script del repo (retención 30 días, configurable con BACKUP_RETENTION_DAYS).
+# Cifrado OBLIGATORIO (hallazgo 2.14): definir BACKUP_GPG_RECIPIENT o
+# BACKUP_PASSPHRASE o el script aborta.
 sh backend/scripts/backup.sh
-# cron diario en la VM; copiar los .sql.gz periódicamente a otro lado (scp/drive)
+# cron diario en la VM; copiar los .sql.gz.gpg/.enc periódicamente a otro lado (scp/drive)
 ```
 
-Alternativa: activar los backups automáticos del proveedor (Hetzner/DO: +20%
-del plan; OVH: incluidos). Para restaurar:
+Alternativa complementaria: activar los backups automáticos del proveedor
+(Hetzner/DO: +20% del plan; OVH: incluidos). Para restaurar (descifrando
+antes — ver el encabezado de `backend/scripts/backup.sh`):
 
 ```bash
-gunzip -c backups/electromed_YYYYMMDD_HHMMSS.sql.gz | docker compose exec -T db psql -U electromed -d electromed
+gpg -d backups/electromed_YYYYMMDD_HHMMSS.sql.gz.gpg | gunzip | docker compose exec -T db psql -U electromed -d electromed
 ```
+
+Hacer una **prueba de restauración mensual** en una base desechable
+(procedimiento completo en el encabezado del script).
 
 ### 8.5 Control de costos
 
@@ -386,3 +430,18 @@ Notas:
   red Docker; por eso `prod.py` exime `/api/health` de `SECURE_SSL_REDIRECT`.
 - Para probar TLS en local sin dominio: `DOMAIN=localhost` — Caddy usa su CA
   interna (el navegador pedirá confiar en el certificado autofirmado).
+
+## 10. Roadmap de seguridad acordado
+
+Compromisos registrados ante el Departamento de Ciberseguridad (informe de
+oct-2026), sin cambios de código por ahora:
+
+- **Autenticación institucional (hallazgo 2.23)**: integrar el login con la
+  autenticación institucional de la UV **antes de ampliar el piloto** a más
+  cursos o cohortes. Mientras tanto, los parámetros de contraseña actuales
+  (Argon2id, mínimo 8 caracteres, validadores de fortaleza, cambio obligatorio
+  de temporales, captcha + rate limit + MFA docente) deben validarse
+  formalmente con DTIC y el Departamento de Ciberseguridad.
+- **IA (hallazgo 2.3)**: la reactivación del `AI_PROVIDER` externo exige la
+  certificación de la conexión por DTIC/Ciberseguridad y el pronunciamiento
+  del DPO; ver la tabla de variables en §2.

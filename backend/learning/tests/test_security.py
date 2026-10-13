@@ -79,6 +79,22 @@ def curriculum(db):
         data={"prompt": "Reflexiona", "autoGradeKeywords": ["voltaje", "corriente"]},
         points=10, max_attempts=0,
     )
+    short_answer = Activity.objects.create(
+        lesson=lesson, type="short_answer", title="RB", prompt="P",
+        data={
+            "question": "¿Qué es la impedancia?",
+            "maxWords": 30,
+            "keywords": ["impedancia"],
+            "modelAnswer": "La oposición al paso de corriente alterna",
+            "explanation": "Porque sí",
+        },
+        points=10, max_attempts=0,
+    )
+    scale = Activity.objects.create(
+        lesson=lesson, type="scale_rating", title="EV", prompt="P",
+        data={"question": "¿Cuánto sabes?", "min": 1, "max": 5, "correctValue": 4},
+        points=10, max_attempts=0,
+    )
     draft_lesson = Lesson.objects.create(
         unit=unit, slug="draft", title="Borrador", order=2, is_published=False,
     )
@@ -87,7 +103,7 @@ def curriculum(db):
         data={"options": ["A", "B"], "correctIndex": 1},
         points=10, max_attempts=0,
     )
-    return unit, lesson, mcq, guided, self_assess, draft_activity
+    return unit, lesson, mcq, guided, self_assess, short_answer, scale, draft_activity
 
 
 @pytest.mark.django_db
@@ -112,10 +128,46 @@ class TestLessonDataSanitization:
         assert data["steps"][0]["prompt"] == "paso 1"
 
     def test_self_assessment_hides_keywords(self, client, curriculum):
-        _, lesson, _, _, self_assess, _ = curriculum
+        _, lesson, _, _, self_assess, *_ = curriculum
         res = client.get(f"/api/lessons/{lesson.id}")
         data = next(a for a in res.data["lesson"]["activities"] if a["id"] == self_assess.id)["data"]
         assert "autoGradeKeywords" not in data
+
+    def test_short_answer_hides_model_answer_and_keywords(self, client, curriculum):
+        _, lesson, _, _, _, short_answer, *_ = curriculum
+        res = client.get(f"/api/lessons/{lesson.id}")
+        data = next(a for a in res.data["lesson"]["activities"] if a["id"] == short_answer.id)["data"]
+        assert "modelAnswer" not in data
+        assert "keywords" not in data
+        assert "explanation" not in data
+        # Las claves de presentación se conservan
+        assert data["question"] == "¿Qué es la impedancia?"
+        assert data["maxWords"] == 30
+
+    def test_scale_rating_hides_correct_value(self, client, curriculum):
+        _, lesson, _, _, _, _, scale, _ = curriculum
+        res = client.get(f"/api/lessons/{lesson.id}")
+        data = next(a for a in res.data["lesson"]["activities"] if a["id"] == scale.id)["data"]
+        assert "correctValue" not in data
+        assert data["min"] == 1
+        assert data["max"] == 5
+
+    def test_new_types_review_data_full_after_attempt(self, client, curriculum):
+        """La pauta completa de los nuevos tipos solo llega post-envío (reviewData)."""
+        _, _, _, _, _, short_answer, scale, _ = curriculum
+        res = client.post(
+            f"/api/activities/{short_answer.id}/attempt",
+            {"answer": "la impedancia del electrodo"}, format="json",
+        )
+        assert res.status_code == 200
+        review = res.data["attempt"]["reviewData"]
+        assert review["modelAnswer"] == "La oposición al paso de corriente alterna"
+        assert review["keywords"] == ["impedancia"]
+        res = client.post(
+            f"/api/activities/{scale.id}/attempt", {"answer": "4"}, format="json",
+        )
+        assert res.status_code == 200
+        assert res.data["attempt"]["reviewData"]["correctValue"] == 4
 
     def test_attempt_response_includes_full_review_data(self, client, curriculum):
         _, _, mcq, *_ = curriculum

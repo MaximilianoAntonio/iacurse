@@ -3,6 +3,13 @@
 # Piloto de Innovación Docente, Universidad de Valparaíso
 # Lineamiento: Backend Python (Django) + PostgreSQL
 # ============================================================================
+# NOTA (hallazgo 2.20): este archivo declara RANGOS. La instalación
+# reproducible usa requirements.lock (pins exactos + hashes sha256):
+#   pip install --require-hashes -r requirements.lock
+# Tras modificar este archivo, regenerar el lock:
+#   pip-compile requirements.txt -o requirements.lock
+#   python scripts/add_hashes.py
+# ============================================================================
 
 # --- Framework principal ---
 # Rama LTS con parches de seguridad hasta abril 2028 (5.1 quedó EOL en dic-2025)

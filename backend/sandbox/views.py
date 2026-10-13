@@ -608,3 +608,38 @@ class AdminFinalExamView(views.APIView):
             },
         )
         return Response({"ok": True})
+
+
+class AdminCourseSettingsView(views.APIView):
+    """GET/PATCH /api/admin/course/settings — ajustes generales del curso.
+
+    Por ahora solo expone ``sequentialUnlock``: al activarlo, cada unidad se
+    desbloquea para el estudiante solo al completar la anterior (ver
+    learning/services.py::locked_unit_ids).
+    """
+
+    permission_classes = [IsAuthenticated, IsTeacher]
+
+    def get(self, request):
+        return Response({"sequentialUnlock": CourseConfig.load().sequential_unlock})
+
+    def patch(self, request):
+        value = request.data.get("sequentialUnlock")
+        if not isinstance(value, bool):
+            return Response(
+                {"error": "sequentialUnlock debe ser booleano"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        config = CourseConfig.load()
+        if config.sequential_unlock == value:
+            return Response({"ok": True, "sequentialUnlock": value})
+        config.sequential_unlock = value
+        config.save(update_fields=["sequential_unlock"])
+        log_security_event(
+            "course_config_changed",
+            actor=request.user,
+            request=request,
+            target="sequential_unlock",
+            metadata={"sequentialUnlock": value},
+        )
+        return Response({"ok": True, "sequentialUnlock": value})

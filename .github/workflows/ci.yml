@@ -1,9 +1,12 @@
 # CI — Plataforma Electromedicina II
-# Verificación mínima por push/PR: tests de backend, lint de frontend y
-# análisis de dependencias (SCA). Los análisis SAST/DAST formales del
-# Departamento de Ciberseguridad (punto 2.7 de los principios DGMTD) se
-# ejecutan sobre el ambiente QA institucional; este pipeline es la barrera
-# de entrada del repositorio.
+# Verificación por push/PR: tests de backend, lint de frontend y controles de
+# seguridad BLOQUEANTES (hallazgo 2.20 del informe de seguridad oct-2026):
+# SAST (bandit), detección de secretos (gitleaks) y SCA (pip-audit/npm audit).
+# Los análisis SAST/DAST formales del Departamento de Ciberseguridad (punto
+# 2.7 de los principios DGMTD) se ejecutan sobre el ambiente QA institucional;
+# este pipeline es la barrera de entrada del repositorio.
+# Las acciones de terceros están fijadas por SHA de commit (cadena de
+# suministro); el comentario indica la versión legible.
 name: CI
 
 on:
@@ -11,26 +14,47 @@ on:
     branches: [main]
   pull_request:
 
+# Permisos mínimos del GITHUB_TOKEN (defensa en profundidad)
+permissions:
+  contents: read
+
 jobs:
-  backend-tests:
+  # Controles de seguridad bloqueantes: SAST + detección de secretos
+  security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
-      - name: Instalar dependencias
+      - name: Bandit (SAST Python)
+        run: |
+          pip install bandit
+          bandit -r backend -ll -x backend/.venv,backend/.pytest_cache,backend/media
+      - name: Gitleaks (detección de secretos)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+
+  backend-tests:
+    needs: security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias (lockfile con hashes)
         working-directory: backend
-        run: pip install -r requirements.txt
+        run: pip install --require-hashes -r requirements.lock
       - name: Tests (pytest, SQLite en memoria)
         working-directory: backend
         run: pytest -q
 
   frontend-lint:
+    needs: security
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
       - name: Instalar dependencias (reproducible)
@@ -40,17 +64,18 @@ jobs:
 
   # SCA: vulnerabilidades conocidas (CVE) en dependencias (punto 2.7)
   dependency-audit:
+    needs: security
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: pip-audit (backend)
         working-directory: backend
         run: |
           pip install pip-audit
-          pip-audit -r requirements.txt
+          pip-audit -r requirements.lock
       - name: npm audit (frontend)
         # Solo dependencias de producción; severidad alta o crítica
         run: npm audit --omit=dev --audit-level=high

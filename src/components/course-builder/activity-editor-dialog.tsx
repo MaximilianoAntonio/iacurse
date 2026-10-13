@@ -62,6 +62,8 @@ const typeLabels: Record<string, string> = {
   case_analysis: "Análisis de caso",
   progressive_exercise: "Ejercicio progresivo",
   self_assessment: "Autoevaluación",
+  short_answer: "Respuesta breve",
+  scale_rating: "Escala de valoración",
 };
 
 const defaultDataTemplates: Record<string, string> = {
@@ -108,6 +110,30 @@ const defaultDataTemplates: Record<string, string> = {
       prompt: "",
       rubric: ["Criterio 1", "Criterio 2"],
       autoGradeKeywords: [],
+    },
+    null,
+    2
+  ),
+  short_answer: JSON.stringify(
+    {
+      question: "",
+      maxWords: 30,
+      keywords: [],
+      modelAnswer: "",
+      explanation: "",
+    },
+    null,
+    2
+  ),
+  scale_rating: JSON.stringify(
+    {
+      question: "",
+      min: 1,
+      max: 5,
+      minLabel: "Muy bajo",
+      maxLabel: "Muy alto",
+      correctValue: null,
+      explanation: "",
     },
     null,
     2
@@ -383,6 +409,12 @@ export function ActivityEditorDialog({ open, onOpenChange, initial, onSave, unit
             )}
             {parsedData && type === "self_assessment" && (
               <SelfAssessmentEditor data={parsedData} onChange={updateData} />
+            )}
+            {parsedData && type === "short_answer" && (
+              <ShortAnswerEditor data={parsedData} onChange={updateData} />
+            )}
+            {parsedData && type === "scale_rating" && (
+              <ScaleRatingEditor data={parsedData} onChange={updateData} />
             )}
           </TabsContent>
 
@@ -1034,6 +1066,174 @@ function SelfAssessmentEditor({ data, onChange }: { data: any; onChange: (d: any
           onChange={(e) => update({ autoGradeKeywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
           className="mt-1"
           placeholder="ecg, einthoven, derivación"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ShortAnswerEditor({ data, onChange }: { data: any; onChange: (d: any) => void }) {
+  const update = (patch: any) => onChange({ ...data, ...patch });
+  return (
+    <div className="space-y-3">
+      <div>
+        <Label className="text-xs font-semibold">Pregunta</Label>
+        <Textarea
+          value={data.question || ""}
+          onChange={(e) => update({ question: e.target.value })}
+          className="mt-1 min-h-[60px]"
+        />
+      </div>
+      <div>
+        <Label className="text-xs font-semibold">Máximo de palabras</Label>
+        <Input
+          type="number"
+          min={5}
+          max={200}
+          value={data.maxWords ?? 30}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            if (Number.isFinite(n)) update({ maxWords: Math.min(200, Math.max(5, Math.round(n))) });
+          }}
+          className="mt-1"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          El estudiante no podrá enviar respuestas que superen este límite (por defecto 30 palabras).
+        </p>
+      </div>
+      <div>
+        <Label className="text-xs font-semibold">Palabras clave para corrección automática (separadas por coma)</Label>
+        <Input
+          value={(data.keywords || []).join(", ")}
+          onChange={(e) => update({ keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+          className="mt-1"
+          placeholder="impedancia, corriente alterna, electrodo"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Con palabras clave, la respuesta es correcta si incluye al menos el 60% de ellas.
+          Déjalo vacío para que toda respuesta dentro del límite cuente como correcta (participación).
+        </p>
+      </div>
+      <div>
+        <Label className="text-xs font-semibold">Respuesta modelo (opcional)</Label>
+        <Textarea
+          value={data.modelAnswer || ""}
+          onChange={(e) => update({ modelAnswer: e.target.value })}
+          placeholder="La respuesta esperada que verá el estudiante después de enviar..."
+          className="mt-1 min-h-[60px]"
+        />
+      </div>
+      <div>
+        <Label className="text-xs font-semibold">Explicación (opcional)</Label>
+        <Textarea
+          value={data.explanation || ""}
+          onChange={(e) => update({ explanation: e.target.value })}
+          className="mt-1 min-h-[60px]"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ScaleRatingEditor({ data, onChange }: { data: any; onChange: (d: any) => void }) {
+  const update = (patch: any) => onChange({ ...data, ...patch });
+  const min = data.min ?? 1;
+  const max = data.max ?? 5;
+  const range: number[] = [];
+  for (let v = min; v <= max && range.length < 20; v++) range.push(v);
+  return (
+    <div className="space-y-3">
+      <div>
+        <Label className="text-xs font-semibold">Pregunta</Label>
+        <Textarea
+          value={data.question || ""}
+          onChange={(e) => update({ question: e.target.value })}
+          placeholder="Ej.: ¿Qué tan seguro te sientes interpretando un ECG de 12 derivaciones?"
+          className="mt-1 min-h-[60px]"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs font-semibold">Valor mínimo</Label>
+          <Input
+            type="number"
+            value={min}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (Number.isFinite(n) && n < max) update({ min: Math.round(n) });
+            }}
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label className="text-xs font-semibold">Valor máximo</Label>
+          <Input
+            type="number"
+            value={max}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (Number.isFinite(n) && n > min) update({ max: Math.round(n) });
+            }}
+            className="mt-1"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs font-semibold">Etiqueta del mínimo (opcional)</Label>
+          <Input
+            value={data.minLabel || ""}
+            onChange={(e) => update({ minLabel: e.target.value })}
+            placeholder="Muy bajo"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label className="text-xs font-semibold">Etiqueta del máximo (opcional)</Label>
+          <Input
+            value={data.maxLabel || ""}
+            onChange={(e) => update({ maxLabel: e.target.value })}
+            placeholder="Muy alto"
+            className="mt-1"
+          />
+        </div>
+      </div>
+      <div>
+        <Label className="text-xs font-semibold">Respuesta correcta</Label>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <Button
+            type="button"
+            variant={data.correctValue === null || data.correctValue === undefined ? "default" : "outline"}
+            size="sm"
+            onClick={() => update({ correctValue: null })}
+          >
+            Sin respuesta correcta
+          </Button>
+          {range.map((v) => (
+            <Button
+              key={v}
+              type="button"
+              variant={data.correctValue === v ? "default" : "outline"}
+              size="sm"
+              className="h-8 w-8 p-0 font-mono tabular-nums"
+              onClick={() => update({ correctValue: v })}
+            >
+              {v}
+            </Button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Sin respuesta correcta, cualquier valor dentro de la escala cuenta como correcto
+          (pregunta de opinión o autorreporte). Con un valor marcado, el estudiante debe
+          seleccionarlo exactamente.
+        </p>
+      </div>
+      <div>
+        <Label className="text-xs font-semibold">Explicación (opcional)</Label>
+        <Textarea
+          value={data.explanation || ""}
+          onChange={(e) => update({ explanation: e.target.value })}
+          className="mt-1 min-h-[60px]"
         />
       </div>
     </div>

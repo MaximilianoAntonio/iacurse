@@ -96,6 +96,16 @@ export const activityTypeMeta: Record<
     icon: "Brain",
     color: "text-violet-600",
   },
+  short_answer: {
+    label: "Respuesta breve",
+    icon: "TextCursorInput",
+    color: "text-teal-600",
+  },
+  scale_rating: {
+    label: "Escala de valoración",
+    icon: "SlidersHorizontal",
+    color: "text-indigo-600",
+  },
 };
 
 export const difficultyMeta: Record<

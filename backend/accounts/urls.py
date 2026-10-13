@@ -9,6 +9,7 @@ urlpatterns = [
     # Auth
     path("auth/csrf", views.CsrfTokenView.as_view(), name="csrf"),
     path("auth/login", views.LoginView.as_view(), name="login"),
+    path("auth/login/mfa", views.MFALoginView.as_view(), name="login-mfa"),
     path("auth/logout", views.LogoutView.as_view(), name="logout"),
     path(
         "auth/change-password",

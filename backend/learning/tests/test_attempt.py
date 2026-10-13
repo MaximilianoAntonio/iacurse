@@ -153,3 +153,54 @@ class TestFeedbackPresent:
         body = resp.json()["attempt"]
         assert body["feedback"]  # no vacío
         assert isinstance(body["feedback"], str)
+
+
+@pytest.mark.django_db
+class TestAIUsageThrottle:
+    """Límite de uso de IA por usuario (hallazgo 2.18, scope "ai").
+
+    Solo aplica cuando hay un proveedor de IA real activo; con el fallback
+    local (default en tests) el endpoint no se limita por este scope.
+    """
+
+    def test_429_al_superar_limite_con_ia_activa(self, client, curriculum, settings):
+        import tutor.ai.factory as ai_factory
+        from django.core.cache import cache
+
+        cache.clear()
+        # Proveedor "real" activo pero SIN credenciales: la factory cae al
+        # fallback local sin hacer llamadas de red.
+        settings.AI_PROVIDER = "openai"
+        settings.OPENAI_API_KEY = ""
+        settings.OPENAI_BASE_URL = ""
+        ai_factory._provider = None
+        settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["ai"] = "1/hour"
+        _, _, a1, a2 = curriculum
+        resp = client.post(
+            f"/api/activities/{a1.id}/attempt",
+            {"answer": {"selectedIndex": 0}},
+            format="json",
+        )
+        assert resp.status_code == 200
+        resp = client.post(
+            f"/api/activities/{a2.id}/attempt",
+            {"answer": {"selectedIndex": 1}},
+            format="json",
+        )
+        assert resp.status_code == 429
+        ai_factory._provider = None
+
+    def test_sin_limite_con_fallback(self, client, curriculum, settings):
+        from django.core.cache import cache
+
+        cache.clear()
+        settings.AI_PROVIDER = "fallback"
+        settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["ai"] = "1/hour"
+        _, _, a1, a2 = curriculum
+        for activity, idx in ((a1, 0), (a2, 1)):
+            resp = client.post(
+                f"/api/activities/{activity.id}/attempt",
+                {"answer": {"selectedIndex": idx}},
+                format="json",
+            )
+            assert resp.status_code == 200

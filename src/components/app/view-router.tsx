@@ -12,10 +12,21 @@ import { BookmarksView } from "@/components/views/bookmarks-view";
 import { TeacherView } from "@/components/views/teacher-view";
 import { AboutView } from "@/components/views/about-view";
 import { CourseBuilderView } from "@/components/views/course-builder-view";
+import { CourseDiagnosticView } from "@/components/views/course-diagnostic-view";
 import { FinalExamView } from "@/components/views/final-exam-view";
+import type { ViewKey } from "@/lib/types";
 
-export function ViewRouter() {
-  const view = useAppStore((s) => s.view);
+interface ViewRouterProps {
+  /** Vista forzada (p. ej. diagnóstico obligatorio pendiente): tiene
+   * precedencia sobre la vista del store. */
+  forceView?: ViewKey;
+  /** Callback para que la vista de diagnóstico avise un envío exitoso. */
+  onDiagnosticSubmitted?: () => void;
+}
+
+export function ViewRouter({ forceView, onDiagnosticSubmitted }: ViewRouterProps) {
+  const storeView = useAppStore((s) => s.view);
+  const view = forceView ?? storeView;
 
   switch (view) {
     case "dashboard":
@@ -38,6 +49,8 @@ export function ViewRouter() {
       return <TeacherView />;
     case "course-builder":
       return <CourseBuilderView />;
+    case "course-diagnostic":
+      return <CourseDiagnosticView onSubmitted={onDiagnosticSubmitted} />;
     case "final-exam":
       return <FinalExamView />;
     case "about":

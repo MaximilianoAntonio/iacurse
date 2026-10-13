@@ -109,6 +109,7 @@ class TestCourseStatus:
     def test_new_student_pending_with_questions(self, student_client, config):
         body = student_client.get("/api/course/status").json()
         assert body["diagnosticCompleted"] is False
+        assert body["diagnosticConfigured"] is True
         assert body["diagnosticQuestions"] == DIAGNOSTIC_QUESTIONS
         assert body["allUnitsCompleted"] is False
         assert body["finalExam"] == {
@@ -120,6 +121,7 @@ class TestCourseStatus:
         student_client.post("/api/course/diagnostic", {"answers": VALID_ANSWERS}, format="json")
         body = student_client.get("/api/course/status").json()
         assert body["diagnosticCompleted"] is True
+        assert body["diagnosticConfigured"] is True
         assert "diagnosticQuestions" not in body
 
     def test_teacher_skips_gate(self, teacher_client, config):
@@ -134,6 +136,7 @@ class TestCourseStatus:
         config.save(update_fields=["diagnostic_questions"])
         body = student_client.get("/api/course/status").json()
         assert body["diagnosticCompleted"] is True
+        assert body["diagnosticConfigured"] is False
         assert "diagnosticQuestions" not in body
 
     def test_status_reflects_final_exam_attempts(self, student_client, student, config, units):

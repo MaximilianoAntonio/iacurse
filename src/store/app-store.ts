@@ -35,7 +35,7 @@ interface AppState {
 }
 
 // Vistas permitidas por rol
-const STUDENT_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "progress", "achievements", "bookmarks", "final-exam", "about"];
+const STUDENT_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "progress", "achievements", "bookmarks", "course-diagnostic", "final-exam", "about"];
 const TEACHER_VIEWS: ViewKey[] = ["dashboard", "units", "unit-detail", "lesson", "activity", "teacher", "course-builder", "about"];
 
 function isViewAllowed(view: ViewKey, role: Role): boolean {

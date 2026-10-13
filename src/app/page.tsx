@@ -16,7 +16,6 @@ import { useFetch } from "@/hooks/use-fetch";
 import { LoginView } from "@/components/views/login-view";
 import { ForceChangePasswordView } from "@/components/views/force-change-password-view";
 import { ConsentView } from "@/components/views/consent-view";
-import { CourseDiagnosticView } from "@/components/views/course-diagnostic-view";
 import type { CourseStatus, User } from "@/lib/types";
 
 type AuthState = "loading" | "authenticated" | "anonymous";
@@ -51,8 +50,6 @@ export default function Home() {
   const [passwordChanged, setPasswordChanged] = useState(false);
   // Gate del consentimiento informado: true una vez registrada la decisión en esta sesión
   const [consentDone, setConsentDone] = useState(false);
-  // Gate del diagnóstico general del curso: true una vez enviado en esta sesión
-  const [diagnosticDone, setDiagnosticDone] = useState(false);
 
   // Pedir /api/me solo cuando hay indicios de sesión (flag en localStorage;
   // la cookie sessionid es HttpOnly y no se puede leer desde JS).
@@ -93,6 +90,15 @@ export default function Home() {
     }
   }, [authState, error, meData]);
 
+  // Con el diagnóstico pendiente la vista se fuerza a "course-diagnostic":
+  // sincronizar el store para que el sidebar y la URL reflejen el módulo.
+  useEffect(() => {
+    if (isStudent && courseStatus && !courseStatus.diagnosticCompleted) {
+      const s = useAppStore.getState();
+      if (s.view !== "course-diagnostic") s.navigate("course-diagnostic");
+    }
+  }, [isStudent, courseStatus]);
+
   const handleLogin = (user: User) => {
     if (typeof window !== "undefined") {
       localStorage.setItem("electromed-session", "1");
@@ -106,7 +112,6 @@ export default function Home() {
     setUser(null);
     setPasswordChanged(false);
     setConsentDone(false);
-    setDiagnosticDone(false);
     setAuthState("anonymous");
   };
 
@@ -150,15 +155,17 @@ export default function Home() {
           return <LoadingScreen />;
         }
       }
-      // Diagnóstico general del curso (obligatorio, sin opción de saltar):
-      // solo estudiantes, después del consentimiento y antes de la app.
+      // Diagnóstico inicial del curso (módulo obligatorio): solo estudiantes,
+      // después del consentimiento. Ya no es una pantalla de gate separada:
+      // se fuerza la vista del módulo dentro del AppShell hasta completarlo.
       // Si /api/course/status falla no se bloquea el acceso (fail-open).
-      if (meData.user.role === "student" && !diagnosticDone) {
+      if (meData.user.role === "student") {
         if (courseStatus && !courseStatus.diagnosticCompleted) {
           return (
-            <CourseDiagnosticView
-              questions={courseStatus.diagnosticQuestions ?? []}
-              onCompleted={() => setDiagnosticDone(true)}
+            <AppShell
+              onLogout={handleLogout}
+              forceView="course-diagnostic"
+              onDiagnosticSubmitted={refetchStatus}
             />
           );
         }

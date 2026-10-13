@@ -1,0 +1,799 @@
+
+===== PAGINA 1 =====
+ESPECIFICACIÓN TÉCNICA MAESTRA DE LA API  
+Esta especificación convierte la API de IA en un servicio controlado por CAAMI, no en un chatbot autónomo. 
+La plataforma determina qué intervención corresponde; la API recibe un contexto mínimo, ejecuta una función 
+concreta y devuelve una salida estructurada y auditable. 
+Especificación técnica maestra de la API de IA para CAAMI 
+Componente Configuración 
+requerida 
+Valor/estructura 
+recomendada para MVP 
+Regla crítica 
+1. Proveedor Abstraer proveedor 
+mediante AIProvider 
+OpenAI/Azure OpenAI u otro 
+proveedor compatible (Ver) 
+CAAMI nunca debe depender 
+directamente de un proveedor. 
+2. Modelo 
+principal 
+Modelo con 
+razonamiento/instruccio
+nes y structured output 
+adecuados 
+PRIMARY_MODEL 
+configurable 
+Fijar modelo durante el piloto; 
+no cambiarlo silenciosamente. 
+3. 
+Modelo/version 
+Registrar versión 
+concreta utilizada 
+model_id + snapshot/version 
+si proveedor lo ofrece 
+Cada interacción debe indicar 
+qué modelo la produjo. 
+4. Modelo 
+auxiliar 
+Opcional para tareas 
+simples 
+SECONDARY_MODEL No introducirlo inicialmente si 
+dificulta reproducibilidad. 
+5. API key Solo backend/secret 
+manager 
+AI_API_KEY Nunca navegador, frontend, 
+repositorio ni logs. 
+6. Endpoint Configuración server -
+side 
+AI_BASE_URL Separar 
+DEV/STAGING/PROD. 
+7. Sesiones Aislamiento lógico por 
+estudiante × actividad 
+session_id interno Nunca conversación 
+compartida entre estudiantes. 
+8. Estado 
+pedagógico 
+Mantener en 
+PostgreSQL 
+Estado CAAMI El proveedor IA no es fuente 
+de verdad. 
+9. Memoria del 
+LLM 
+Preferentemente 
+contexto explícito por 
+request 
+Stateless o conversación 
+controlada 
+No depender de memoria 
+implícita del proveedor. 
+10. Identidad Pseudonimización por 
+códigos alfanuméricos 
+Preferentemente no enviar 
+student_id de la plataforma 
+No enviar nombre s, correo s, 
+RUT, etc. 
+11. Prompt de 
+sistema 
+Instrucciones CAAMI 
+comunes 
+CAAMI_SYSTEM_v1 Versionar y congelar durante 
+piloto. 
+12. Prompt 
+evaluación 
+Evaluar respuesta con 
+rúbrica 
+CAAMI_EVALUATE_v1 Separar evaluación de 
+generación de feedback 
+cuando sea posible. 
+13. Prompt 
+clasificación 
+Clasificar error CAAMI_ERROR_v1 Solo 
+conceptual/procedimental/mixt
+o/ninguno/indeterminado. 
+14. Prompt A1 Pregunta orientadora CAAMI_A1_v1 No revelar solución. 
+15. Prompt A2 Pista específica CAAMI_A2_v1 Focalizada en error detectado. 
+16. Prompt A3 Explicación/ejemplo 
+análogo 
+CAAMI_A3_v1 No resolver actividad objetivo. 
+===== PAGINA 2 =====
+17. Prompt A4 Secuencia guiada CAAMI_A4_v1 Estudiante debe ejecutar los 
+pasos. 
+18. Prompt A5 Resolución explicada CAAMI_A5_v1 Siempre seguido por 
+verificación independiente. 
+19. Prompt 
+verificación 
+Evaluar actividad 
+comparable 
+CAAMI_VERIFY_v1 No asumir aprendizaje por 
+haber recibido A5. 
+20. Prompt 
+reflexión 
+Feedback 
+metacognitivo limitado 
+CAAMI_REFLECTION_v1 No inferir rasgos psicológicos. 
+21. Prompt 
+auditoría/error 
+Actividad de 
+identificación de errores 
+CAAMI_AUDIT_v1 Evalúa contenido disciplinar, no 
+confianza en IA. 
+22. Prompt 
+RAG 
+Instrucción de uso de 
+fuentes recuperadas 
+Integrado al 
+system/developer prompt 
+Responder desde contenido 
+autorizado cuando la tarea lo 
+requiera. 
+23. Structured 
+output 
+JSON Schema estricto strict=true o equivalente si 
+está disponible 
+Software no debe interpretar 
+texto libre para gobernar 
+CAAMI. 
+24. Contexto 
+disciplinar 
+Solo fragmentos 
+pertinentes 
+Top-k reducido y controlado No enviar todo el material del 
+curso. 
+25. RAG Retrieval sobre corpus 
+validado 
+Metadata + 
+embeddings/retrieval 
+RAG aporta conocimiento; no 
+decide A1–A5. 
+26. Corpus 
+RAG 
+Material aprobado por 
+docente 
+Apuntes, protocolos, criterios, 
+bibliografía autorizada 
+Versionar corpus. 
+27. Chunking Fragmentación 
+semántica 
+Configurable y validada 
+empíricamente 
+No fijar tamaño arbitrario sin 
+pruebas. 
+28. Retrieval Búsqueda 
+semántica/híbrida 
+según implementación 
+top_k configurable Recuperar solo evidencia 
+necesaria. 
+29. Metadata 
+filtering 
+Filtrar por 
+actividad/tema/unidad 
+course, unit, topic, version Evitar contenido irrelevante. 
+30. Input 
+tokens 
+Presupuesto máximo 
+por request 
+Configurable por función Evitar historial completo 
+innecesario. 
+31. Output 
+tokens 
+Límite específico por 
+función 
+A1 < A2 < A3 < A4/A5 Una pregunta orientadora no 
+necesita una respuesta 
+extensa. 
+32. 
+Temperature 
+Baja/controlada cuando 
+el proveedor la admita 
+Cercana al extremo 
+determinista para 
+clasificación; baja para 
+feedback 
+No asumir que todos los 
+modelos actuales admiten este 
+parámetro. 
+33. Top-p Mantener default salvo 
+justificación 
+Default No ajustar simultáneamente 
+múltiples parámetros sin 
+necesidad. 
+===== PAGINA 3 =====
+34. Seed Solo si 
+proveedor/modelo lo 
+soporta 
+Fijo en pruebas si resulta útil No asumir determinismo 
+perfecto. 
+35. Reasoning 
+effort 
+Configurable si el 
+modelo lo soporta 
+Bajo/medio según función Clasificación compleja puede 
+requerir más que A1. 
+36. Streaming Opcional para feedback 
+largo 
+Preferentemente no para 
+clasificación JSON 
+No modificar estado CAAMI 
+hasta respuesta válida 
+completa. 
+37. Timeout 
+conexión 
+Corto Configurable Diferenciar conexión de 
+generación. 
+38. Timeout 
+generación 
+Mayor que conexión Configurable por modelo Timeout técnico ≠ intento 
+pedagógico. 
+39. Retries Solo errores transitorios 2–3 como política inicial Nunca duplicar intervención 
+pedagógica. 
+40. Backoff Exponencial + jitter base × 2^n con máximo Especialmente para rate 
+limits/5xx. 
+41. 
+Idempotencia 
+Clave por operación 
+pedagógica 
+interaction_operation_id Retry devuelve/reconstruye 
+misma operación lógica. 
+42. 
+Concurrencia 
+individual 
+Una generación activa 
+por intento 
+1 Evita respuestas competitivas. 
+43. 
+Concurrencia 
+global 
+Controlada mediante 
+workers 
+Configurable Debe respetar límites reales del 
+proveedor. 
+44. Queue Todas las llamadas 
+importantes encolables 
+Redis/Celery o equivalente Absorbe ráfagas de estudiantes 
+simultáneos. 
+45. Rate limiter Interno + proveedor estudiante/curso/global No confiar solo en HTTP 429. 
+46. Caché Solo contenido no 
+personalizado seguro 
+Retrieval/material estable Nunca reutilizar feedback de 
+otro estudiante. 
+47. Validación 
+JSON 
+Backend contra schema Obligatoria JSON inválido → retry técnico 
+controlado. 
+48. Validación 
+pedagógica 
+Reglas post-generación Longitud, A1 –A5, 
+prohibiciones 
+Un JSON válido puede ser 
+pedagógicamente inválido. 
+49. 
+Moderación/se
+guridad 
+Según proveedor y 
+contexto 
+Entrada/salida cuando 
+corresponda 
+No sustituye las reglas 
+pedagógicas CAAMI. 
+50. 
+Hallucination 
+control 
+RAG + criterios + 
+insufficient_context 
+Obligatorio cuando respuesta 
+depende del corpus 
+IA debe poder reconocer 
+información insuficiente. 
+51. Fallback Feedback docente 
+predefinido 
+A1/A2 prioritariamente Caída API no debe bloquear 
+piloto. 
+52. Logging Registrar metadata de 
+request/response 
+IDs, modelo, prompt, latencia, 
+tokens, status 
+Evitar PII en logs. 
+===== PAGINA 4 =====
+53. Cost 
+tracking 
+Uso por 
+interacción/estudiante/a
+ctividad 
+tokens/unidades facturables Permite estimar escalabilidad. 
+54. Latencia Registrar por 
+interacción 
+latency_ms Evaluar experiencia y viabilidad 
+tecnológica. 
+55. Prompt 
+version 
+Obligatorio en cada 
+llamada 
+CAAMI_A2_v1 Fundamental para 
+reproducibilidad. 
+56. Corpus 
+version 
+Registrar versión 
+recuperada 
+KB_v1 Permite reconstruir contexto. 
+57. Retrieval 
+trace 
+Registrar IDs de 
+fragmentos usados 
+chunk_ids Auditoría de grounding. 
+58. Request ID 
+proveedor 
+Guardar si está 
+disponible 
+provider_request_id Facilita diagnóstico técnico. 
+59. Respuesta 
+original 
+Conservar según 
+protocolo de datos 
+raw/sanitized response Política coherente con 
+aprobación ética. 
+60. Feature 
+flags 
+Activar/desactivar 
+funciones 
+RAG_ENABLED, etc. No cambiar condiciones 
+experimentales 
+accidentalmente. 
+ 
+1. Arquitectura de una llamada 
+La solicitud no debería ser una conversación abierta. Cada llamada debe representar una operación 
+pedagógica identificable: 
+  
+Este esquema permite que el backend conozca exactamente para qué se llamó al modelo. 
+ 
+
+===== PAGINA 5 =====
+2. Envelope común para todas las llamadas 
+Internamente recomiendo una estructura común: 
+JSON { 
+  "operation_id": "uuid", 
+  "operation_type": "SCAFFOLD_A2", 
+  "course_id": "COURSE_01", 
+  "activity_id": "ACT_04", 
+  "activity_version": "2", 
+  "attempt_number": 2,  
+  "caami_phase": "F3", 
+  "scaffolding_level": "A2", 
+  "prompt_version": "CAAMI_A2_v1", 
+  "knowledge_base_version": "KB_v1" 
+} 
+Esta metadata es interna. No toda necesita enviarse al modelo (Evaluar cuidadosamente). 
+ 
+3. System prompt maestro 
+Crear un CAAMI_SYSTEM_v1 común. Conceptualmente debe considerar: 
+ROLE 
+You are an educational AI component operating inside CAAMI. 
+ 
+AUTHORITY 
+The CAAMI pedagogical engine determines the intervention. 
+You must not change the assigned pedagogical level. 
+ 
+GROUNDING 
+Use only the activity, rubric and authorized context supplied. 
+ 
+BEHAVIOR 
+Follow exactly the requested A1–A5 intervention. 
+ 
+UNCERTAINTY 
+Do not invent missing disciplinary information. 
+Return insufficient_context when required information is absent. 
+ 
+PRIVACY 
+Do not request or infer personal, psychological or demographic information.  
+ 
+PEDAGOGICAL RESTRICTIONS 
+Do not infer intelligence, motivation, personality, attention, 
+learning style or psychological state. 
+ 
+OUTPUT 
+Return only the requested structured schema. 
+ 
+4. Prompts exactos por nivel 
+
+===== PAGINA 6 =====
+A1 — Pregunta orientadora 
+Entrada mínima: 
+ 
+activity 
+student_answer 
+identified_error 
+relevant_context 
+Instrucción: 
+Genera una única pregunta orientadora que dirija la atención del estudiante hacia el concepto o paso 
+relevante. No indiques la respuesta, no entregues el procedimiento y no introduzcas información suficiente 
+para resolver directamente la actividad. 
+Salida: 
+{ 
+  "level": "A1", 
+  "support_type": "guiding_question", 
+  "message": "...", 
+  "requires_retry": true 
+} 
+ 
+A2 — Pista específica 
+Instrucción: 
+Genera una pista específica relacionada con el error identificado. Si el error es conceptual, focaliza la pista 
+en el concepto; si es procedimental, focalízala en el paso o relación que debe reconsiderarse. No resuelvas 
+la actividad. 
+Salida: 
+{ 
+  "level": "A2", 
+  "support_type": "specific_hint", 
+  "error_focus": "conceptual", 
+  "message": "...", 
+  "requires_retry": true 
+} 
+ 
+A3 — Explicación / ejemplo análogo 
+Instrucción: 
+Proporciona una explicación focalizada o un ejemplo estructuralmente análogo que permita comprender el 
+concepto/procedimiento. El ejemplo no puede ser la resolución de la actividad objetivo. 
+Salida: 
+===== PAGINA 7 =====
+{ 
+  "level": "A3", 
+  "support_type": "analogous_example", 
+  "message": "...", 
+  "requires_retry": true 
+} 
+A4 — Secuencia guiada 
+Instrucción: 
+Aquí permitir una estructura más rica 
+Salida: 
+{ 
+  "level": "A4", 
+  "support_type": "guided_sequence", 
+  "steps": [ 
+    { 
+      "step": 1, 
+      "prompt": "..." 
+    }, 
+    { 
+      "step": 2, 
+      "prompt": "..." 
+    } 
+  ], 
+  "requires_student_input": true 
+} 
+La IA no debería responder automáticamente todos los pasos. La plataforma presenta: 
+Paso 1 
+↓ 
+respuesta estudiante 
+↓ 
+evaluación 
+↓ 
+Paso 2 
+Esto mantiene al estudiante cognitivamente activo. 
+===== PAGINA 8 =====
+A5 — Resolución explicada 
+Salida: 
+{ 
+  "level": "A5", 
+  "support_type": "worked_solution", 
+  "explanation": "...", 
+  "key_concepts": [ 
+    "..." 
+  ], 
+  "verification_required": true 
+} 
+El backend aplica obligatoriamente: 𝐴5 → 𝐹5 La IA no decide si verificar.G 
+ 
+5. “Schema” para la evaluación de respuesta 
+Esta llamada merece estar separada de A1–A5. 
+{ 
+  "result": "incorrect", 
+  "error_type": "conceptual", 
+  "criteria": [ 
+    { 
+      "criterion_id": "C1", 
+      "status": "met" 
+    }, 
+    { 
+      "criterion_id": "C2", 
+      "status": "not_met" 
+    } 
+  ], 
+  "error_code": "EC_03", 
+  "evidence": "...", 
+  "needs_clarification": false 
+} 
+Valores cerrados: 
+result: 
+correct 
+incorrect 
+indeterminate 
+ 
+error_type: 
+none 
+conceptual 
+procedural 
+mixed 
+indeterminate 
+Evaluar cuidadosamente ya que el modelo no deberá inventar nuevas categorías. 
+ 
+===== PAGINA 9 =====
+6. Separar clasificación y feedback 
+Para facilitar la auditoria: 𝑅𝑒𝑠𝑝𝑢𝑒𝑠𝑡𝑎 → 𝐸𝑣𝑎𝑙𝑢𝑎𝑐𝑖ó𝑛 → 𝐶𝐴𝐴𝑀𝐼 → 𝐺𝑒𝑛𝑒𝑟𝑎𝑐𝑖ó𝑛 
+Por ejemplo: 
+Student answer 
+      ↓ 
+EVALUATE API 
+      ↓ 
+{ 
+ result: incorrect, 
+ error_type: conceptual 
+} 
+      ↓ 
+CAAMI ENGINE 
+      ↓ 
+A2 
+      ↓ 
+A2 API 
+      ↓ 
+specific hint 
+Notar que la decisión A2 ocurre fuera del modelo. 
+ 
+7. RAG: arquitectura que se debe implementar 
+RAG deberá funcionar antes de la generación: 
+Activity + detected concept 
+           ↓ 
+       Retriever 
+           ↓ 
+     Vector database 
+           ↓ 
+      top-k chunks 
+           ↓ 
+       AI request 
+El corpus debe provenir de material académico 
+validado: 
+ 
+KB_v1 
+│ 
+├── Unidad 1 
+├── Unidad 2 
+├── Unidad 3 
+├── protocolos 
+├── conceptos 
+├── procedimientos 
+└── errores frecuentes 
+Cada fragmento debería tener metadata: 
+{ 
+  "chunk_id": "KB01_U03_0045", 
+  "course": "Electromedicina_II", 
+  "unit": "U03", 
+  "topic": "...", 
+  "document_id": "...", 
+  "document_version": "1", 
+  "page": 14 
+} 
+Así, una respuesta puede reconstruirse posteriormente. 
+===== PAGINA 10 =====
+ 
+8. Qué contexto enviar 
+Utilizar una política de mínimo contexto suficiente. 
+Para A2: 
+SYSTEM 
++ 
+A2 instruction 
++ 
+activity statement 
++ 
+evaluation criteria 
++ 
+current student answer 
++ 
+identified error 
++ 
+previous A1 
++ 
+relevant RAG chunks 
+No enviaría automáticamente: 
+nombre estudiante 
+correo 
+calificaciones históricas completas 
+todas las actividades anteriores 
+todas las conversaciones 
+logs de navegación 
+tiempo total conectado 
+La personalización CAAMI surge de variables pedagógicas explícitas, no de acumular datos personales. 
+ 
+9. Estimación del presupuesto de tokens por función 
+No se fija valores absolutos dependientes del modelo, estos son presupuestos relativos: 
+Operación Input Output 
+Clasificación Bajo–medio Muy bajo 
+A1 Bajo–medio Muy bajo 
+A2 Bajo–medio Bajo 
+A3 Medio Medio 
+A4 Medio Medio 
+A5 Medio–alto Alto 
+Verificación Medio Muy bajo 
+Reflexión Bajo Bajo 
+RAG retrieval Independiente Top-k mínimo suficiente 
+Notar que A1 debería ser deliberadamente breve. 
+Si una “pregunta orientadora” produce, por ejemplo, 700 palabras, el sistema pedagógico ha fallado aunque 
+técnicamente la API haya respondido correctamente. 
+ 
+10. Validación pedagógica automática 
+Después del JSON “Schema” añadir un segundo validador. 
+Por ejemplo: 
+A1: 
+✓ exactamente pregunta orientadora 
+Si falla: 
+PEDAGOGICAL_VALIDATION_FAILED 
+===== PAGINA 11 =====
+✓ longitud máxima definida 
+✓ requires_retry = true 
+✗ solución 
+✗ resultado final 
+✗ procedimiento completo 
+ 
+A2: 
+✓ pista focalizada 
+✗ resolución completa 
+ 
+A3: 
+✓ ejemplo diferente 
+✗ mismo problema resuelto 
+ 
+A4: 
+✓ secuencia 
+✓ requiere interacción 
+✗ ejecución automática completa 
+ 
+A5: 
+✓ explicación 
+✓ verification_required = true 
+Esto permite hacerse un único repair/retry controlado. 
+ 
+11. Concurrencia API 
+Para los estudiantes: 
+Student 01 ─┐ 
+Student 02 ─┤ 
+Student 03 ─┤ 
+...         ├→ Queue → Worker Pool → API 
+Student 10 ─┘ 
+Pero los workers son intercambiables.  No 
+necesitamos: 
+ 
+Worker 1 = Student 1 
+ 
+La sesión reside en la DB. 
+ 
+12. Retries: distinguir dos conceptos 
+Esto es fundamental para constituir el dataset. 
+Retry técnico 
+API devuelve: 
+429 
+timeout 
+5xx 
+invalid JSON 
+Entonces: 
+ 
+API request 1 
+    ↓ failure 
+API request 2 
+ 
+Pedagógicamente sigue siendo: 𝑢𝑛 𝑠𝑜𝑙𝑜 𝑒𝑣𝑒𝑛𝑡𝑜  
+12.1. Reintento pedagógico 
+===== PAGINA 12 =====
+El/la estudiante responde nuevamente después de A2. 
+Eso sí debe ser: 𝑎𝑡𝑡𝑒𝑚𝑝𝑡𝑛+1 
+Nota: Nunca mezclar ambos contadores. 
+ 
+13. Control de reproducibilidad 
+Cada interacción debería permitir reconstruir: 
+provider 
+model 
+model_version 
+prompt_id 
+prompt_version 
+activity_id 
+activity_version 
+rubric_version 
+KB_version 
+retrieved_chunk_ids 
+CAAMI_phase 
+scaffolding_level 
+generation_parameters 
+timestamp 
+ 
+Así, en el análisis de los datos se podrá responder: 
+¿Por qué el estudiante S007 recibió esa pista? 
+y permite reconstruir: 𝐴𝐶𝑇04𝑣2 + 𝑟𝑒𝑠𝑝𝑢𝑒𝑠𝑡𝑎 + 𝑒𝑟𝑟𝑜𝑟 𝐸𝐶03 + 𝐴2 + 𝑃𝑟𝑜𝑚𝑝𝑡𝐴2𝑣1 + 𝐾𝐵𝑣1 + 𝑐ℎ𝑢𝑛𝑘𝑠{44, 51} +
+𝑚𝑜𝑑𝑒𝑙𝑜𝑋 → 𝑟𝑒𝑠𝑝𝑢𝑒𝑠𝑡𝑎 
+ 
+14. Configuración del MVP 
+Una especificación mínima debe considerar:  
+ 
+AI_CONFIGURATION_V1 
+ 
+Architecture: 
+  backend-only API access 
+  stateless explicit-context calls 
+  isolated student/activity state 
+ 
+Models: 
+  one primary model 
+  fixed model/version during pilot 
+ 
+Decision making: 
+  CAAMI backend only 
+ 
+AI functions: 
+  evaluate 
+  classify_error 
+  A1 
+  A2 
+===== PAGINA 13 =====
+  A3 
+  A4 
+  A5 
+  verify 
+  reflection 
+  audit_error 
+ 
+Output: 
+  strict structured JSON 
+ 
+Knowledge: 
+  teacher-validated RAG corpus 
+  versioned 
+  metadata filtered 
+  minimum relevant context 
+ 
+Generation: 
+  low variability 
+  operation-specific output limits 
+  no unnecessary conversation history 
+ 
+Concurrency: 
+  queue 
+  worker pool 
+  one active generation per student/activity operation 
+  global rate limiter 
+ 
+Reliability: 
+  timeout 
+  2–3 technical retries 
+  exponential backoff 
+  idempotency 
+  fallback 
+ 
+Privacy: 
+  pseudonymized/minimized input 
+  no PII unless strictly required 
+ 
+Traceability: 
+  model version 
+  prompt version 
+  activity version 
+  rubric version 
+  KB version 
+  retrieved chunks 
+  parameters 
+  latency 
+  usage 
+  provider request ID 
+ 
+Research: 
+  no silent configuration changes during pilot 
+ 
+Configuración por EVITAR: 
+• Configurar una única cuenta/chat y hacer que los diez estudiantes compartan conversación. 
+===== PAGINA 14 =====
+• permitir que el LLM decida autónomamente si entregar A1, A3 o una solución 
+• enviar el historial completo del estudiante en cada solicitud 
+• modificar prompts durante el piloto sin versionarlos 
+• dejar que el modelo invente categorías de error 
+• interpretar respuestas de texto libre mediante heurísticas 
+• actualizar automáticamente al “último modelo disponible” durante la recogida de datos. 
+ 
+La API debe comportarse como un conjunto de funciones pedagógicas acotadas y versionadas : 
+𝐼𝐴 = 𝐸𝑣𝑎𝑙𝑢𝑎𝑡𝑒() + 𝐶𝑙𝑎𝑠𝑠𝑖𝑓𝑦() + 𝐴1() + 𝐴2() + 𝐴3() + 𝐴4() + 𝐴5() + 𝑉𝑒𝑟𝑖𝑓𝑦() + 𝑅𝑒𝑓𝑙𝑒𝑐𝑡()  
+Mientras que: 𝐶𝐴𝐴𝑀𝐼 = 𝐷𝑒𝑐𝑖𝑑𝑖𝑟 𝑞𝑢é 𝑓𝑢𝑛𝑐𝑖ó𝑛 𝑒𝑗𝑒𝑐𝑢𝑡𝑎𝑟  
+ 
